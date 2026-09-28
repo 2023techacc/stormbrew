@@ -31,6 +31,9 @@ export const WEATHERS = {
 export const ENEMY_LOOKS: Record<string, Look> = {
   cinderImp: { name: 'Cinder Imp', icon: '👿', color: '#e0603a' },
   stormCaller: { name: 'Storm Caller', icon: '🧙', color: '#7b68c8' },
+  drizzleSlime: { name: 'Drizzle Slime', icon: '🫧', color: '#4aa3df' },
+  frostGolem: { name: 'Frost Golem', icon: '🗿', color: '#a9c6d9' },
+  trainingDummy: { name: 'Training Dummy', icon: '🎯', color: '#9aa3b8' },
 };
 
 /** Card art for now is a single icon; cards without one use their kind's icon. */
@@ -42,6 +45,17 @@ export const CARD_ICONS: Record<string, string> = {
   gatherStone: '🪨',
   gatherGust: '🌬️',
   stir: '🥄',
+  clearSkies: '🌤️',
+  kindle: '☀️',
+  callLightning: '⛈️',
+  firstFrost: '🌨️',
+  barometricShift: '🔄',
+  holdTheSky: '⏳',
+  doubleBoil: '♨️',
+  twinEmbers: '🔥',
+  deluge: '🌊',
+  thunderclap: '💥',
+  brace: '🧱',
 };
 
 export const CARD_KIND_COLORS = {

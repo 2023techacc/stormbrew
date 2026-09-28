@@ -19,6 +19,10 @@ export type Effect =
   | { type: 'energy'; amount: number }
   | { type: 'draw'; amount: number }
   | { type: 'setWeather'; weather: WeatherId }
+  /** Swap the current weather with the next forecast weather. */
+  | { type: 'swapForecast' }
+  /** Restart the current weather's countdown. */
+  | { type: 'holdWeather' }
   | { type: 'addElement'; element: ElementId }
   | { type: 'brew' };
 
@@ -61,6 +65,8 @@ export interface EnemyMove {
   block?: number;
   /** Changes the weather before attacking. */
   weather?: WeatherId;
+  /** A status applied to the player after attacking. */
+  status?: { status: StatusId; amount: number };
 }
 
 export interface EnemyDef {

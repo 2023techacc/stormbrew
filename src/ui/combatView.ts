@@ -1,8 +1,8 @@
 import { CAULDRON_SLOTS, WEATHER_ELEMENTS, findBrew } from '../core/brewing';
 import {
+  WEAK_MULTIPLIER,
   cannotPlayReason,
   cardNeedsTarget,
-  createCombat,
   currentIntent,
   endTurn,
   enemyAttackDamage,
@@ -12,6 +12,7 @@ import {
   previewCardBrew,
 } from '../core/combat';
 import type {
+  CardDef,
   CardInstance,
   Combatant,
   Effect,
@@ -23,44 +24,38 @@ import type {
   UnitRef,
   WeatherId,
 } from '../core/types';
+import { sandboxAddCard, sandboxRefillEnergy, sandboxSetWeather } from '../core/sandbox';
 import { WEATHER_IDS, WEATHER_INFO, modifyDamage, turnsUntilChange } from '../core/weather';
-import { STARTER_DECK, getCard } from '../data/cards';
-import { ENCOUNTERS } from '../data/enemies';
+import { CARDS, getCard } from '../data/cards';
 import { RECIPES, SLUDGE, getRecipe } from '../data/recipes';
 import { esc } from './dom';
 import { CARD_ICONS, CARD_KIND_COLORS, ELEMENTS, ENEMY_LOOKS, ICONS, WEATHERS } from './theme';
 
-const PLAYER_MAX_HP = 75;
-
-interface CombatViewOptions {
+export interface CombatViewOptions {
+  state: CombatState;
+  /** Shown in the top bar before the turn number, e.g. "Fight 3". */
+  label?: string;
+  /** Called when the player taps Continue after the fight ends. */
+  onFinished: (state: CombatState) => void;
   onExit: () => void;
+  /** Sandbox tools (add cards, change weather, refill energy, next enemy). */
+  sandbox?: { onNextEnemy: () => void };
 }
 
+type Overlay = 'none' | 'recipes' | 'cards';
+
 /**
- * The fight screen. Touch flow: tap a card to select it, then tap an enemy
- * (attacks) or tap the card again (skills, or attacks with only one enemy).
+ * One fight. Touch flow: tap a card to select it, then tap an enemy (when the
+ * card or its brew needs a target) or tap the card again.
  */
 export function showCombat(root: HTMLElement, options: CombatViewOptions): void {
-  let state: CombatState;
+  const { state } = options;
   let selectedUid: number | null = null;
-  let hint = '';
-  let showRecipes = false;
-
-  const newFight = () => {
-    ({ state } = createCombat({
-      seed: Math.floor(Math.random() * 2 ** 32),
-      deck: STARTER_DECK,
-      enemies: ENCOUNTERS[Math.floor(Math.random() * ENCOUNTERS.length)] ?? ['cinderImp'],
-      playerHp: PLAYER_MAX_HP,
-      playerMaxHp: PLAYER_MAX_HP,
-    }));
-    selectedUid = null;
-    hint = 'Tap a card to select it.';
-    render();
-  };
+  let hint = options.sandbox ? 'Sandbox: use the tools at the top to try anything.' : 'Tap a card to select it.';
+  let overlay: Overlay = 'none';
 
   const render = () => {
-    root.innerHTML = renderCombat(state, selectedUid, hint, showRecipes);
+    root.innerHTML = renderCombat(state, { selectedUid, hint, overlay, label: options.label, sandbox: !!options.sandbox });
   };
 
   const tryPlay = (uid: number, targetIndex?: number) => {
@@ -97,7 +92,10 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
     }
     selectedUid = uid;
     const brew = previewCardBrew(state, getCard(card.defId));
-    const brewNote = brew ? `Brews ${brew.recipe.name}: ${plainText(brew.recipe, state.weather.current)} ` : '';
+    const overflow = state.cauldron.length >= CAULDRON_SLOTS && getCard(card.defId).effects.some((e) => e.type === 'addElement');
+    const brewNote = brew
+      ? `${overflow ? 'Cauldron full! First brews' : 'Brews'} ${brew.recipe.name}: ${plainText(brew.recipe, state.weather.current, !!state.player.statuses.weak)} `
+      : '';
     hint =
       brewNote +
       (needsTarget
@@ -123,7 +121,7 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
   };
 
   root.onclick = (event) => {
-    const el = (event.target as HTMLElement).closest<HTMLElement>('[data-uid],[data-enemy],[data-action]');
+    const el = (event.target as HTMLElement).closest<HTMLElement>('[data-uid],[data-enemy],[data-action],[data-add-card]');
     if (!el) {
       if (selectedUid !== null) {
         selectedUid = null;
@@ -140,25 +138,51 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       hint = describeForecast(state);
       render();
     }
-    else if (el.dataset.action === 'recipes' || el.dataset.action === 'close-recipes') {
-      showRecipes = el.dataset.action === 'recipes';
+    else if (el.dataset.action === 'recipes' || el.dataset.action === 'cards') {
+      overlay = el.dataset.action;
       render();
-    } else if (el.dataset.action === 'restart') newFight();
-    else if (el.dataset.action === 'exit') {
+    } else if (el.dataset.action === 'close') {
+      overlay = 'none';
+      render();
+    } else if (el.dataset.addCard !== undefined) {
+      hint = sandboxAddCard(state, el.dataset.addCard) ? `Added ${getCard(el.dataset.addCard).name}.` : 'Your hand is full.';
+      overlay = 'none';
+      render();
+    } else if (el.dataset.action === 'weather') {
+      const next = WEATHER_IDS[(WEATHER_IDS.indexOf(state.weather.current) + 1) % WEATHER_IDS.length] ?? 'clear';
+      const events = sandboxSetWeather(state, next);
+      hint = describeEvents(state, events);
+      render();
+      animate(root, events);
+    } else if (el.dataset.action === 'energy') {
+      sandboxRefillEnergy(state);
+      hint = 'Energy refilled.';
+      render();
+    } else if (el.dataset.action === 'next-enemy') {
+      root.onclick = null;
+      options.sandbox?.onNextEnemy();
+    } else if (el.dataset.action === 'continue') {
+      root.onclick = null;
+      options.onFinished(state);
+    } else if (el.dataset.action === 'exit') {
       root.onclick = null;
       options.onExit();
     }
   };
 
-  newFight();
+  render();
 }
 
-function renderCombat(
-  state: CombatState,
-  selectedUid: number | null,
-  hint: string,
-  showRecipes: boolean,
-): string {
+interface CombatUi {
+  selectedUid: number | null;
+  hint: string;
+  overlay: Overlay;
+  label: string | undefined;
+  sandbox: boolean;
+}
+
+function renderCombat(state: CombatState, ui: CombatUi): string {
+  const { selectedUid, hint } = ui;
   const selected = state.hand.find((c) => c.uid === selectedUid);
   const targeting = selected !== undefined && cardNeedsTarget(state, selected);
   const { player } = state;
@@ -166,7 +190,8 @@ function renderCombat(
   return `
     <main class="combat" style="--weather-color: ${WEATHERS[state.weather.current].color}">
       <header class="top-bar">
-        <span>Turn ${state.turn}</span>
+        <span>${ui.label ? `${esc(ui.label)} · ` : ''}Turn ${state.turn}</span>
+        ${ui.sandbox ? renderSandboxTools() : ''}
         <button class="text-button" data-action="exit">Quit</button>
       </header>
 
@@ -190,7 +215,7 @@ function renderCombat(
         </span>
       </section>
 
-      <section class="hand" aria-label="Hand">
+      <section class="hand" aria-label="Hand" style="--n: ${state.hand.length}">
         ${state.hand.map((c) => renderCard(state, c, c.uid === selectedUid)).join('')}
       </section>
 
@@ -202,8 +227,9 @@ function renderCombat(
         <span class="pile" title="Discard pile">${ICONS.discardPile} ${state.discardPile.length}</span>
       </footer>
 
-      ${showRecipes ? renderRecipeBook(state) : ''}
-      ${state.status === 'playing' ? '' : renderResult(state)}
+      ${ui.overlay === 'recipes' ? renderRecipeBook(state) : ''}
+      ${ui.overlay === 'cards' ? renderCardPicker() : ''}
+      ${state.status === 'playing' ? '' : renderResult(state, ui.sandbox)}
     </main>
   `;
 }
@@ -230,12 +256,13 @@ function renderEnemy(
       ? `${ICONS.attack} ${enemyAttackDamage(enemy, move, attackWeather)}${move.element === 'fire' ? ICONS.burn : ''}`
       : '',
     move.block ? `${ICONS.block} ${move.block}` : '',
+    move.status ? `${ICONS[move.status.status]} ${move.status.amount}` : '',
   ].filter(Boolean);
   const weathered = WEATHER_IDS.filter((w) => isWeathered(enemy, w));
   return `
     <button class="enemy unit ${targeting ? 'targetable' : ''}" data-enemy="${index}" data-unit="enemy-${index}"
       aria-label="${esc(enemy.name)}, ${enemy.hp} HP">
-      <span class="intent" title="Next: ${esc(move.name)}">${intentParts.join(' ')}</span>
+      <span class="intent ${intentParts.length ? '' : 'idle'}" title="Next: ${esc(move.name)}">${intentParts.join(' ') || esc(move.name)}</span>
       <span class="enemy-body" style="--unit-color: ${look.color}">${look.icon}</span>
       <span class="unit-name">
         ${esc(enemy.name)}
@@ -271,18 +298,61 @@ function renderHpBar(unit: Combatant): string {
 function renderCard(state: CombatState, card: CardInstance, selected: boolean): string {
   const def = getCard(card.defId);
   const playable = cannotPlayReason(state, card) === null;
+  return cardFace(def, state.weather.current, {
+    className: `${selected ? 'selected' : ''} ${playable ? '' : 'unplayable'}`,
+    attrs: `data-uid="${card.uid}"`,
+    weak: !!state.player.statuses.weak,
+  });
+}
+
+/** A card as a button. Also used on the reward screen. */
+export function cardFace(
+  def: CardDef,
+  weather: WeatherId,
+  options: { className?: string; attrs?: string; weak?: boolean } = {},
+): string {
   const added = def.effects.find((e) => e.type === 'addElement');
   const element = added?.type === 'addElement' ? added.element : undefined;
   return `
-    <button class="card ${selected ? 'selected' : ''} ${playable ? '' : 'unplayable'}"
-      data-uid="${card.uid}" style="--card-color: ${CARD_KIND_COLORS[def.kind]}"
-      aria-label="${esc(def.name)}, costs ${def.cost}. ${esc(plainText(def, state.weather.current))}">
+    <button class="card ${options.className ?? ''}" ${options.attrs ?? ''}
+      style="--card-color: ${CARD_KIND_COLORS[def.kind]}"
+      aria-label="${esc(def.name)}, costs ${def.cost}. ${esc(plainText(def, weather, options.weak))}">
       <span class="card-cost">${def.cost}</span>
       ${element ? `<span class="card-element" style="--chip-color: ${ELEMENTS[element].color}">${ELEMENTS[element].icon}</span>` : ''}
       <span class="card-name">${esc(def.name)}</span>
       <span class="card-icon">${CARD_ICONS[def.id] ?? (def.kind === 'attack' ? ICONS.attack : ICONS.block)}</span>
-      <span class="card-text">${richText(def, state.weather.current)}</span>
+      <span class="card-text">${richText(def, weather, options.weak)}</span>
     </button>
+  `;
+}
+
+function renderSandboxTools(): string {
+  return `
+    <span class="sandbox-tools">
+      <button class="tool-button" data-action="cards" title="Add a card">＋🃏</button>
+      <button class="tool-button" data-action="weather" title="Next weather">🌦️</button>
+      <button class="tool-button" data-action="energy" title="Refill energy">${ICONS.energy}</button>
+      <button class="tool-button" data-action="next-enemy" title="Next enemy">👾</button>
+    </span>
+  `;
+}
+
+function renderCardPicker(): string {
+  const row = (def: CardDef) => `
+    <li><button class="picker-row" data-add-card="${esc(def.id)}">
+      <span class="picker-icon">${CARD_ICONS[def.id] ?? (def.kind === 'attack' ? ICONS.attack : ICONS.block)}</span>
+      <span class="recipe-body"><strong>${esc(def.name)}</strong> (${def.cost}) ${richText(def, 'clear')}</span>
+    </button></li>`;
+  return `
+    <span class="overlay" data-action="close">
+      <span class="recipe-panel" role="dialog" aria-label="Add a card" data-action="none">
+        <span class="recipe-header">
+          <h2>Add a card</h2>
+          <button class="text-button" data-action="close">Close</button>
+        </span>
+        <ul class="recipe-list">${Object.values(CARDS).map(row).join('')}</ul>
+      </span>
+    </span>
   `;
 }
 
@@ -302,7 +372,7 @@ function renderCauldron(state: CombatState): string {
   let preview = 'Gather elements, then Stir to brew. Tap for recipes.';
   if (state.cauldron.length > 0) {
     const brew = findBrew(state.cauldron, weather);
-    preview = `Stir now: <strong>${esc(brew.recipe.name)}</strong> · ${richText(brew.recipe, weather)}`;
+    preview = `Stir now: <strong>${esc(brew.recipe.name)}</strong> · ${richText(brew.recipe, weather, !!state.player.statuses.weak)}`;
   }
   return `
     <button class="cauldron" data-action="recipes" aria-label="Cauldron. Tap to see recipes.">
@@ -326,18 +396,19 @@ function renderRecipeBook(state: CombatState): string {
   const row = (r: RecipeDef) => `
     <li class="recipe">
       <span class="recipe-elements">${r.elements.map((e) => ELEMENTS[e].icon).join('')}</span>
-      <span class="recipe-body"><strong>${esc(r.name)}</strong> ${richText(r, weather)}</span>
+      <span class="recipe-body"><strong>${esc(r.name)}</strong> ${richText(r, weather, !!state.player.statuses.weak)}</span>
     </li>`;
   const free = WEATHER_ELEMENTS[weather];
   return `
-    <span class="overlay" data-action="close-recipes">
+    <span class="overlay" data-action="close">
       <span class="recipe-panel" role="dialog" aria-label="Recipes" data-action="none">
         <span class="recipe-header">
           <h2>Recipes</h2>
-          <button class="text-button" data-action="close-recipes">Close</button>
+          <button class="text-button" data-action="close">Close</button>
         </span>
         <span class="recipe-rules">
-          Order doesn't matter. The biggest recipe you can make is brewed, oldest elements first; the rest stay.
+          Order doesn't matter. Stir brews the biggest recipe you can make, oldest elements first; the rest stay.
+          The cauldron holds ${CAULDRON_SLOTS}; adding another brews it first.
           Each weather adds its element to every brew${free ? ` (now: ${ELEMENTS[free].icon} from ${esc(WEATHER_INFO[weather].name)})` : ''}.
           No match makes Sludge (${esc(SLUDGE.text)})
         </span>
@@ -347,15 +418,14 @@ function renderRecipeBook(state: CombatState): string {
   `;
 }
 
-function renderResult(state: CombatState): string {
+function renderResult(state: CombatState, sandbox: boolean): string {
   const won = state.status === 'won';
   return `
     <span class="overlay">
       <span class="result-panel">
         <h2>${won ? 'Victory!' : 'Defeated'}</h2>
         <p>${won ? `You won in ${state.turn} turn${state.turn === 1 ? '' : 's'}.` : 'The storm got the better of you.'}</p>
-        <button class="primary-button" data-action="restart">${won ? 'Fight again' : 'Try again'}</button>
-        <button class="text-button" data-action="exit">Back to title</button>
+        <button class="primary-button" data-action="continue">${sandbox ? 'Reset' : 'Continue'}</button>
       </span>
     </span>
   `;
@@ -434,22 +504,23 @@ interface HasText {
   text: string;
 }
 
-/** The damage of the first damage effect, before and after weather. */
-function damageNumbers(item: HasText, weather: WeatherId): { base: number; now: number } | null {
+/** The damage of the first damage effect, before and after weather and the player's Weak. */
+function damageNumbers(item: HasText, weather: WeatherId, weak = false): { base: number; now: number } | null {
   const effect = item.effects.find((e) => e.type === 'damage');
   if (!effect || effect.type !== 'damage') return null;
-  return { base: effect.amount, now: modifyDamage(effect.amount, effect.element, weather) };
+  const modified = modifyDamage(effect.amount, effect.element, weather);
+  return { base: effect.amount, now: weak ? Math.floor(modified * WEAK_MULTIPLIER) : modified };
 }
 
 /** Card or recipe text with `{damage}` filled in. */
-function plainText(item: HasText, weather: WeatherId): string {
-  return item.text.replace('{damage}', String(damageNumbers(item, weather)?.now ?? ''));
+function plainText(item: HasText, weather: WeatherId, weak = false): string {
+  return item.text.replace('{damage}', String(damageNumbers(item, weather, weak)?.now ?? ''));
 }
 
-/** Like plainText, as HTML, with damage changed by the weather highlighted. */
-function richText(item: HasText, weather: WeatherId): string {
-  const damage = damageNumbers(item, weather);
-  if (!damage || !item.text.includes('{damage}')) return esc(plainText(item, weather));
+/** Like plainText, as HTML, with damage changed by weather or Weak highlighted. */
+function richText(item: HasText, weather: WeatherId, weak = false): string {
+  const damage = damageNumbers(item, weather, weak);
+  if (!damage || !item.text.includes('{damage}')) return esc(plainText(item, weather, weak));
   const [before = '', after = ''] = esc(item.text).split('{damage}');
   const change = damage.now > damage.base ? 'buffed' : damage.now < damage.base ? 'nerfed' : '';
   return `${before}<span class="${change}">${damage.now}</span>${after}`;

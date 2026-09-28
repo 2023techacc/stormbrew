@@ -111,8 +111,10 @@ so the next change always changes something.
 - Has **3 slots** by default. Relics can increase this to 4 or 5.
 - **Element** cards (*Gather Ember/Dew/Stone/Gust*) add elements to empty slots.
   Elements stay in the cauldron between turns.
-- Playing a **Brew** card (*Stir*, 0 energy), or filling the last slot,
-  **brews**, and the result fires right away:
+- Playing a **Brew** card (*Stir*, 0 energy) **brews**, and the result fires
+  right away. The cauldron really holds 3 elements, so you choose when to brew;
+  adding an element to a **full** cauldron brews it first to make room (the
+  preview warns you), so a Gather card never wastes its element. When brewing:
   1. The weather's free element joins the brew (it doesn't take a slot) and is
      tried first.
   2. The **largest** matching recipe is brewed; among recipes of the same size,
@@ -208,6 +210,16 @@ How elements improve your deck between fights:
 - *Frostbite* (1, Attuned Snow): Deal 6. In Snow: apply 2 Frozen.
 
 ### 5.3 Enemies (Act 1 examples)
+
+In the game now (simpler versions of the ideas below):
+- **Cinder Imp** (42 HP): fire attacks, Weathered against Heatwave.
+- **Storm Caller** (40 HP): summons Storm, Weathered against Storm.
+- **Drizzle Slime** (26 HP): its Spit makes you Weak (you deal 25% less).
+- **Frost Golem** (55 HP): summons Snow, so its Block builds up.
+- Encounters: one easy enemy for the first 2 fights, then harder ones
+  (the Golem, or two enemies at once).
+
+Original ideas, for later:
 - **Drizzle Slime**: in Rain, splits into two when damaged.
 - **Storm Caller** (Elite): alternates attacking with calling Storm.
 - **Cinder Imp**: gains Strength in Heatwave.
@@ -326,7 +338,7 @@ Important choices:
 | 1 | **Combat core** ✅ | Deck/hand/energy, Strike/Defend, one enemy with intents, win/lose screens, touch controls in portrait layout |
 | 2 | **Weather** ✅ | 5 weathers, fixed-interval schedule, forecast UI with countdown, weather modifiers in the effects pipeline, 1 enemy that changes weather |
 | 3 | **Brewing** ✅ | Cauldron UI, Element and Brew cards, 10 recipes, Sludge, weather ↔ brew interactions |
-| 4 | **Playable fight loop** | 3–4 enemy types, card rewards after combat, a “sandbox” mode to test cards |
+| 4 | **Playable fight loop** ✅ | 3–4 enemy types, card rewards after combat, a “sandbox” mode to test cards |
 | 5 | **Run structure** | Branching Act 1 map, rest sites (including Infuse), shop, gold, relics, the Act 1 boss |
 | 6 | **Discovery & potions** | Grimoire (persistent), Bottling, potions, auto-save and resume |
 | 7 | **MVP content & balance** | Reach the MVP content targets, playtest on real phones, tune `WEATHER_INTERVAL` |
@@ -350,6 +362,8 @@ is fun in a single fight on a phone, the rest is adding content.
 | Brewing location | Only inside fights; potions come from Bottling, rewards, and shops |
 | Weather ↔ brewing | Each weather adds its element (Rain → Water, Storm → Spark, Heatwave → Fire, Snow → Frost) to every brew |
 | Sludge | Friendly: a failed brew gives 2 Block |
+| Fight loop (until the map exists) | Endless fights; HP carries over with +8 HP after each win; pick 1 of 3 reward cards (or skip) |
+| Crowded hands | Cards keep their size and overlap instead of shrinking |
 | Scope | One character (the Stormbrewer) for the MVP |
 
 ## 10. Open Questions

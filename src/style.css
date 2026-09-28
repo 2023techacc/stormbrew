@@ -105,6 +105,24 @@ button {
   opacity: 0.4;
 }
 
+.secondary-button {
+  min-height: 48px;
+  padding: 0 28px;
+  border: 2px solid #e0a33a;
+  border-radius: 24px;
+  background: none;
+  color: #e0a33a;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.title-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(240px, 100%);
+}
+
 .text-button {
   min-height: 44px;
   padding: 0 12px;
@@ -152,7 +170,9 @@ button {
 }
 
 .enemy {
-  width: min(200px, 60vw);
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 200px;
   padding: 4px 8px 8px;
   border: 2px solid transparent;
   border-radius: 16px;
@@ -177,6 +197,11 @@ button {
   border-radius: 12px;
   background: rgb(0 0 0 / 0.35);
   font-weight: 700;
+}
+
+.intent.idle {
+  color: var(--text-muted);
+  font-weight: 400;
 }
 
 .enemy-body {
@@ -279,20 +304,19 @@ button {
 }
 
 .hand {
+  --card-width: 68px;
   display: flex;
   justify-content: center;
-  gap: 6px;
   min-height: 138px;
   padding-top: 12px;
 }
 
 .card {
   position: relative;
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: 88px;
+  flex: none;
+  width: var(--card-width);
   height: 126px;
-  padding: 14px 3px 4px;
+  padding: 14px 2px 4px;
   border: 2px solid var(--card-color);
   border-radius: 10px;
   background: linear-gradient(color-mix(in srgb, var(--card-color) 35%, #1b2233), #1b2233);
@@ -301,6 +325,15 @@ button {
   align-items: center;
   gap: 2px;
   transition: transform 0.15s ease-out;
+}
+
+/* Cards keep their width; a crowded hand overlaps them instead of squeezing. */
+.hand .card + .card {
+  margin-left: min(6px, calc((100% - var(--n) * var(--card-width)) / (var(--n) - 1)));
+}
+
+.hand .card.selected {
+  z-index: 1;
 }
 
 .card.selected {
@@ -329,9 +362,10 @@ button {
 
 .card-name {
   font-weight: 700;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   line-height: 1.1;
   text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .card-icon {
@@ -510,6 +544,91 @@ button {
   20% {
     filter: brightness(1.8);
   }
+}
+
+/* ---------- Run screens and sandbox ---------- */
+
+.screen {
+  min-height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 48px 16px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  background: radial-gradient(ellipse at top, var(--bg-accent), transparent 70%);
+}
+
+.screen h2 {
+  margin: 0;
+  font-size: 2rem;
+}
+
+.screen p {
+  margin: 0;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.small {
+  font-size: 0.85rem;
+}
+
+.reward-cards {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding-top: 12px;
+}
+
+.reward-cards .card {
+  --card-width: 96px;
+  height: 140px;
+}
+
+.sandbox-tools {
+  display: flex;
+  gap: 4px;
+}
+
+.tool-button {
+  min-width: 36px;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 8px;
+  background: rgb(0 0 0 / 0.25);
+  font-size: 0.85rem;
+}
+
+.picker-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 4px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+
+.picker-row:active {
+  background: rgb(255 255 255 / 0.08);
+}
+
+.picker-icon {
+  flex: none;
+  width: 28px;
+  font-size: 1.1rem;
+  text-align: center;
 }
 
 /* ---------- Brewing ---------- */
