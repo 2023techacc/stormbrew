@@ -193,8 +193,9 @@ How elements improve your deck between fights:
 ### 5.1 Starting character: the Stormbrewer
 - 75 HP. Starter deck (12 cards): 3× Strike, 3× Defend, *Gather Ember*,
   *Gather Dew*, *Gather Stone*, *Gather Gust*, *Stir* (Brew) and *Summon Rain*.
-- Starting relic: **Copper Cauldron**, whose first brew each combat is free
-  (costs 0 energy).
+- Starting relic: **Copper Cauldron**: start each fight with a random base
+  element in the cauldron. (Originally "first brew free", but Stir already
+  costs 0.)
 - *Later characters:* the **Tempest Witch** (focused on weather control) and the
   **Rootkeeper** (Earth and Mist, poison-style damage over time).
 
@@ -227,12 +228,20 @@ Original ideas, for later:
 - **Boss: The Eye of the Storm**: changes weather **every** round in a fixed,
   telegraphed cycle. In phase 2 it steals the top element of your cauldron.
 
-### 5.4 Relics (examples)
-- **Barometer**: the forecast shows 3 upcoming weathers instead of 1.
+### 5.4 Relics
+
+In the game now (found at elites and in shops):
+- **Barometer**: the forecast shows the next two weathers.
 - **Weathervane**: whenever the weather changes, gain 3 Block.
-- **Iron Cauldron**: +1 cauldron slot.
-- **Alembic**: Sludge becomes a random known recipe instead.
-- **Rain Barrel**: in Rain, gain 1 energy at the start of your turn.
+- **Iron Cauldron**: the cauldron has 4 slots.
+- **Rain Barrel**: in Rain, gain 1 extra energy each turn.
+- **Snow Globe**: in Snow, gain 3 Block at the start of your turn.
+- **Lightning Rod**: Storm lightning never hits you.
+- **Sun Stone**: Heatwave never gives you Burn.
+- **Healing Herb**: heal 6 HP after each fight you win.
+- **Lucky Coin**: gain 10 extra gold from each fight.
+
+Later: **Alembic** (Sludge becomes a random known recipe) once the Grimoire exists.
 
 ### MVP content targets
 ~40 cards, 5 weathers, 4 base elements plus Spark and Frost, ~20 recipes,
@@ -339,7 +348,7 @@ Important choices:
 | 2 | **Weather** ✅ | 5 weathers, fixed-interval schedule, forecast UI with countdown, weather modifiers in the effects pipeline, 1 enemy that changes weather |
 | 3 | **Brewing** ✅ | Cauldron UI, Element and Brew cards, 10 recipes, Sludge, weather ↔ brew interactions |
 | 4 | **Playable fight loop** ✅ | 3–4 enemy types, card rewards after combat, a “sandbox” mode to test cards |
-| 5 | **Run structure** | Branching Act 1 map, rest sites (including Infuse), shop, gold, relics, the Act 1 boss |
+| 5 | **Run structure** ✅ | Branching Act 1 map, rest sites (including Infuse), shop, gold, relics, the Act 1 boss |
 | 6 | **Discovery & potions** | Grimoire (persistent), Bottling, potions, auto-save and resume |
 | 7 | **MVP content & balance** | Reach the MVP content targets, playtest on real phones, tune `WEATHER_INTERVAL` |
 | 8 | **Polish** | Animations, sound, vibration feedback, weather particles, app icon and splash screen |
@@ -362,7 +371,9 @@ is fun in a single fight on a phone, the rest is adding content.
 | Brewing location | Only inside fights; potions come from Bottling, rewards, and shops |
 | Weather ↔ brewing | Each weather adds its element (Rain → Water, Storm → Spark, Heatwave → Fire, Snow → Frost) to every brew |
 | Sludge | Friendly: a failed brew gives 2 Block |
-| Fight loop (until the map exists) | Endless fights; HP carries over with +8 HP after each win; pick 1 of 3 reward cards (or skip) |
+| Act 1 structure | 10-floor branching map (4 lanes, paths never cross): fights, elites, rest sites, shops, then the boss. HP carries over (no free heal); rest sites heal 30% or Infuse |
+| Rewards | Fights: 12–18 gold + pick 1 of 3 cards; elites: 28–35 gold + a relic + a card. Start with 50 gold |
+| Shops | 3 cards (40–55 gold), 2 relics (110–140), one card removal (60) per visit |
 | Crowded hands | Cards keep their size and overlap instead of shrinking |
 | Scope | One character (the Stormbrewer) for the MVP |
 

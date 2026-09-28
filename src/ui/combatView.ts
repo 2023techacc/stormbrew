@@ -1,8 +1,10 @@
-import { CAULDRON_SLOTS, WEATHER_ELEMENTS, findBrew } from '../core/brewing';
+import { WEATHER_ELEMENTS, findBrew } from '../core/brewing';
 import {
   WEAK_MULTIPLIER,
   cannotPlayReason,
+  cardEffects,
   cardNeedsTarget,
+  hasRelic,
   currentIntent,
   endTurn,
   enemyAttackDamage,
@@ -28,8 +30,9 @@ import { sandboxAddCard, sandboxRefillEnergy, sandboxSetWeather } from '../core/
 import { WEATHER_IDS, WEATHER_INFO, modifyDamage, turnsUntilChange } from '../core/weather';
 import { CARDS, getCard } from '../data/cards';
 import { RECIPES, SLUDGE, getRecipe } from '../data/recipes';
+import { getRelic } from '../data/relics';
 import { esc } from './dom';
-import { CARD_ICONS, CARD_KIND_COLORS, ELEMENTS, ENEMY_LOOKS, ICONS, WEATHERS } from './theme';
+import { CARD_ICONS, CARD_KIND_COLORS, ELEMENTS, ENEMY_LOOKS, ICONS, RELIC_ICONS, WEATHERS } from './theme';
 
 export interface CombatViewOptions {
   state: CombatState;
@@ -91,8 +94,9 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       if (living.length === 1) return tryPlay(uid, living[0]);
     }
     selectedUid = uid;
-    const brew = previewCardBrew(state, getCard(card.defId));
-    const overflow = state.cauldron.length >= CAULDRON_SLOTS && getCard(card.defId).effects.some((e) => e.type === 'addElement');
+    const effects = cardEffects(card);
+    const brew = previewCardBrew(state, { effects });
+    const overflow = state.cauldron.length >= state.cauldronSlots && effects.some((e) => e.type === 'addElement');
     const brewNote = brew
       ? `${overflow ? 'Cauldron full! First brews' : 'Brews'} ${brew.recipe.name}: ${plainText(brew.recipe, state.weather.current, !!state.player.statuses.weak)} `
       : '';
@@ -302,26 +306,30 @@ function renderCard(state: CombatState, card: CardInstance, selected: boolean): 
     className: `${selected ? 'selected' : ''} ${playable ? '' : 'unplayable'}`,
     attrs: `data-uid="${card.uid}"`,
     weak: !!state.player.statuses.weak,
+    infusion: card.infusion,
   });
 }
 
-/** A card as a button. Also used on the reward screen. */
+/** A card as a button. Also used on the map screens (rewards, shop, deck). */
 export function cardFace(
   def: CardDef,
   weather: WeatherId,
-  options: { className?: string; attrs?: string; weak?: boolean } = {},
+  options: { className?: string; attrs?: string; weak?: boolean; infusion?: ElementId | undefined } = {},
 ): string {
   const added = def.effects.find((e) => e.type === 'addElement');
   const element = added?.type === 'addElement' ? added.element : undefined;
+  const { infusion } = options;
+  const infusionText = infusion ? ` Add ${ELEMENTS[infusion].icon}.` : '';
   return `
-    <button class="card ${options.className ?? ''}" ${options.attrs ?? ''}
+    <button class="card ${infusion ? 'infused' : ''} ${options.className ?? ''}" ${options.attrs ?? ''}
       style="--card-color: ${CARD_KIND_COLORS[def.kind]}"
-      aria-label="${esc(def.name)}, costs ${def.cost}. ${esc(plainText(def, weather, options.weak))}">
+      aria-label="${esc(def.name)}, costs ${def.cost}. ${esc(plainText(def, weather, options.weak) + infusionText)}">
       <span class="card-cost">${def.cost}</span>
       ${element ? `<span class="card-element" style="--chip-color: ${ELEMENTS[element].color}">${ELEMENTS[element].icon}</span>` : ''}
+      ${infusion ? `<span class="card-infusion" style="--chip-color: ${ELEMENTS[infusion].color}" title="Infused">${ELEMENTS[infusion].icon}</span>` : ''}
       <span class="card-name">${esc(def.name)}</span>
       <span class="card-icon">${CARD_ICONS[def.id] ?? (def.kind === 'attack' ? ICONS.attack : ICONS.block)}</span>
-      <span class="card-text">${richText(def, weather, options.weak)}</span>
+      <span class="card-text">${richText(def, weather, options.weak)}${infusionText}</span>
     </button>
   `;
 }
@@ -365,7 +373,7 @@ function elementChip(element: ElementId, extraClass = ''): string {
 function renderCauldron(state: CombatState): string {
   const weather = state.weather.current;
   const free = WEATHER_ELEMENTS[weather];
-  const slots = Array.from({ length: CAULDRON_SLOTS }, (_, i) => {
+  const slots = Array.from({ length: state.cauldronSlots }, (_, i) => {
     const element = state.cauldron[i];
     return element ? elementChip(element) : '<span class="slot empty"></span>';
   }).join('');
@@ -408,7 +416,7 @@ function renderRecipeBook(state: CombatState): string {
         </span>
         <span class="recipe-rules">
           Order doesn't matter. Stir brews the biggest recipe you can make, oldest elements first; the rest stay.
-          The cauldron holds ${CAULDRON_SLOTS}; adding another brews it first.
+          The cauldron holds ${state.cauldronSlots}; adding another brews it first.
           Each weather adds its element to every brew${free ? ` (now: ${ELEMENTS[free].icon} from ${esc(WEATHER_INFO[weather].name)})` : ''}.
           No match makes Sludge (${esc(SLUDGE.text)})
         </span>
@@ -434,6 +442,7 @@ function renderResult(state: CombatState, sandbox: boolean): string {
 function renderForecast(state: CombatState): string {
   const { current, forecast } = state.weather;
   const next = forecast[0];
+  const after = hasRelic(state, 'barometer') ? forecast[1] : undefined;
   const turns = turnsUntilChange(state.weather, state.turn);
   return `
     <button class="forecast" data-action="forecast" aria-label="Weather forecast">
@@ -448,7 +457,10 @@ function renderForecast(state: CombatState): string {
         next
           ? `<span class="forecast-next" title="Next weather">
               <small>${turns === 1 ? 'Next turn' : `In ${turns} turns`}</small>
-              <span class="forecast-icon">${WEATHERS[next].icon}</span>
+              <span class="forecast-icons">
+                <span class="forecast-icon">${WEATHERS[next].icon}</span>
+                ${after ? `<span class="forecast-icon later" title="Then (Barometer)">${WEATHERS[after].icon}</span>` : ''}
+              </span>
             </span>`
           : ''
       }
@@ -494,6 +506,11 @@ function describeEvents(state: CombatState, events: CombatEvent[]): string {
     } else if (event.type === 'damage' && event.source === 'lightning') {
       const name = event.target.side === 'player' ? 'you' : (state.enemies[event.target.index]?.name ?? 'an enemy');
       messages.push(`${ICONS.lightning} Lightning struck ${name}!`);
+    } else if (event.type === 'steal') {
+      const name = state.enemies[event.index]?.name ?? 'An enemy';
+      messages.push(`${name} stole ${ELEMENTS[event.element].icon} from your cauldron!`);
+    } else if (event.type === 'relic') {
+      messages.push(`${RELIC_ICONS[event.relic] ?? ''} ${getRelic(event.relic).name}!`);
     }
   }
   return messages.join(' ');
@@ -546,6 +563,12 @@ function animate(root: HTMLElement, events: CombatEvent[]): void {
     if (event.type === 'heal') {
       const player = root.querySelector<HTMLElement>('[data-unit="player"]');
       if (player && event.amount > 0) floatText(player, `+${event.amount}`, 'heal');
+      continue;
+    }
+    if (event.type === 'steal') {
+      const cauldron = root.querySelector<HTMLElement>('.cauldron');
+      flash(cauldron, 'hit');
+      if (cauldron) floatText(cauldron, `-${ELEMENTS[event.element].icon}`, 'damage');
       continue;
     }
     if (event.type !== 'damage' && event.type !== 'block') continue;

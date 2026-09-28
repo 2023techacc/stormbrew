@@ -52,10 +52,17 @@ export interface RecipeDef {
   text: string;
 }
 
-/** A specific copy of a card in a deck. `uid` tells duplicate copies apart. */
+/** A card in the run's deck. An infused card also adds its element when played. */
+export interface DeckCard {
+  id: string;
+  infusion?: ElementId;
+}
+
+/** A specific copy of a card in a fight. `uid` tells duplicate copies apart. */
 export interface CardInstance {
   uid: number;
   defId: string;
+  infusion?: ElementId;
 }
 
 export interface EnemyMove {
@@ -67,6 +74,8 @@ export interface EnemyMove {
   weather?: WeatherId;
   /** A status applied to the player after attacking. */
   status?: { status: StatusId; amount: number };
+  /** Takes the newest element out of the player's cauldron. */
+  stealElement?: boolean;
 }
 
 export interface EnemyDef {
@@ -77,6 +86,8 @@ export interface EnemyDef {
   moves: EnemyMove[];
   /** Weathers whose effects this enemy ignores ("Weathered"). */
   weathered?: WeatherId[];
+  /** Once HP is at or below this fraction of max HP, these moves are used instead. */
+  phase2?: { below: number; moves: EnemyMove[] };
 }
 
 export interface Combatant {
@@ -117,6 +128,8 @@ export interface CombatState {
   weather: WeatherState;
   /** Elements waiting to be brewed, oldest first. */
   cauldron: ElementId[];
+  cauldronSlots: number;
+  relics: string[];
   status: CombatStatus;
   rngState: number;
 }
@@ -133,4 +146,6 @@ export type CombatEvent =
   | { type: 'element'; element: ElementId }
   | { type: 'brew'; recipeId: string; used: ElementId[]; weatherElement?: ElementId }
   | { type: 'heal'; amount: number }
+  | { type: 'steal'; index: number; element: ElementId }
+  | { type: 'relic'; relic: string }
   | { type: 'shuffle' };
