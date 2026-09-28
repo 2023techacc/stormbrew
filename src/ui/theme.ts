@@ -1,3 +1,5 @@
+import type { ElementId } from '../core/types';
+
 /**
  * Minimal art: every visual identity (color + icon) lives here so real art can
  * replace it later without touching game code.
@@ -9,14 +11,14 @@ export interface Look {
   color: string;
 }
 
-export const ELEMENTS = {
-  fire: { name: 'Ember', icon: '🔥', color: '#f07b3f' },
-  water: { name: 'Dew', icon: '💧', color: '#4aa3df' },
-  earth: { name: 'Stone', icon: '🪨', color: '#a0845c' },
-  air: { name: 'Gust', icon: '🌬️', color: '#9fd8cb' },
+export const ELEMENTS: Record<ElementId, Look> = {
+  fire: { name: 'Fire', icon: '🔥', color: '#f07b3f' },
+  water: { name: 'Water', icon: '💧', color: '#4aa3df' },
+  earth: { name: 'Earth', icon: '🪨', color: '#a0845c' },
+  air: { name: 'Air', icon: '🌬️', color: '#9fd8cb' },
   spark: { name: 'Spark', icon: '⚡', color: '#f5d547' },
   frost: { name: 'Frost', icon: '❄️', color: '#bfe3f5' },
-} satisfies Record<string, Look>;
+};
 
 export const WEATHERS = {
   clear: { name: 'Clear', icon: '🌤️', color: '#6fa8dc' },
@@ -28,6 +30,18 @@ export const WEATHERS = {
 
 export const ENEMY_LOOKS: Record<string, Look> = {
   cinderImp: { name: 'Cinder Imp', icon: '👿', color: '#e0603a' },
+  stormCaller: { name: 'Storm Caller', icon: '🧙', color: '#7b68c8' },
+};
+
+/** Card art for now is a single icon; cards without one use their kind's icon. */
+export const CARD_ICONS: Record<string, string> = {
+  emberBolt: '🔥',
+  summonRain: '🌧️',
+  gatherEmber: '🔥',
+  gatherDew: '💧',
+  gatherStone: '🪨',
+  gatherGust: '🌬️',
+  stir: '🥄',
 };
 
 export const CARD_KIND_COLORS = {
@@ -42,4 +56,9 @@ export const ICONS = {
   hp: '❤️',
   drawPile: '📚',
   discardPile: '🗑️',
+  burn: '🔥',
+  weak: '🌀',
+  lightning: '⚡',
+  cauldron: '🧪',
+  recipes: '📖',
 } as const;

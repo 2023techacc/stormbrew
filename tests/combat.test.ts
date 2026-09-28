@@ -149,13 +149,14 @@ describe('ending the turn', () => {
   });
 
   it('shuffles the discard pile back in when the draw pile runs out', () => {
-    const s = newCombat();
+    const tenCards = ['strike', 'strike', 'strike', 'strike', 'strike', 'defend', 'defend', 'defend', 'defend', 'defend'];
+    const s = newCombat({ deck: tenCards });
     endTurn(s); // turn 2 draws the last 5 cards
     expect(s.drawPile).toHaveLength(0);
     const events = endTurn(s); // turn 3 must reshuffle
     expect(events.some((e) => e.type === 'shuffle')).toBe(true);
     expect(s.hand).toHaveLength(HAND_SIZE);
-    expect(totalCards(s)).toBe(STARTER_DECK.length);
+    expect(totalCards(s)).toBe(tenCards.length);
   });
 
   it('loses when the player reaches 0 HP', () => {
