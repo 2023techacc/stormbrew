@@ -1,0 +1,64 @@
+name: Android APK
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # needed to attach the APK to a release on version tags
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: npm ci
+
+      - name: Build web app and copy it into the Android project
+        run: npm run android:sync
+
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Name APK
+        id: apk
+        run: |
+          version=$(node -p "require('./package.json').version")
+          name="stormbrew-${version}-${GITHUB_SHA::7}-debug.apk"
+          mv android/app/build/outputs/apk/debug/app-debug.apk "$name"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stormbrew-debug-apk
+          path: ${{ steps.apk.outputs.name }}
+          if-no-files-found: error
+
+      - name: Attach APK to a GitHub release (version tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "${{ steps.apk.outputs.name }}" \
+            --title "Stormbrew $GITHUB_REF_NAME" --generate-notes --prerelease

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Stormbrew</string>
+    <string name="title_activity_main">Stormbrew</string>
+    <string name="package_name">com.stormbrew.game</string>
+    <string name="custom_url_scheme">com.stormbrew.game</string>
+</resources>
