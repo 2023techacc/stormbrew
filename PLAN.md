@@ -57,17 +57,18 @@ Start run → Map (choose path) → Node
 | Weather    | Global effect (everyone)                                  | Brewing interaction                  |
 |------------|-----------------------------------------------------------|--------------------------------------|
 | **Clear**  | No modifiers. The baseline.                                | —                                    |
-| **Rain**   | Fire damage −25%. Water effects +1.                       | Water elements count double          |
+| **Rain**   | Fire damage −25%.                                          | Adds a free **Water** to every brew  |
 | **Storm**  | End of each round: a lightning bolt hits a random unit for 5. | Adds a free **Spark** to every brew  |
-| **Heatwave** | Everyone gains 1 Burn per turn. Fire damage +25%.       | Water elements evaporate (removed) after 1 turn |
+| **Heatwave** | Everyone gains 1 Burn per turn. Fire damage +25%.       | Adds a free **Fire** to every brew   |
 | **Snow**   | Block is **not** removed at turn start (both sides).       | Adds a free **Frost** to every brew  |
 | *Later:* **Fog** | Intents hidden; 20% miss chance on attacks.         | Brew results hidden until resolved   |
 | *Later:* **Gale** | Top card of draw pile discarded each turn; Air +1. | Air elements count double            |
 | *Later:* **Eclipse** (rare) | All brews are “inverted” (buffs ↔ debuffs). | —                                    |
 
-*Status:* the combat effects above are in the game (Milestone 2), except Rain's
-“Water effects +1” and the brewing column, which arrive with water cards and
-the cauldron in Milestone 3.
+*Status:* the five MVP weathers and their brewing interactions are in the game
+(Milestones 2–3). One simple rule covers brewing: every weather except Clear
+adds its element to each brew, so the same cauldron brews different things in
+different weather.
 
 ### 3.2 How weather changes
 1. **Natural cycle**: each weather lasts a **fixed number of turns, N**, then
@@ -102,23 +103,37 @@ so the next change always changes something.
 ## 4. Brewing System
 
 ### 4.1 Elements
-- **Base elements** (from cards): 🔥 Ember (Fire), 💧 Dew (Water), 🪨 Stone (Earth), 🌬️ Gust (Air)
-- **Weather-born elements** (only gained through weather, relics, or rare cards):
-  ⚡ Spark, ❄️ Frost, ☀️ Sunlight, 🌫️ Mist
+- **Base elements** (from Gather cards): 🔥 Fire, 💧 Water, 🪨 Earth, 🌬️ Air
+- **Weather-born elements** (from the weather, and later relics or rare cards):
+  ⚡ Spark (Storm), ❄️ Frost (Snow); later maybe ☀️ Sunlight, 🌫️ Mist
 
 ### 4.2 The Cauldron
 - Has **3 slots** by default. Relics can increase this to 4 or 5.
-- **Element** cards add elements to empty slots.
-- Playing a **Brew** card, or filling the last slot, **brews**: the contents are
-  matched against the recipe table and the result fires right away.
+- **Element** cards (*Gather Ember/Dew/Stone/Gust*) add elements to empty slots.
+  Elements stay in the cauldron between turns.
+- Playing a **Brew** card (*Stir*, 0 energy), or filling the last slot,
+  **brews**, and the result fires right away:
+  1. The weather's free element joins the brew (it doesn't take a slot) and is
+     tried first.
+  2. The **largest** matching recipe is brewed; among recipes of the same size,
+     the **oldest** elements are used first.
+  3. Elements the recipe didn't use **stay** for later.
+- The cauldron always previews what brewing now would make, and a recipe book
+  lists every recipe. (Once the Grimoire exists, unknown recipes will be hidden.)
 - Order does **not** matter: recipes are matched as unordered sets, so Fire +
   Water and Water + Fire both make Steam. (A small number of rare, clearly
   marked exceptions could be added much later, but only if the base system
   feels too simple.)
-- Contents that match no recipe produce **Sludge**: a weak random effect, or a
-  *Sludge* curse card goes into your discard pile.
+- Contents that match no recipe produce **Sludge**: gain 2 Block. (Friendly for
+  now; a harsher version can come with difficulty levels.)
 
-### 4.3 Starter recipe table (examples)
+### 4.3 Recipe table
+
+The game has 21 recipes (see `src/data/recipes.ts`): every pair of base
+elements, every weather element with every base element, and three
+three-element brews. The table below shows the original examples; some changed
+in the game (e.g. Mud and Sandstorm use Weak/Block instead of Slow/Blind,
+Heat Haze deals damage instead of giving Strength, Ice Lance applies Weak).
 
 | Combination             | Result           | Effect                                                |
 |-------------------------|------------------|-------------------------------------------------------|
@@ -174,8 +189,8 @@ How elements improve your deck between fights:
 ## 5. Content Plan
 
 ### 5.1 Starting character: the Stormbrewer
-- 75 HP. Starter deck: 4× Strike, 4× Defend, 1× *Gather Ember*, 1× *Gather Dew*,
-  1× *Stir* (Brew).
+- 75 HP. Starter deck (12 cards): 3× Strike, 3× Defend, *Gather Ember*,
+  *Gather Dew*, *Gather Stone*, *Gather Gust*, *Stir* (Brew) and *Summon Rain*.
 - Starting relic: **Copper Cauldron**, whose first brew each combat is free
   (costs 0 energy).
 - *Later characters:* the **Tempest Witch** (focused on weather control) and the
@@ -183,7 +198,7 @@ How elements improve your deck between fights:
 
 ### 5.2 Example cards
 - *Gather Ember* (1): Add Fire. Deal 3 damage.
-- *Stir* (1): Brew.
+- *Stir* (0): Brew.
 - *Summon Rain* (1): Set weather to Rain. Draw 1.
 - *Lightning Rod* (Power, 2): When Storm bolts would hit you, they hit a random enemy instead.
 - *Barometric Shift* (0): Swap the current weather with the next forecast slot.
@@ -310,7 +325,7 @@ Important choices:
 | 0 | **Setup** ✅ | Vite + TS project (strict type checks), Vitest, Capacitor Android project, GitHub Actions building the web version **and a downloadable APK** |
 | 1 | **Combat core** ✅ | Deck/hand/energy, Strike/Defend, one enemy with intents, win/lose screens, touch controls in portrait layout |
 | 2 | **Weather** ✅ | 5 weathers, fixed-interval schedule, forecast UI with countdown, weather modifiers in the effects pipeline, 1 enemy that changes weather |
-| 3 | **Brewing** | Cauldron UI, Element and Brew cards, 10 recipes, Sludge, weather ↔ brew interactions |
+| 3 | **Brewing** ✅ | Cauldron UI, Element and Brew cards, 10 recipes, Sludge, weather ↔ brew interactions |
 | 4 | **Playable fight loop** | 3–4 enemy types, card rewards after combat, a “sandbox” mode to test cards |
 | 5 | **Run structure** | Branching Act 1 map, rest sites (including Infuse), shop, gold, relics, the Act 1 boss |
 | 6 | **Discovery & potions** | Grimoire (persistent), Bottling, potions, auto-save and resume |
@@ -333,6 +348,8 @@ is fun in a single fight on a phone, the rest is adding content.
 | Recipe order | Does not matter |
 | Weather timing | Each weather lasts a fixed N turns (starting at 3), never random; any weather change restarts the countdown |
 | Brewing location | Only inside fights; potions come from Bottling, rewards, and shops |
+| Weather ↔ brewing | Each weather adds its element (Rain → Water, Storm → Spark, Heatwave → Fire, Snow → Frost) to every brew |
+| Sludge | Friendly: a failed brew gives 2 Block |
 | Scope | One character (the Stormbrewer) for the MVP |
 
 ## 10. Open Questions
@@ -341,5 +358,5 @@ is fun in a single fight on a phone, the rest is adding content.
    and tuned in milestone 7.
 2. **Store release**: sideloaded APK only, or eventually Google Play? (Google
    Play needs a one-time $25 developer account and a signed release build.)
-3. **Sludge**: should failed brews be a small random effect (friendlier) or add
-   a curse card (harsher, more *Slay the Spire*-like)?
+3. **Stir cost**: Stir costs 0 for now, because the Copper Cauldron relic
+   (first brew free) doesn't exist yet. Revisit once relics arrive.

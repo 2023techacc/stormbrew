@@ -5,13 +5,22 @@ export type WeatherId = 'clear' | 'rain' | 'storm' | 'heatwave' | 'snow';
 /** Elements tag damage so weather can modify it. No element means physical. */
 export type ElementId = 'fire' | 'water' | 'earth' | 'air' | 'spark' | 'frost';
 
-export type StatusId = 'burn';
+export type StatusId = 'burn' | 'weak';
 
+/**
+ * Effects are shared by cards and brews. `all` hits every enemy; otherwise
+ * damage and statuses go to the chosen enemy.
+ */
 export type Effect =
-  | { type: 'damage'; amount: number; element?: ElementId }
+  | { type: 'damage'; amount: number; element?: ElementId; all?: boolean }
+  | { type: 'applyStatus'; status: StatusId; amount: number; all?: boolean }
   | { type: 'block'; amount: number }
+  | { type: 'heal'; amount: number }
+  | { type: 'energy'; amount: number }
   | { type: 'draw'; amount: number }
-  | { type: 'setWeather'; weather: WeatherId };
+  | { type: 'setWeather'; weather: WeatherId }
+  | { type: 'addElement'; element: ElementId }
+  | { type: 'brew' };
 
 export type CardKind = 'attack' | 'skill';
 
@@ -26,6 +35,16 @@ export interface CardDef {
   target: CardTarget;
   effects: Effect[];
   /** Rules text. `{damage}` is replaced with the card's current damage. */
+  text: string;
+}
+
+export interface RecipeDef {
+  id: string;
+  name: string;
+  /** The elements it needs, in any order. */
+  elements: ElementId[];
+  effects: Effect[];
+  /** Rules text. `{damage}` is replaced with the current damage. */
   text: string;
 }
 
@@ -90,6 +109,8 @@ export interface CombatState {
   discardPile: CardInstance[];
   turn: number;
   weather: WeatherState;
+  /** Elements waiting to be brewed, oldest first. */
+  cauldron: ElementId[];
   status: CombatStatus;
   rngState: number;
 }
@@ -103,4 +124,7 @@ export type CombatEvent =
   | { type: 'enemyMove'; index: number; move: EnemyMove }
   | { type: 'status'; target: UnitRef; status: StatusId; amount: number }
   | { type: 'weather'; from: WeatherId; to: WeatherId; cause: 'schedule' | 'player' | 'enemy' }
+  | { type: 'element'; element: ElementId }
+  | { type: 'brew'; recipeId: string; used: ElementId[]; weatherElement?: ElementId }
+  | { type: 'heal'; amount: number }
   | { type: 'shuffle' };

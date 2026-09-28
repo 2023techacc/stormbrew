@@ -1,14 +1,17 @@
 import { getCard } from '../data/cards';
 import { getEnemy } from '../data/enemies';
+import { CAULDRON_SLOTS, effectsNeedTarget, findBrew, type BrewResult } from './brewing';
 import { dealDamage, gainBlock } from './effects';
 import { Rng } from './rng';
 import type {
   CardDef,
   CardInstance,
+  Effect,
   CombatEvent,
   CombatState,
   Combatant,
   EnemyMove,
+  ElementId,
   EnemyState,
   UnitRef,
   WeatherId,
@@ -27,6 +30,8 @@ import {
 export const HAND_SIZE = 5;
 export const MAX_HAND_SIZE = 10;
 export const PLAYER_MAX_ENERGY = 3;
+/** Weak units deal this much less attack damage. */
+export const WEAK_MULTIPLIER = 0.75;
 
 export interface CombatSetup {
   seed: number;
@@ -69,6 +74,7 @@ export function createCombat(setup: CombatSetup): { state: CombatState; events: 
     discardPile: [],
     turn: 0,
     weather: createWeather(rng, setup.startWeather),
+    cauldron: [],
     status: 'playing',
     rngState: rng.getState(),
   };
@@ -94,8 +100,42 @@ export function isWeathered(enemy: EnemyState, weather: WeatherId): boolean {
 export function cannotPlayReason(state: CombatState, card: CardInstance): string | null {
   if (state.status !== 'playing') return 'The fight is over.';
   if (!state.hand.some((c) => c.uid === card.uid)) return 'That card is not in your hand.';
-  if (getCard(card.defId).cost > state.player.energy) return 'Not enough energy.';
+  const def = getCard(card.defId);
+  if (def.cost > state.player.energy) return 'Not enough energy.';
+  if (brewsFromCauldronOnly(def) && state.cauldron.length === 0) return 'The cauldron is empty.';
   return null;
+}
+
+/** A card like Stir that brews without adding anything first. */
+function brewsFromCauldronOnly(def: CardDef): boolean {
+  const firstCauldronEffect = def.effects.find((e) => e.type === 'brew' || e.type === 'addElement');
+  return firstCauldronEffect?.type === 'brew';
+}
+
+/**
+ * What playing this card would brew (the first brew it triggers), or null if it
+ * doesn't brew. Used for previews and to decide whether the card needs a target.
+ */
+export function previewCardBrew(state: CombatState, def: CardDef): BrewResult | null {
+  const cauldron = [...state.cauldron];
+  let weather = state.weather.current;
+  for (const effect of def.effects) {
+    if (effect.type === 'setWeather') weather = effect.weather;
+    if (effect.type === 'addElement') {
+      cauldron.push(effect.element);
+      if (cauldron.length >= CAULDRON_SLOTS) return findBrew(cauldron, weather);
+    }
+    if (effect.type === 'brew') return cauldron.length > 0 ? findBrew(cauldron, weather) : null;
+  }
+  return null;
+}
+
+/** Whether playing this card needs an enemy chosen (for itself or the brew it triggers). */
+export function cardNeedsTarget(state: CombatState, card: CardInstance): boolean {
+  const def = getCard(card.defId);
+  if (def.target === 'enemy') return true;
+  const brew = previewCardBrew(state, def);
+  return brew !== null && effectsNeedTarget(brew.recipe.effects);
 }
 
 export function playCard(state: CombatState, uid: number, targetIndex?: number): PlayResult {
@@ -105,18 +145,18 @@ export function playCard(state: CombatState, uid: number, targetIndex?: number):
   if (reason) return { ok: false, reason };
 
   const def = getCard(card.defId);
-  let target: UnitRef = { side: 'player' };
-  if (def.target === 'enemy') {
+  let target: number | undefined;
+  if (cardNeedsTarget(state, card)) {
     const enemy = targetIndex === undefined ? undefined : state.enemies[targetIndex];
     if (targetIndex === undefined || !enemy || !isAlive(enemy)) {
       return { ok: false, reason: 'Choose an enemy.' };
     }
-    target = { side: 'enemy', index: targetIndex };
+    target = targetIndex;
   }
 
   state.player.energy -= def.cost;
   state.hand = state.hand.filter((c) => c.uid !== uid);
-  const events = applyCardEffects(state, def, target);
+  const events = applyEffects(state, def.effects, target);
   // Discard after resolving, so a card that draws can't draw itself.
   state.discardPile.push(card);
   updateStatus(state);
@@ -148,12 +188,13 @@ export function endTurn(state: CombatState): CombatEvent[] {
       events.push({ type: 'block', target: { side: 'enemy', index }, amount: move.block });
     }
     if (move.damage) {
-      const amount = modifyDamage(move.damage, move.element, state.weather.current);
+      const amount = enemyAttackDamage(enemy, move, state.weather.current);
       const { blocked, hpLost } = dealDamage(state.player, amount);
       events.push({ type: 'damage', target: { side: 'player' }, amount: hpLost, blocked });
     }
     enemy.moveIndex += 1;
     events.push(...tickBurn(state, { side: 'enemy', index }));
+    if (enemy.statuses.weak) enemy.statuses.weak -= 1;
     updateStatus(state);
   });
 
@@ -164,6 +205,12 @@ export function endTurn(state: CombatState): CombatEvent[] {
 
   if (state.status === 'playing') events.push(...startPlayerTurn(state));
   return events;
+}
+
+/** How much an enemy's attack will hit for: weather first, then Weak. */
+export function enemyAttackDamage(enemy: EnemyState, move: EnemyMove, weather: WeatherId): number {
+  const amount = modifyDamage(move.damage ?? 0, move.element, weather);
+  return enemy.statuses.weak ? Math.floor(amount * WEAK_MULTIPLIER) : amount;
 }
 
 /**
@@ -225,22 +272,48 @@ export function drawCards(state: CombatState, count: number): CombatEvent[] {
   return events;
 }
 
-function applyCardEffects(state: CombatState, def: CardDef, target: UnitRef): CombatEvent[] {
+/** Applies card or brew effects in order. `target` is the chosen enemy, if any. */
+function applyEffects(state: CombatState, effects: readonly Effect[], target?: number): CombatEvent[] {
   const events: CombatEvent[] = [];
-  for (const effect of def.effects) {
+  const targets = (all?: boolean): number[] => {
+    if (all) return state.enemies.flatMap((e, i) => (isAlive(e) ? [i] : []));
+    if (target !== undefined && state.enemies[target] && isAlive(state.enemies[target])) return [target];
+    // No target chosen (shouldn't happen when cardNeedsTarget is respected): use the first living enemy.
+    const first = state.enemies.findIndex(isAlive);
+    return first >= 0 ? [first] : [];
+  };
+
+  for (const effect of effects) {
+    if (state.status !== 'playing') break;
     switch (effect.type) {
-      case 'damage': {
-        if (target.side !== 'enemy') break;
-        const enemy = state.enemies[target.index];
-        if (!enemy) break;
-        const amount = modifyDamage(effect.amount, effect.element, state.weather.current);
-        const { blocked, hpLost } = dealDamage(enemy, amount);
-        events.push({ type: 'damage', target, amount: hpLost, blocked });
+      case 'damage':
+        for (const index of targets(effect.all)) {
+          const enemy = state.enemies[index] as EnemyState;
+          const amount = modifyDamage(effect.amount, effect.element, state.weather.current);
+          const { blocked, hpLost } = dealDamage(enemy, amount);
+          events.push({ type: 'damage', target: { side: 'enemy', index }, amount: hpLost, blocked });
+        }
+        updateStatus(state);
         break;
-      }
+      case 'applyStatus':
+        for (const index of targets(effect.all)) {
+          const enemy = state.enemies[index] as EnemyState;
+          enemy.statuses[effect.status] = (enemy.statuses[effect.status] ?? 0) + effect.amount;
+          events.push({ type: 'status', target: { side: 'enemy', index }, status: effect.status, amount: effect.amount });
+        }
+        break;
       case 'block':
         gainBlock(state.player, effect.amount);
         events.push({ type: 'block', target: { side: 'player' }, amount: effect.amount });
+        break;
+      case 'heal': {
+        const healed = Math.min(effect.amount, state.player.maxHp - state.player.hp);
+        state.player.hp += healed;
+        events.push({ type: 'heal', amount: healed });
+        break;
+      }
+      case 'energy':
+        state.player.energy += effect.amount;
         break;
       case 'draw':
         events.push(...drawCards(state, effect.amount));
@@ -248,9 +321,28 @@ function applyCardEffects(state: CombatState, def: CardDef, target: UnitRef): Co
       case 'setWeather':
         events.push(...setWeather(state, effect.weather, 'player'));
         break;
+      case 'addElement':
+        state.cauldron.push(effect.element);
+        events.push({ type: 'element', element: effect.element });
+        if (state.cauldron.length >= CAULDRON_SLOTS) events.push(...brew(state, target));
+        break;
+      case 'brew':
+        events.push(...brew(state, target));
+        break;
     }
   }
   return events;
+}
+
+/** Brews the cauldron: see findBrew for which recipe is made. Unused elements stay. */
+function brew(state: CombatState, target?: number): CombatEvent[] {
+  if (state.cauldron.length === 0 || state.status !== 'playing') return [];
+  const result = findBrew(state.cauldron, state.weather.current);
+  const used = result.usedSlots.map((i) => state.cauldron[i] as ElementId);
+  state.cauldron = state.cauldron.filter((_, i) => !result.usedSlots.includes(i));
+  const event: CombatEvent = { type: 'brew', recipeId: result.recipe.id, used };
+  if (result.weatherElement) event.weatherElement = result.weatherElement;
+  return [event, ...applyEffects(state, result.recipe.effects, target)];
 }
 
 /** Burn: lose that much HP (ignoring Block) at the end of your turn, then it goes down by 1. */
