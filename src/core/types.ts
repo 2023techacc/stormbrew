@@ -88,6 +88,8 @@ export interface EnemyDef {
   moves: EnemyMove[];
   /** Weathers whose effects this enemy ignores ("Weathered"). */
   weathered?: WeatherId[];
+  /** Always under cover, so the weather's harm never reaches it. */
+  sheltered?: boolean;
   /** Once HP is at or below this fraction of max HP, these moves are used instead. */
   phase2?: { below: number; moves: EnemyMove[] };
 }
@@ -102,6 +104,11 @@ export interface Combatant {
 export interface PlayerState extends Combatant {
   energy: number;
   maxEnergy: number;
+  /**
+   * Out in the open (true) or under cover. Out, you catch the weather's element
+   * each turn but its harm (lightning, Heatwave Burn) can reach you.
+   */
+  exposed: boolean;
 }
 
 export interface EnemyState extends Combatant {
@@ -149,8 +156,12 @@ export type CombatEvent =
   | { type: 'enemyMove'; index: number; move: EnemyMove }
   | { type: 'status'; target: UnitRef; status: StatusId; amount: number }
   | { type: 'weather'; from: WeatherId; to: WeatherId; cause: 'schedule' | 'player' | 'enemy' }
-  | { type: 'element'; element: ElementId }
-  | { type: 'brew'; recipeId: string; used: ElementId[]; weatherElement?: ElementId; bottled?: boolean }
+  /** An element went into the cauldron (from a card, or caught from the weather). */
+  | { type: 'element'; element: ElementId; fromWeather?: boolean }
+  /** A weather element was lost because the cauldron was full. */
+  | { type: 'spill'; element: ElementId }
+  | { type: 'exposure'; exposed: boolean }
+  | { type: 'brew'; recipeId: string; used: ElementId[]; bottled?: boolean }
   | { type: 'potion'; recipeId: string }
   | { type: 'heal'; amount: number }
   | { type: 'steal'; index: number; element: ElementId }

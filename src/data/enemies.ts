@@ -32,6 +32,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { name: 'Wobble', block: 5 },
       { name: 'Splash', damage: 8, element: 'water' },
     ],
+    // Hides in puddles: the weather never reaches it.
+    sheltered: true,
   },
   frostGolem: {
     id: 'frostGolem',

@@ -1,7 +1,7 @@
 import { getCard } from '../data/cards';
 import { getEnemy } from '../data/enemies';
 import { SLUDGE, getRecipe } from '../data/recipes';
-import { CAULDRON_SLOTS, effectsNeedTarget, findBrew, type BrewResult } from './brewing';
+import { CAULDRON_SLOTS, WEATHER_ELEMENTS, effectsNeedTarget, findBrew, type BrewResult } from './brewing';
 import { dealDamage, gainBlock } from './effects';
 import { Rng } from './rng';
 import type {
@@ -80,6 +80,7 @@ export function createCombat(setup: CombatSetup): { state: CombatState; events: 
       statuses: {},
       energy: 0,
       maxEnergy: PLAYER_MAX_ENERGY,
+      exposed: true,
     },
     enemies: setup.enemies.map((id) => {
       const def = getEnemy(id);
@@ -154,15 +155,13 @@ function brewsFromCauldronOnly(effects: readonly Effect[]): boolean {
  */
 export function previewCardBrew(state: CombatState, card: { effects: readonly Effect[] }): BrewResult | null {
   const cauldron = [...state.cauldron];
-  let weather = state.weather.current;
   for (const effect of card.effects) {
-    if (effect.type === 'setWeather') weather = effect.weather;
     if (effect.type === 'addElement') {
       // A full cauldron brews first to make room.
-      if (cauldron.length >= state.cauldronSlots) return findBrew(cauldron, weather);
+      if (cauldron.length >= state.cauldronSlots) return findBrew(cauldron);
       cauldron.push(effect.element);
     }
-    if (effect.type === 'brew') return cauldron.length > 0 ? findBrew(cauldron, weather) : null;
+    if (effect.type === 'brew') return cauldron.length > 0 ? findBrew(cauldron) : null;
   }
   return null;
 }
@@ -322,6 +321,8 @@ function startPlayerTurn(state: CombatState): CombatEvent[] {
     }
   }
 
+  events.push(...catchWeather(state));
+
   state.player.energy = state.player.maxEnergy;
   if (weather === 'rain' && hasRelic(state, 'rainBarrel')) {
     state.player.energy += 1;
@@ -334,6 +335,28 @@ function startPlayerTurn(state: CombatState): CombatEvent[] {
   }
   events.push(...drawCards(state, HAND_SIZE));
   return events;
+}
+
+/**
+ * Out in the open, the weather's element falls into the cauldron at the start
+ * of your turn. If the cauldron is full, it spills.
+ */
+function catchWeather(state: CombatState): CombatEvent[] {
+  const element = WEATHER_ELEMENTS[state.weather.current];
+  if (!element || !state.player.exposed) return [];
+  if (state.cauldron.length >= state.cauldronSlots) return [{ type: 'spill', element }];
+  state.cauldron.push(element);
+  return [{ type: 'element', element, fromWeather: true }];
+}
+
+/**
+ * Steps out into the weather or takes cover. Free, during your turn; the choice
+ * you end your turn with decides whether the weather reaches you this round.
+ */
+export function toggleExposure(state: CombatState): CombatEvent[] {
+  if (state.status !== 'playing') return [];
+  state.player.exposed = !state.player.exposed;
+  return [{ type: 'exposure', exposed: state.player.exposed }];
 }
 
 /** Draws cards, shuffling the discard pile into the draw pile when it runs out. */
@@ -433,11 +456,10 @@ function applyEffects(state: CombatState, effects: readonly Effect[], target?: n
 /** Brews the cauldron: see findBrew for which recipe is made. Unused elements stay. */
 function brew(state: CombatState, target?: number): CombatEvent[] {
   if (state.cauldron.length === 0 || state.status !== 'playing') return [];
-  const result = findBrew(state.cauldron, state.weather.current);
+  const result = findBrew(state.cauldron);
   const used = result.usedSlots.map((i) => state.cauldron[i] as ElementId);
   state.cauldron = state.cauldron.filter((_, i) => !result.usedSlots.includes(i));
   const event: CombatEvent = { type: 'brew', recipeId: result.recipe.id, used };
-  if (result.weatherElement) event.weatherElement = result.weatherElement;
   // Bottling keeps a real recipe for later; Sludge and full potion belts are used as normal.
   if (state.bottleNext > 0 && result.recipe.id !== SLUDGE.id && state.potions.length < MAX_POTIONS) {
     state.bottleNext -= 1;
@@ -490,17 +512,25 @@ function stormBolt(state: CombatState): CombatEvent[] {
   return [{ type: 'damage', target: ref, amount: hpLost, blocked, source: 'lightning' }];
 }
 
-/** The player and every living enemy that isn't protected from this weather's harm. */
+/**
+ * The units this weather's harm can reach: out in the open (the player, unless
+ * under cover; enemies, unless sheltered) and not protected against it.
+ */
 function livingUnits(state: CombatState, weather: WeatherId): UnitRef[] {
   const refs: UnitRef[] = [];
   const playerProtected =
+    !state.player.exposed ||
     (weather === 'storm' && hasRelic(state, 'lightningRod')) ||
     (weather === 'heatwave' && hasRelic(state, 'sunStone'));
   if (isAlive(state.player) && !playerProtected) refs.push({ side: 'player' });
   state.enemies.forEach((enemy, index) => {
-    if (isAlive(enemy) && !isWeathered(enemy, weather)) refs.push({ side: 'enemy', index });
+    if (isAlive(enemy) && !isWeathered(enemy, weather) && !isSheltered(enemy)) refs.push({ side: 'enemy', index });
   });
   return refs;
+}
+
+export function isSheltered(enemy: EnemyState): boolean {
+  return getEnemy(enemy.defId).sheltered ?? false;
 }
 
 export function getUnit(state: CombatState, ref: UnitRef): Combatant {

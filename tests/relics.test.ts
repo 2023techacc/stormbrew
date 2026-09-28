@@ -8,6 +8,7 @@ import {
   inPhase2,
   playCard,
   setWeather,
+  toggleExposure,
   type CombatSetup,
 } from '../src/core/combat';
 import type { CombatState, WeatherId } from '../src/core/types';
@@ -148,6 +149,7 @@ describe('the Eye of the Storm', () => {
     eye.moveIndex = 0;
     expect(currentIntent(eye).name).toBe('Siphon');
     s.cauldron = ['earth', 'fire'];
+    toggleExposure(s); // take cover, so the Storm it calls drops nothing into the cauldron
     const events = endTurn(s);
     expect(events).toContainEqual({ type: 'steal', index: 0, element: 'fire' });
     expect(s.cauldron).toEqual(['earth']);

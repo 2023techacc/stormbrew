@@ -108,6 +108,7 @@ export const ICONS = {
   recipes: '📖',
   gold: '💰',
   potion: '🧴',
+  cover: '☂️',
   grimoire: '📕',
   deck: '🂠',
 } as const;
