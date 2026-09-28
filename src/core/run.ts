@@ -1,58 +1,165 @@
-import { REWARD_POOL, STARTER_DECK } from '../data/cards';
+import { REWARD_POOL, STARTER_DECK, getCard } from '../data/cards';
 import { ENCOUNTERS } from '../data/enemies';
+import { RELIC_POOL, STARTING_RELICS, getRelic } from '../data/relics';
 import { createCombat } from './combat';
+import { generateMap, reachableNodes, type MapNode, type MapState } from './map';
 import { Rng } from './rng';
-import type { CombatEvent, CombatState } from './types';
+import type { CombatEvent, CombatState, DeckCard, ElementId } from './types';
 
 export const PLAYER_MAX_HP = 75;
-/** HP healed after each victory. */
-export const VICTORY_HEAL = 8;
-/** Fights won before encounters get harder. */
-export const EASY_FIGHTS = 2;
+export const STARTING_GOLD = 50;
+/** Floors (from 0) that use easy encounters before normal fights get harder. */
+export const EASY_FLOORS = 3;
 export const REWARD_CHOICES = 3;
+/** Resting heals this fraction of max HP. */
+export const REST_HEAL = 0.3;
+export const HEALING_HERB_HEAL = 6;
+export const LUCKY_COIN_GOLD = 10;
+export const GOLD_REWARD = { fight: [12, 18], elite: [28, 35] } as const;
+export const SHOP_PRICES = { card: [40, 55], relic: [110, 140], removal: 60 } as const;
+export const INFUSE_ELEMENTS: readonly ElementId[] = ['fire', 'water', 'earth', 'air'];
+
+export type RunStatus = 'playing' | 'won' | 'lost';
+
+export interface ShopItem {
+  id: string;
+  price: number;
+  sold: boolean;
+}
+
+export interface ShopState {
+  cards: ShopItem[];
+  relics: ShopItem[];
+  removalPrice: number;
+  removalUsed: boolean;
+}
 
 /**
- * A run: fights one after another. HP and the deck carry over between fights.
- * Plain data so it can be saved as JSON.
+ * A run through Act 1: pick a path up the map to the boss. HP, gold, the deck
+ * and relics carry over. Plain data so it can be saved as JSON.
  */
 export interface RunState {
   rngState: number;
   hp: number;
   maxHp: number;
-  deck: string[];
+  gold: number;
+  deck: DeckCard[];
+  relics: string[];
+  map: MapState;
+  /** The node the player is on, or null before the first move. */
+  nodeId: string | null;
+  /** Nodes visited so far, in order (the path taken). */
+  visited: string[];
   fightsWon: number;
+  status: RunStatus;
+  /** The stock of the shop the player is in. */
+  shop?: ShopState;
+}
+
+export interface FightRewards {
+  gold: number;
+  healed: number;
+  relic?: string;
+  cardChoices: string[];
 }
 
 export function createRun(seed: number): RunState {
+  const rng = new Rng(seed);
+  const map = generateMap(rng);
   return {
-    rngState: new Rng(seed).getState(),
+    rngState: rng.getState(),
     hp: PLAYER_MAX_HP,
     maxHp: PLAYER_MAX_HP,
-    deck: [...STARTER_DECK],
+    gold: STARTING_GOLD,
+    deck: STARTER_DECK.map((id) => ({ id })),
+    relics: [...STARTING_RELICS],
+    map,
+    nodeId: null,
+    visited: [],
     fightsWon: 0,
+    status: 'playing',
   };
 }
 
-/** Starts the next fight: an easy encounter at first, harder ones later. */
-export function startFight(run: RunState): { state: CombatState; events: CombatEvent[] } {
-  const tier = run.fightsWon < EASY_FIGHTS ? ENCOUNTERS.easy : ENCOUNTERS.hard;
-  const { enemies, seed } = withRng(run, (rng) => ({
-    enemies: rng.pick(tier),
-    seed: rng.int(0, 2 ** 32 - 1),
-  }));
-  return createCombat({ seed, deck: run.deck, enemies, playerHp: run.hp, playerMaxHp: run.maxHp });
+export function currentNode(run: RunState): MapNode | undefined {
+  return run.nodeId === null ? undefined : run.map.nodes[run.nodeId];
 }
 
-/** Records a finished fight. Returns the HP healed (0 on a loss). */
-export function finishFight(run: RunState, combat: CombatState): number {
+export function availableNodes(run: RunState): MapNode[] {
+  return run.status === 'playing' ? reachableNodes(run.map, run.nodeId) : [];
+}
+
+/** Moves to a reachable node. Entering a shop stocks it. */
+export function enterNode(run: RunState, id: string): MapNode {
+  const node = availableNodes(run).find((n) => n.id === id);
+  if (!node) throw new Error(`Node ${id} is not reachable`);
+  run.nodeId = id;
+  run.visited.push(id);
+  delete run.shop;
+  if (node.type === 'shop') run.shop = createShop(run);
+  return node;
+}
+
+/** Starts the fight at the current node (fight, elite or boss). */
+export function startFight(run: RunState): { state: CombatState; events: CombatEvent[] } {
+  const node = currentNode(run);
+  if (!node || (node.type !== 'fight' && node.type !== 'elite' && node.type !== 'boss')) {
+    throw new Error('Not at a fight');
+  }
+  const tier =
+    node.type === 'boss'
+      ? ENCOUNTERS.boss
+      : node.type === 'elite'
+        ? ENCOUNTERS.elite
+        : node.floor < EASY_FLOORS
+          ? ENCOUNTERS.easy
+          : ENCOUNTERS.hard;
+  const { enemies, seed } = withRng(run, (rng) => ({ enemies: rng.pick(tier), seed: rng.int(0, 2 ** 32 - 1) }));
+  return createCombat({
+    seed,
+    deck: run.deck,
+    enemies,
+    playerHp: run.hp,
+    playerMaxHp: run.maxHp,
+    relics: run.relics,
+  });
+}
+
+/**
+ * Records a finished fight and gives its rewards: gold (and a relic from elites)
+ * right away, plus card choices for the player to pick from. Beating the boss
+ * wins the run; losing ends it.
+ */
+export function finishFight(run: RunState, combat: CombatState): FightRewards {
+  const none: FightRewards = { gold: 0, healed: 0, cardChoices: [] };
   if (combat.status !== 'won') {
     run.hp = 0;
-    return 0;
+    run.status = 'lost';
+    return none;
   }
   run.fightsWon += 1;
-  const before = combat.player.hp;
-  run.hp = Math.min(run.maxHp, before + VICTORY_HEAL);
-  return run.hp - before;
+  run.hp = combat.player.hp;
+  const node = currentNode(run);
+  if (node?.type === 'boss') {
+    run.status = 'won';
+    return none;
+  }
+
+  const healed = run.relics.includes('healingHerb') ? heal(run, HEALING_HERB_HEAL) : 0;
+  const [min, max] = node?.type === 'elite' ? GOLD_REWARD.elite : GOLD_REWARD.fight;
+  const gold =
+    withRng(run, (rng) => rng.int(min, max)) + (run.relics.includes('luckyCoin') ? LUCKY_COIN_GOLD : 0);
+  run.gold += gold;
+
+  const rewards: FightRewards = { gold, healed, cardChoices: rewardChoices(run) };
+  if (node?.type === 'elite') {
+    const relic = randomRelic(run);
+    if (relic) {
+      run.relics.push(relic);
+      rewards.relic = relic;
+    }
+  }
+  return rewards;
 }
 
 /** Distinct cards to choose from after a victory. */
@@ -61,7 +168,99 @@ export function rewardChoices(run: RunState): string[] {
 }
 
 export function addCardToDeck(run: RunState, cardId: string): void {
-  run.deck.push(cardId);
+  getCard(cardId); // throws on unknown ids
+  run.deck.push({ id: cardId });
+}
+
+// ---------- Rest sites ----------
+
+export function restHealAmount(run: RunState): number {
+  return Math.min(Math.ceil(run.maxHp * REST_HEAL), run.maxHp - run.hp);
+}
+
+export function rest(run: RunState): number {
+  return heal(run, Math.ceil(run.maxHp * REST_HEAL));
+}
+
+/** Infusing permanently adds an element to a card: playing it also adds that element. */
+export function canInfuse(card: DeckCard): boolean {
+  return card.infusion === undefined;
+}
+
+export function infuseCard(run: RunState, deckIndex: number, element: ElementId): void {
+  const card = run.deck[deckIndex];
+  if (!card || !canInfuse(card)) throw new Error('That card cannot be infused');
+  if (!INFUSE_ELEMENTS.includes(element)) throw new Error(`Cannot infuse ${element}`);
+  card.infusion = element;
+}
+
+// ---------- Shops ----------
+
+function createShop(run: RunState): ShopState {
+  return withRng(run, (rng) => {
+    const cards = rng.shuffle(REWARD_POOL).slice(0, 3);
+    const relics = rng.shuffle(RELIC_POOL.filter((id) => !run.relics.includes(id))).slice(0, 2);
+    return {
+      cards: cards.map((id) => ({ id, price: rng.int(...SHOP_PRICES.card), sold: false })),
+      relics: relics.map((id) => ({ id, price: rng.int(...SHOP_PRICES.relic), sold: false })),
+      removalPrice: SHOP_PRICES.removal,
+      removalUsed: false,
+    };
+  });
+}
+
+export type ShopResult = { ok: true } | { ok: false; reason: string };
+
+function pay(run: RunState, price: number): ShopResult {
+  if (!run.shop) return { ok: false, reason: 'You are not in a shop.' };
+  if (run.gold < price) return { ok: false, reason: 'Not enough gold.' };
+  run.gold -= price;
+  return { ok: true };
+}
+
+export function buyCard(run: RunState, index: number): ShopResult {
+  const item = run.shop?.cards[index];
+  if (!item || item.sold) return { ok: false, reason: 'Sold out.' };
+  const paid = pay(run, item.price);
+  if (!paid.ok) return paid;
+  item.sold = true;
+  addCardToDeck(run, item.id);
+  return paid;
+}
+
+export function buyRelic(run: RunState, index: number): ShopResult {
+  const item = run.shop?.relics[index];
+  if (!item || item.sold) return { ok: false, reason: 'Sold out.' };
+  const paid = pay(run, item.price);
+  if (!paid.ok) return paid;
+  item.sold = true;
+  run.relics.push(getRelic(item.id).id);
+  return paid;
+}
+
+/** Removes a card from the deck, once per shop visit. */
+export function removeCard(run: RunState, deckIndex: number): ShopResult {
+  if (!run.shop || run.shop.removalUsed) return { ok: false, reason: 'Card removal is used up.' };
+  if (!run.deck[deckIndex]) return { ok: false, reason: 'No such card.' };
+  if (run.deck.length <= 1) return { ok: false, reason: 'Your deck needs at least one card.' };
+  const paid = pay(run, run.shop.removalPrice);
+  if (!paid.ok) return paid;
+  run.shop.removalUsed = true;
+  run.deck.splice(deckIndex, 1);
+  return paid;
+}
+
+// ---------- Helpers ----------
+
+function heal(run: RunState, amount: number): number {
+  const healed = Math.min(amount, run.maxHp - run.hp);
+  run.hp += healed;
+  return healed;
+}
+
+function randomRelic(run: RunState): string | undefined {
+  const options = RELIC_POOL.filter((id) => !run.relics.includes(id));
+  return options.length ? withRng(run, (rng) => rng.pick(options)) : undefined;
 }
 
 function withRng<T>(run: RunState, fn: (rng: Rng) => T): T {

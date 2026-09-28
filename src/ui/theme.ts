@@ -34,7 +34,37 @@ export const ENEMY_LOOKS: Record<string, Look> = {
   drizzleSlime: { name: 'Drizzle Slime', icon: '🫧', color: '#4aa3df' },
   frostGolem: { name: 'Frost Golem', icon: '🗿', color: '#a9c6d9' },
   trainingDummy: { name: 'Training Dummy', icon: '🎯', color: '#9aa3b8' },
+  eyeOfTheStorm: { name: 'Eye of the Storm', icon: '👁️', color: '#5b6bbf' },
 };
+
+export const RELIC_ICONS: Record<string, string> = {
+  copperCauldron: '🍯',
+  barometer: '🌡️',
+  weathervane: '🐓',
+  ironCauldron: '⚱️',
+  rainBarrel: '🛢️',
+  snowGlobe: '🔮',
+  lightningRod: '📍',
+  sunStone: '🌞',
+  healingHerb: '🌿',
+  luckyCoin: '🪙',
+};
+
+export const NODE_ICONS = {
+  fight: '⚔️',
+  elite: '💀',
+  rest: '🏕️',
+  shop: '🛒',
+  boss: '👁️',
+} as const;
+
+export const NODE_NAMES = {
+  fight: 'Fight',
+  elite: 'Elite',
+  rest: 'Rest site',
+  shop: 'Shop',
+  boss: 'Boss',
+} as const;
 
 /** Card art for now is a single icon; cards without one use their kind's icon. */
 export const CARD_ICONS: Record<string, string> = {
@@ -75,4 +105,6 @@ export const ICONS = {
   lightning: '⚡',
   cauldron: '🧪',
   recipes: '📖',
+  gold: '💰',
+  deck: '🂠',
 } as const;

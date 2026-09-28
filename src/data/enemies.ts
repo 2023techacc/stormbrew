@@ -43,6 +43,29 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { name: 'Slam', damage: 11 },
     ],
   },
+  /** Act 1 boss: changes the weather every round in a fixed cycle. */
+  eyeOfTheStorm: {
+    id: 'eyeOfTheStorm',
+    name: 'Eye of the Storm',
+    maxHp: 120,
+    moves: [
+      { name: 'Gale', weather: 'rain', damage: 9, element: 'water' },
+      { name: 'Thunderhead', weather: 'storm', block: 12 },
+      { name: 'Scorch', weather: 'heatwave', damage: 14, element: 'fire' },
+      { name: 'Whiteout', weather: 'snow', damage: 7, block: 8 },
+    ],
+    weathered: ['storm', 'heatwave'],
+    // Below half HP it also steals the newest element from your cauldron.
+    phase2: {
+      below: 0.5,
+      moves: [
+        { name: 'Siphon', weather: 'storm', damage: 10, element: 'spark', stealElement: true },
+        { name: 'Scorch', weather: 'heatwave', damage: 16, element: 'fire' },
+        { name: 'Drain', weather: 'rain', damage: 8, element: 'water', stealElement: true, status: { status: 'weak', amount: 1 } },
+        { name: 'Whiteout', weather: 'snow', damage: 8, block: 12 },
+      ],
+    },
+  },
   /** Sandbox only: never attacks and is hard to kill. */
   trainingDummy: {
     id: 'trainingDummy',
@@ -61,6 +84,12 @@ export const ENCOUNTERS = {
     ['cinderImp', 'drizzleSlime'],
     ['stormCaller', 'drizzleSlime'],
   ],
+  elite: [
+    ['frostGolem', 'drizzleSlime'],
+    ['stormCaller', 'cinderImp'],
+    ['stormCaller', 'stormCaller'],
+  ],
+  boss: [['eyeOfTheStorm']],
 } satisfies Record<string, string[][]>;
 
 export function getEnemy(id: string): EnemyDef {
