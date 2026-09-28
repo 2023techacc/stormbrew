@@ -6,7 +6,10 @@ import {
   buyCard,
   buyPotion,
   buyRelic,
+  buySky,
   canInfuse,
+  chartSky,
+  MIN_SKY,
   createRun,
   currentNode,
   enterNode,
@@ -26,11 +29,12 @@ import type { CombatState, ElementId } from '../core/types';
 import { getCard } from '../data/cards';
 import { getRecipe } from '../data/recipes';
 import { getRelic } from '../data/relics';
+import { getSkyCard } from '../data/sky';
 import { cardFace, showCombat } from './combatView';
 import { esc } from './dom';
 import { clearRun, saveGrimoire, saveRun } from './storage';
 import { baseText } from './text';
-import { ELEMENTS, ICONS, NODE_ICONS, NODE_NAMES, RELIC_ICONS } from './theme';
+import { ELEMENTS, ICONS, NODE_ICONS, NODE_NAMES, RELIC_ICONS, WEATHERS } from './theme';
 
 const MAP_ROW = 64;
 
@@ -51,6 +55,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
   let run: RunState = options.resume?.run ?? createRun(randomSeed());
   let screen: RunScreen = options.resume?.screen ?? { name: 'map' };
   let showDeck = false;
+  let showSky = false;
   let message = '';
   /**
    * What the next render does with the scroll position: arriving at the map
@@ -96,6 +101,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
         <p class="run-message" aria-live="polite">${esc(message)}</p>
         ${body}
         ${showDeck ? renderDeck(run) : ''}
+        ${showSky ? renderSky(run) : ''}
       </main>
     `;
     if (scroll === 'map') root.querySelector('.map-node.reachable')?.scrollIntoView({ block: 'center' });
@@ -122,13 +128,14 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
 
   const onClick = (event: MouseEvent) => {
     const el = (event.target as HTMLElement).closest<HTMLElement>(
-      '[data-action],[data-node],[data-relic],[data-potion-info],[data-reward],[data-deck-index],[data-element],[data-buy-card],[data-buy-relic],[data-buy-potion]',
+      '[data-action],[data-node],[data-relic],[data-potion-info],[data-reward],[data-deck-index],[data-element],[data-buy-card],[data-buy-relic],[data-buy-potion],[data-buy-sky],[data-sky-index]',
     );
     if (!el) return;
     const d = el.dataset;
 
     if (d.action === 'deck') return ((showDeck = true), render());
-    if (d.action === 'close') return ((showDeck = false), render());
+    if (d.action === 'sky') return ((showSky = true), render());
+    if (d.action === 'close') return ((showDeck = false), (showSky = false), render());
     if (d.relic) {
       const relic = getRelic(d.relic);
       return go(screen, `${RELIC_ICONS[relic.id] ?? ''} ${relic.name}: ${relic.text}`);
@@ -137,7 +144,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
       const recipe = getRecipe(d.potionInfo);
       return go(screen, `${ICONS.potion} ${recipe.name} potion: ${baseText(recipe)} Drink it during a fight.`);
     }
-    if (d.action === 'none' || showDeck) return;
+    if (d.action === 'none' || showDeck || showSky) return;
 
     if (screen.name === 'map' && d.node) {
       const node = enterNode(run, d.node);
@@ -156,6 +163,12 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
     if (screen.name === 'rest') {
       if (d.action === 'rest') return go({ name: 'map' }, `You rested and healed ${rest(run)} HP.`);
       if (d.action === 'infuse') return go({ name: 'rest', step: 'pickCard' }, 'Pick a card to infuse.');
+      if (d.action === 'chart') return go({ name: 'rest', step: 'pickSky' }, 'Pick a weather to clear from your sky.');
+      if (d.skyIndex !== undefined && screen.step === 'pickSky') {
+        const name = getSkyCard(run.sky[Number(d.skyIndex)] ?? 'clear').name;
+        const result = chartSky(run, Number(d.skyIndex));
+        return result.ok ? go({ name: 'map' }, `${name} is gone from your sky.`) : go(screen, result.reason);
+      }
       if (d.action === 'back') return go({ name: 'rest', step: 'choose' });
       if (d.deckIndex !== undefined && screen.step === 'pickCard') {
         const index = Number(d.deckIndex);
@@ -187,6 +200,10 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
         const result = buyPotion(run, Number(d.buyPotion));
         return go(screen, result.ok ? 'Bought!' : result.reason);
       }
+      if (d.buySky !== undefined) {
+        const result = buySky(run, Number(d.buySky));
+        return go(screen, result.ok ? 'Added to your sky!' : result.reason);
+      }
       if (d.deckIndex !== undefined && screen.removing) {
         const card = run.deck[Number(d.deckIndex)];
         const result = removeCard(run, Number(d.deckIndex));
@@ -199,6 +216,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
       if (d.action === 'new-run') {
         run = createRun(randomSeed());
         showDeck = false;
+        showSky = false;
         go({ name: 'map' });
       } else if (d.action === 'title') {
         root.onclick = null;
@@ -224,7 +242,10 @@ function renderHeader(run: RunState): string {
     <header class="run-header">
       <span class="stat" title="HP">${ICONS.hp} ${run.hp}/${run.maxHp}</span>
       <span class="stat" title="Gold">${ICONS.gold} ${run.gold}</span>
-      <button class="tool-button" data-action="deck" title="Your deck">${ICONS.deck} ${run.deck.length}</button>
+      <span class="header-buttons">
+        <button class="tool-button" data-action="sky" title="Your sky">${ICONS.sky} ${run.sky.length}</button>
+        <button class="tool-button" data-action="deck" title="Your deck">${ICONS.deck} ${run.deck.length}</button>
+      </span>
     </header>
     <section class="relic-bar" aria-label="Relics and potions">
       ${run.relics
@@ -298,7 +319,15 @@ function renderReward(rewards: FightRewards): string {
   `;
 }
 
-function renderRest(run: RunState, step: 'choose' | 'pickCard' | 'pickElement', deckIndex?: number): string {
+function renderRest(run: RunState, step: 'choose' | 'pickCard' | 'pickElement' | 'pickSky', deckIndex?: number): string {
+  if (step === 'pickSky') {
+    return `
+      <h2>${ICONS.sky} Chart the sky</h2>
+      <p class="muted small">Remove one weather card from your sky, so the others come more often.</p>
+      ${skyList(run, (i) => `data-sky-index="${i}"`)}
+      <button class="text-button" data-action="back">Back</button>
+    `;
+  }
   if (step === 'pickCard') {
     return `
       <h2>${NODE_ICONS.rest} Infuse</h2>
@@ -331,6 +360,9 @@ function renderRest(run: RunState, step: 'choose' | 'pickCard' | 'pickElement', 
     <span class="title-buttons">
       <button class="primary-button" data-action="rest" ${heal > 0 ? '' : 'disabled'}>Rest: heal ${heal} HP</button>
       <button class="secondary-button" data-action="infuse">Infuse a card</button>
+      <button class="secondary-button" data-action="chart" ${run.sky.length > MIN_SKY ? '' : 'disabled'}>
+        ${ICONS.sky} Chart the sky
+      </button>
     </span>
   `;
 }
@@ -384,6 +416,18 @@ function renderShop(run: RunState, removing: boolean): string {
         })
         .join('')}
     </section>
+    <section class="shop-relics">
+      ${shop.sky
+        .map((item, i) => {
+          const card = getSkyCard(item.id);
+          return `<button class="shop-relic ${item.sold ? 'sold' : ''}" data-buy-sky="${i}">
+            <span class="relic-icon">${WEATHERS[card.weather].icon}</span>
+            <span class="recipe-body"><strong>${esc(card.name)}</strong> weather card: ${esc(card.text)}</span>
+            ${price(item.price, item.sold)}
+          </button>`;
+        })
+        .join('')}
+    </section>
     <button class="secondary-button" data-action="remove" ${shop.removalUsed ? 'disabled' : ''}>
       Remove a card (${ICONS.gold} ${shop.removalPrice})
     </button>
@@ -423,6 +467,41 @@ function renderDeck(run: RunState): string {
               .join('')}
           </span>
         </span>
+      </span>
+    </span>
+  `;
+}
+
+/** The sky deck as rows; `attrs(i)` makes them tappable. */
+function skyList(run: RunState, attrs: (index: number) => string): string {
+  return `
+    <section class="shop-relics">
+      ${run.sky
+        .map((id, i) => {
+          const card = getSkyCard(id);
+          return `<button class="shop-relic" ${attrs(i)}>
+            <span class="relic-icon">${WEATHERS[card.weather].icon}</span>
+            <span class="recipe-body"><strong>${esc(card.name)}</strong> ${esc(card.text)}</span>
+          </button>`;
+        })
+        .join('')}
+    </section>
+  `;
+}
+
+function renderSky(run: RunState): string {
+  return `
+    <span class="overlay" data-action="close">
+      <span class="recipe-panel" role="dialog" aria-label="Your sky" data-action="none">
+        <span class="recipe-header">
+          <h2>${ICONS.sky} Sky (${run.sky.length})</h2>
+          <button class="text-button" data-action="close">Close</button>
+        </span>
+        <span class="recipe-rules">
+          Each fight's forecast is drawn from these weather cards. Buy more in shops;
+          chart the sky at rest sites to remove one. Some enemies add their own weather.
+        </span>
+        <span class="deck-scroll">${skyList(run, () => 'data-action="none"')}</span>
       </span>
     </span>
   `;

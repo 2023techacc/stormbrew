@@ -65,15 +65,16 @@ Start run → Map (choose path) → Node
 | *Later:* **Gale** | Top card of draw pile discarded each turn; Air +1. | Air elements count double            |
 | *Later:* **Eclipse** (rare) | All brews are “inverted” (buffs ↔ debuffs). | —                                    |
 
-*Status:* the five MVP weathers and their brewing interactions are in the game
-(Milestones 2–3). One simple rule covers brewing: every weather except Clear
-adds its element to each brew, so the same cauldron brews different things in
-different weather.
+*Status:* the five MVP weathers are in the game. Their brewing interaction is
+now **Exposure** (§11): standing out in the weather drops its element (Rain 💧,
+Storm ⚡, Heatwave 🔥, Snow ❄️) into your cauldron each turn. This replaced the
+earlier rule where every brew got the weather's element for free.
 
 ### 3.2 How weather changes
-1. **Natural cycle**: each weather lasts a **fixed number of turns, N**, then
-   changes to the forecast weather. N is a single constant for the whole game and
-   is never random. It starts at **3** and gets tuned in playtesting. The **Forecast** bar shows the current
+1. **Natural cycle**: each weather lasts a **fixed number of turns**, then
+   changes to the forecast weather. The forecast is drawn from your **Sky Deck**
+   of weather cards (§11); a basic card lasts 3 turns, and some cards last
+   longer or shorter (Monsoon: 5, Squall: 2). Durations are fixed, never random. The **Forecast** bar shows the current
    weather, a countdown to the next change, and what the next weather will be,
    which works like intents for the sky.
 2. **Player**: cards (*Summon Rain*, *Clear Skies*), brews (Water + Air → *Rain
@@ -355,7 +356,7 @@ Important choices:
 | 4 | **Playable fight loop** ✅ | 3–4 enemy types, card rewards after combat, a “sandbox” mode to test cards |
 | 5 | **Run structure** ✅ | Branching Act 1 map, rest sites (including Infuse), shop, gold, relics, the Act 1 boss |
 | 6 | **Discovery & potions** ✅ | Grimoire (persistent), Bottling, potions, auto-save and resume |
-| 7 | **Identity** (proposed, see §11) | The features that make Stormbrew play differently from *Slay the Spire*: Exposure, enemy cauldrons, the Sky Deck, Distilling |
+| 7 | **Identity** (A–C done, see §11) | The features that make Stormbrew play differently from *Slay the Spire*: Exposure, enemy cauldrons, the Sky Deck, Distilling |
 | 8 | **MVP content & balance** | Reach the MVP content targets, playtest on real phones, tune `WEATHER_INTERVAL` |
 | 9 | **Polish** | Animations, sound, vibration feedback, weather particles, app icon and splash screen |
 | 10 | **Expansion** | Acts 2–3, Fog/Gale/Eclipse, a second character, ascension levels, iOS/desktop builds |
@@ -375,7 +376,8 @@ is fun in a single fight on a phone, the rest is adding content.
 | Recipe order | Does not matter |
 | Weather timing | Each weather lasts a fixed N turns (starting at 3), never random; any weather change restarts the countdown |
 | Brewing location | Only inside fights; potions come from Bottling, rewards, and shops |
-| Weather ↔ brewing | Each weather adds its element (Rain → Water, Storm → Spark, Heatwave → Fire, Snow → Frost) to every brew |
+| Weather ↔ brewing | Exposure: out in the open, the weather drops its element (Rain → Water, Storm → Spark, Heatwave → Fire, Snow → Frost) into your cauldron each turn |
+| Identity | Built A (Exposure), B (enemy cauldrons), C (Sky Deck); D (Distilling) still to decide |
 | Sludge | Friendly: a failed brew gives 2 Block |
 | Act 1 structure | 10-floor branching map (4 lanes, paths never cross): fights, elites, rest sites, shops, then the boss. HP carries over (no free heal); rest sites heal 30% or Infuse |
 | Rewards | Fights: 12–18 gold + pick 1 of 3 cards; elites: 28–35 gold + a relic + a card. Start with 50 gold |
@@ -470,7 +472,25 @@ it is (cost).
   redesigning every card and rebalancing everything, so it should only be
   tried after A–D, as a separate experiment.
 
-### 11.3 Recommendation
+### 11.3 What was built (Identity milestone)
+
+- **A. Exposure**: an Out/Cover toggle next to End turn. Out, you catch the
+  weather's element each turn (it spills if the cauldron is full) but
+  lightning and Heatwave Burn can reach you; under cover you're safe and catch
+  nothing. Sheltered enemies (the Drizzle Slime) are never hit by the weather.
+- **B. Enemy cauldrons**: the Mire Witch (Fireball, then Tonic), the Frost Golem
+  (Permafrost) and the boss (brews what it steals from you) fill their own
+  cauldrons; intents show an incoming brew's damage. *Pilfer* steals an element
+  from an enemy's cauldron (it's in the starter deck), *Curdle* spoils their next
+  brew. Watching an enemy brew teaches you the recipe.
+- **C. The Sky Deck**: the forecast is drawn from your weather cards. You start
+  with one of each basic weather; shops sell more (Monsoon, Squall, Heat Dome,
+  Deep Freeze, Calm, or basics), rest sites can **chart the sky** to remove one,
+  the Storm Caller shuffles Storms into your sky, and *Scatter Clouds* replaces
+  the next forecast. (Special weathers like Dry Storm or Aurora are for later.)
+- Not built yet: **D (Distilling)**, **E (storm front)**, **F (elements as energy)**.
+
+### 11.4 Recommendation
 
 Build **A (Exposure)** first. It is small, it changes every turn, and it turns
 the existing weather-element rule into a decision. Then **B (enemy

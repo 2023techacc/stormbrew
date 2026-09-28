@@ -9,7 +9,7 @@ import {
   previewCardBrew,
   type CombatSetup,
 } from '../src/core/combat';
-import type { CombatState, ElementId, WeatherId } from '../src/core/types';
+import type { CombatState, ElementId } from '../src/core/types';
 import { getCard } from '../src/data/cards';
 import { RECIPES } from '../src/data/recipes';
 
@@ -32,11 +32,6 @@ const play = (s: CombatState, defId: string, target?: number) => {
   const result = playCard(s, card.uid, target);
   if (!result.ok) throw new Error(result.reason);
   return result.events;
-};
-
-const lockWeather = (s: CombatState, weather: WeatherId) => {
-  s.weather.current = weather;
-  s.weather.forecast = s.weather.forecast.map(() => weather);
 };
 
 const imp = (s: CombatState) => {
@@ -75,44 +70,26 @@ describe('recipes', () => {
 
 describe('findBrew', () => {
   it('prefers the largest recipe', () => {
-    const result = findBrew(['fire', 'air', 'fire'], 'clear');
+    const result = findBrew(['fire', 'air', 'fire']);
     expect(result.recipe.id).toBe('heatHaze');
     expect(result.usedSlots).toEqual([0, 1, 2]);
   });
 
   it('brews the oldest matching pair and keeps the rest', () => {
-    const result = findBrew(['fire', 'water', 'earth'], 'clear');
+    const result = findBrew(['fire', 'water', 'earth']);
     expect(result.recipe.id).toBe('steam');
     expect(result.usedSlots).toEqual([0, 1]);
   });
 
   it('makes Sludge from a lone element in clear weather', () => {
-    const result = findBrew(['fire'], 'clear');
+    const result = findBrew(['fire']);
     expect(result.recipe.id).toBe('sludge');
     expect(result.usedSlots).toEqual([0]);
   });
 
-  it("adds the weather's free element, which is tried first", () => {
-    expect(findBrew(['fire'], 'rain')).toEqual(
-      expect.objectContaining({ usedSlots: [0], weatherElement: 'water' }),
-    );
-    expect(findBrew(['fire'], 'rain').recipe.id).toBe('steam');
-    expect(findBrew(['fire'], 'storm').recipe.id).toBe('plasmaBolt');
-    expect(findBrew(['water'], 'snow').recipe.id).toBe('iceLance');
-    expect(findBrew(['air'], 'heatwave').recipe.id).toBe('wildfire');
-  });
-
-  it('lets weather complete a three-element recipe', () => {
-    const result = findBrew(['water', 'air'], 'storm');
-    expect(result.recipe.id).toBe('thunderhead');
-    expect(result.usedSlots).toEqual([0, 1]);
-  });
-
-  it('changes what the same cauldron makes in different weather', () => {
-    const cauldron: ElementId[] = ['fire', 'fire'];
-    expect(findBrew(cauldron, 'clear').recipe.id).toBe('fireball');
-    expect(findBrew(cauldron, 'rain').recipe.id).toBe('steam');
-    expect(findBrew(cauldron, 'rain').usedSlots).toEqual([0]);
+  it('makes weather-element recipes from caught elements', () => {
+    expect(findBrew(['spark', 'fire']).recipe.id).toBe('plasmaBolt');
+    expect(findBrew(['water', 'air', 'spark']).recipe.id).toBe('thunderhead');
   });
 });
 
@@ -177,21 +154,12 @@ describe('brewing in combat', () => {
     expect(s.cauldron).toEqual(['water']);
   });
 
-  it('a lone element makes Sludge in clear weather', () => {
+  it('a lone element makes Sludge', () => {
     const s = newCombat(['gatherDew', 'stir', 'defend', 'defend', 'defend']);
     play(s, 'gatherDew');
     const events = play(s, 'stir');
     expect(events[0]).toEqual({ type: 'brew', recipeId: 'sludge', used: ['water'] });
     expect(s.player.block).toBe(3 + 2);
-  });
-
-  it("the weather's element joins the brew", () => {
-    const s = newCombat(['gatherDew', 'stir', 'defend', 'defend', 'defend']);
-    lockWeather(s, 'rain');
-    play(s, 'gatherDew');
-    const events = play(s, 'stir');
-    expect(events[0]).toEqual({ type: 'brew', recipeId: 'tonic', used: ['water'], weatherElement: 'water' });
-    expect(s.player.hp).toBe(50 + 5);
   });
 
   it('Steam makes enemies Weak, reducing their attacks, and Weak wears off', () => {

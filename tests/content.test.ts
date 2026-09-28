@@ -41,7 +41,7 @@ describe('new enemies', () => {
     expect(playerAttackDamage(s, 6, undefined)).toBe(6);
   });
 
-  it('the Frost Golem summons Snow, so its Block builds up', () => {
+  it('the Frost Golem summons Snow and brews Permafrost, so its Block builds up', () => {
     const s = newCombat(['defend', 'defend', 'defend', 'defend', 'defend'], {
       enemies: ['frostGolem'],
       playerHp: 500,
@@ -49,10 +49,10 @@ describe('new enemies', () => {
     });
     endTurn(s); // Frost Breath: Snow + 8 Block
     expect(s.weather.current).toBe('snow');
-    endTurn(s); // Slam; Block stays in Snow
+    endTurn(s); // Slam, then its cauldron (Earth + Frost) brews Permafrost: +15, and Block stays in Snow
     endTurn(s); // Slam
-    endTurn(s); // Frost Breath again: +8 more
-    expect(s.enemies[0]?.block).toBe(16);
+    endTurn(s); // Frost Breath (+8) and Permafrost again (+15)
+    expect(s.enemies[0]?.block).toBe(8 + 15 + 8 + 15);
   });
 });
 

@@ -3,7 +3,15 @@ import { MAX_HAND_SIZE, createCombat, setWeather } from './combat';
 import type { CombatEvent, CombatState, WeatherId } from './types';
 
 /** Enemies you can fight in the sandbox, starting with the harmless dummy. */
-export const SANDBOX_ENEMIES = ['trainingDummy', 'cinderImp', 'drizzleSlime', 'stormCaller', 'frostGolem'];
+export const SANDBOX_ENEMIES = [
+  'trainingDummy',
+  'cinderImp',
+  'drizzleSlime',
+  'stormCaller',
+  'frostGolem',
+  'mireWitch',
+  'eyeOfTheStorm',
+];
 
 /** A practice fight with lots of HP, to try cards, weather and brews. */
 export function createSandbox(enemy: string, seed: number): CombatState {

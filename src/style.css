@@ -386,8 +386,32 @@ button {
   justify-content: space-between;
 }
 
+.stance {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 48px;
+  border: 2px solid rgb(255 255 255 / 0.25);
+  border-radius: 14px;
+  background: rgb(0 0 0 / 0.25);
+  font-size: 1.1rem;
+  line-height: 1.1;
+}
+
+.stance small {
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.stance.out {
+  border-color: var(--weather-color, #6fa8dc);
+  background: color-mix(in srgb, var(--weather-color, #6fa8dc) 30%, transparent);
+}
+
 .pile {
-  min-width: 56px;
+  min-width: 44px;
   color: var(--text-muted);
   text-align: center;
 }
@@ -654,6 +678,11 @@ button {
   background: var(--bg);
 }
 
+.header-buttons {
+  display: flex;
+  gap: 6px;
+}
+
 .stat {
   font-weight: 700;
 }
@@ -911,6 +940,36 @@ button {
   text-align: left;
 }
 
+.enemy-cauldron {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.8rem;
+}
+
+.enemy-cauldron small {
+  margin-left: 2px;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.mini-slot {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  background: color-mix(in srgb, var(--chip-color) 30%, transparent);
+  border: 1px solid var(--chip-color);
+}
+
+.mini-slot.empty {
+  background: none;
+  border: 1px dashed rgb(255 255 255 / 0.3);
+}
+
 .forecast-icons {
   display: flex;
   align-items: center;
@@ -970,21 +1029,6 @@ button {
 .slot.filled {
   background: color-mix(in srgb, var(--chip-color) 30%, transparent);
   border: 2px solid var(--chip-color);
-}
-
-.slot.free {
-  width: 32px;
-  height: 32px;
-  font-size: 1rem;
-  border-style: dashed;
-  opacity: 0.85;
-}
-
-.free-element {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  color: var(--text-muted);
 }
 
 .book-icon {

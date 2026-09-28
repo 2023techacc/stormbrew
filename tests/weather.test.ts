@@ -8,6 +8,7 @@ import {
   advanceWeather,
   createWeather,
   modifyDamage,
+  skyWeather,
   turnsUntilChange,
 } from '../src/core/weather';
 
@@ -99,7 +100,7 @@ describe('weather schedule', () => {
     const s = newCombat();
     const next = s.weather.forecast[0];
     if (!next) throw new Error('no forecast');
-    setWeather(s, next, 'player');
+    setWeather(s, skyWeather(next), 'player');
     expect(s.weather.forecast[0]).not.toBe(next);
     expect(s.weather.forecast).toHaveLength(2);
   });

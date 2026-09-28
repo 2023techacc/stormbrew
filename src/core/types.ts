@@ -23,10 +23,16 @@ export type Effect =
   | { type: 'swapForecast' }
   /** Restart the current weather's countdown. */
   | { type: 'holdWeather' }
+  /** Replace the next forecast weather with a new one from the sky. */
+  | { type: 'scatter' }
   | { type: 'addElement'; element: ElementId }
   | { type: 'brew' }
   /** The next brew this fight is bottled as a potion instead of used. */
-  | { type: 'bottle' };
+  | { type: 'bottle' }
+  /** Take the newest element from the target enemy's cauldron into yours. */
+  | { type: 'steal' }
+  /** The target enemy's next brew fails (becomes Sludge). */
+  | { type: 'spoil' };
 
 export type CardKind = 'attack' | 'skill';
 
@@ -78,6 +84,8 @@ export interface EnemyMove {
   status?: { status: StatusId; amount: number };
   /** Takes the newest element out of the player's cauldron. */
   stealElement?: boolean;
+  /** Shuffles these sky cards into the player's sky for this fight. */
+  addSky?: string[];
 }
 
 export interface EnemyDef {
@@ -88,8 +96,16 @@ export interface EnemyDef {
   moves: EnemyMove[];
   /** Weathers whose effects this enemy ignores ("Weathered"). */
   weathered?: WeatherId[];
+  /** Always under cover, so the weather's harm never reaches it. */
+  sheltered?: boolean;
   /** Once HP is at or below this fraction of max HP, these moves are used instead. */
   phase2?: { below: number; moves: EnemyMove[] };
+  /**
+   * Enemies that brew: after each move they add the next element from
+   * `gathers` (in order, repeating) and brew when the cauldron holds `size`.
+   * Elements they steal from the player also go in.
+   */
+  cauldron?: { size: number; gathers: ElementId[] };
 }
 
 export interface Combatant {
@@ -102,22 +118,38 @@ export interface Combatant {
 export interface PlayerState extends Combatant {
   energy: number;
   maxEnergy: number;
+  /**
+   * Out in the open (true) or under cover. Out, you catch the weather's element
+   * each turn but its harm (lightning, Heatwave Burn) can reach you.
+   */
+  exposed: boolean;
 }
 
 export interface EnemyState extends Combatant {
   defId: string;
   name: string;
   moveIndex: number;
+  /** The enemy's own cauldron (empty for enemies that don't brew). */
+  cauldron: ElementId[];
+  gatherIndex: number;
+  /** Its next brew fails. */
+  spoiled: boolean;
 }
 
 export type CombatStatus = 'playing' | 'won' | 'lost';
 
 export interface WeatherState {
   current: WeatherId;
-  /** Upcoming scheduled weathers, soonest first. */
-  forecast: WeatherId[];
+  /** The sky card the current weather came from (e.g. 'monsoon'). */
+  currentCard: string;
+  /** Upcoming sky cards, soonest first. A basic card's id is its weather's id. */
+  forecast: string[];
   /** The turn on which the weather next changes to the forecast. */
   nextChangeTurn: number;
+  /** Sky cards still to be drawn this fight. */
+  skyPile: string[];
+  /** Every sky card in this fight (the run's sky deck plus any added by enemies); reshuffled when the pile runs out. */
+  skyDeck: string[];
 }
 
 export interface CombatState {
@@ -149,10 +181,23 @@ export type CombatEvent =
   | { type: 'enemyMove'; index: number; move: EnemyMove }
   | { type: 'status'; target: UnitRef; status: StatusId; amount: number }
   | { type: 'weather'; from: WeatherId; to: WeatherId; cause: 'schedule' | 'player' | 'enemy' }
-  | { type: 'element'; element: ElementId }
-  | { type: 'brew'; recipeId: string; used: ElementId[]; weatherElement?: ElementId; bottled?: boolean }
+  /** An element went into the cauldron (from a card, or caught from the weather). */
+  | { type: 'element'; element: ElementId; fromWeather?: boolean }
+  /** A weather element was lost because the cauldron was full. */
+  | { type: 'spill'; element: ElementId }
+  | { type: 'exposure'; exposed: boolean }
+  /** The forecast changed without the weather changing. */
+  | { type: 'forecast' }
+  | { type: 'skyAdded'; index: number; cards: string[] }
+  | { type: 'brew'; recipeId: string; used: ElementId[]; bottled?: boolean }
   | { type: 'potion'; recipeId: string }
   | { type: 'heal'; amount: number }
+  /** An enemy took an element from the player's cauldron. */
   | { type: 'steal'; index: number; element: ElementId }
+  /** The player took an element from an enemy's cauldron. */
+  | { type: 'pilfer'; index: number; element: ElementId; kept: boolean }
+  | { type: 'spoiled'; index: number }
+  | { type: 'enemyGather'; index: number; element: ElementId }
+  | { type: 'enemyBrew'; index: number; recipeId: string; used: ElementId[] }
   | { type: 'relic'; relic: string }
   | { type: 'shuffle' };
