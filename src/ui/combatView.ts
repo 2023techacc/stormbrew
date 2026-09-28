@@ -11,8 +11,11 @@ import {
   isAlive,
   isWeathered,
   playCard,
+  potionNeedsTarget,
   previewCardBrew,
+  usePotion,
 } from '../core/combat';
+import { discoverFrom, isKnown, type Grimoire } from '../core/grimoire';
 import type {
   CardDef,
   CardInstance,
@@ -43,6 +46,10 @@ export interface CombatViewOptions {
   onExit: () => void;
   /** Sandbox tools (add cards, change weather, refill energy, next enemy). */
   sandbox?: { onNextEnemy: () => void };
+  /** Known recipes; unknown ones show as "???". Omit to show everything (sandbox). Updated as recipes are brewed. */
+  grimoire?: Grimoire;
+  /** Called after every change to the fight (for auto-save). */
+  onChange?: (state: CombatState) => void;
 }
 
 type Overlay = 'none' | 'recipes' | 'cards';
@@ -52,13 +59,35 @@ type Overlay = 'none' | 'recipes' | 'cards';
  * card or its brew needs a target) or tap the card again.
  */
 export function showCombat(root: HTMLElement, options: CombatViewOptions): void {
-  const { state } = options;
+  const { state, grimoire } = options;
   let selectedUid: number | null = null;
+  let selectedPotion: number | null = null;
   let hint = options.sandbox ? 'Sandbox: use the tools at the top to try anything.' : 'Tap a card to select it.';
   let overlay: Overlay = 'none';
+  const known = (recipeId: string) => !grimoire || isKnown(grimoire, recipeId);
 
   const render = () => {
-    root.innerHTML = renderCombat(state, { selectedUid, hint, overlay, label: options.label, sandbox: !!options.sandbox });
+    root.innerHTML = renderCombat(state, {
+      selectedUid,
+      selectedPotion,
+      hint,
+      overlay,
+      label: options.label,
+      sandbox: !!options.sandbox,
+      known,
+    });
+  };
+
+  /** After anything happens: learn brewed recipes, describe it, redraw, animate, save. */
+  const after = (events: CombatEvent[]) => {
+    const found = grimoire ? discoverFrom(grimoire, events) : [];
+    hint = describeEvents(state, events);
+    if (found.length) {
+      hint += ` ${ICONS.grimoire} New recipe: ${found.map((id) => getRecipe(id).name).join(', ')}!`;
+    }
+    render();
+    animate(root, events);
+    options.onChange?.(state);
   };
 
   const tryPlay = (uid: number, targetIndex?: number) => {
@@ -69,9 +98,36 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       return;
     }
     selectedUid = null;
-    hint = describeEvents(state, result.events);
+    after(result.events);
+  };
+
+  const tryPotion = (index: number, targetIndex?: number) => {
+    const result = usePotion(state, index, targetIndex);
+    if (!result.ok) {
+      hint = result.reason;
+      render();
+      return;
+    }
+    selectedPotion = null;
+    after(result.events);
+  };
+
+  const onPotionTap = (index: number) => {
+    const id = state.potions[index];
+    if (id === undefined || state.status !== 'playing') return;
+    selectedUid = null;
+    const needsTarget = potionNeedsTarget(state, index);
+    const living = state.enemies.flatMap((e, i) => (isAlive(e) ? [i] : []));
+    if (selectedPotion === index) {
+      if (!needsTarget) return tryPotion(index);
+      if (living.length === 1) return tryPotion(index, living[0]);
+    }
+    selectedPotion = index;
+    const recipe = getRecipe(id);
+    hint = `${ICONS.potion} ${recipe.name}: ${plainText(recipe, state.weather.current, !!state.player.statuses.weak)} Free to drink. ${
+      needsTarget ? (living.length === 1 ? 'Tap the enemy, or the potion again.' : 'Tap an enemy.') : 'Tap it again to drink.'
+    }`;
     render();
-    animate(root, result.events);
   };
 
   const onCardTap = (uid: number) => {
@@ -94,12 +150,16 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       if (living.length === 1) return tryPlay(uid, living[0]);
     }
     selectedUid = uid;
+    selectedPotion = null;
     const effects = cardEffects(card);
     const brew = previewCardBrew(state, { effects });
     const overflow = state.cauldron.length >= state.cauldronSlots && effects.some((e) => e.type === 'addElement');
-    const brewNote = brew
-      ? `${overflow ? 'Cauldron full! First brews' : 'Brews'} ${brew.recipe.name}: ${plainText(brew.recipe, state.weather.current, !!state.player.statuses.weak)} `
-      : '';
+    const what = !brew
+      ? ''
+      : known(brew.recipe.id)
+        ? `${brew.recipe.name}: ${plainText(brew.recipe, state.weather.current, !!state.player.statuses.weak)}`
+        : 'an unknown recipe!';
+    const brewNote = brew ? `${overflow ? 'Cauldron full! First brews' : 'Brews'} ${what} ` : '';
     hint =
       brewNote +
       (needsTarget
@@ -111,6 +171,10 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
   };
 
   const onEnemyTap = (index: number) => {
+    if (selectedPotion !== null) {
+      if (potionNeedsTarget(state, selectedPotion)) tryPotion(selectedPotion, index);
+      return;
+    }
     if (selectedUid === null) return;
     const card = state.hand.find((c) => c.uid === selectedUid);
     if (card && cardNeedsTarget(state, card)) tryPlay(card.uid, index);
@@ -118,23 +182,23 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
 
   const onEndTurn = () => {
     selectedUid = null;
-    const events = endTurn(state);
-    hint = describeEvents(state, events);
-    render();
-    animate(root, events);
+    selectedPotion = null;
+    after(endTurn(state));
   };
 
   root.onclick = (event) => {
-    const el = (event.target as HTMLElement).closest<HTMLElement>('[data-uid],[data-enemy],[data-action],[data-add-card]');
+    const el = (event.target as HTMLElement).closest<HTMLElement>('[data-uid],[data-enemy],[data-action],[data-add-card],[data-potion]');
     if (!el) {
-      if (selectedUid !== null) {
+      if (selectedUid !== null || selectedPotion !== null) {
         selectedUid = null;
+        selectedPotion = null;
         hint = '';
         render();
       }
       return;
     }
     if (el.dataset.uid !== undefined) onCardTap(Number(el.dataset.uid));
+    else if (el.dataset.potion !== undefined) onPotionTap(Number(el.dataset.potion));
     else if (el.dataset.enemy !== undefined) onEnemyTap(Number(el.dataset.enemy));
     else if (el.dataset.action === 'end-turn') onEndTurn();
     else if (el.dataset.action === 'forecast') {
@@ -154,10 +218,7 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       render();
     } else if (el.dataset.action === 'weather') {
       const next = WEATHER_IDS[(WEATHER_IDS.indexOf(state.weather.current) + 1) % WEATHER_IDS.length] ?? 'clear';
-      const events = sandboxSetWeather(state, next);
-      hint = describeEvents(state, events);
-      render();
-      animate(root, events);
+      after(sandboxSetWeather(state, next));
     } else if (el.dataset.action === 'energy') {
       sandboxRefillEnergy(state);
       hint = 'Energy refilled.';
@@ -179,16 +240,20 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
 
 interface CombatUi {
   selectedUid: number | null;
+  selectedPotion: number | null;
   hint: string;
   overlay: Overlay;
   label: string | undefined;
   sandbox: boolean;
+  known: (recipeId: string) => boolean;
 }
 
 function renderCombat(state: CombatState, ui: CombatUi): string {
   const { selectedUid, hint } = ui;
   const selected = state.hand.find((c) => c.uid === selectedUid);
-  const targeting = selected !== undefined && cardNeedsTarget(state, selected);
+  const targeting =
+    (selected !== undefined && cardNeedsTarget(state, selected)) ||
+    (ui.selectedPotion !== null && potionNeedsTarget(state, ui.selectedPotion));
   const { player } = state;
 
   return `
@@ -196,6 +261,7 @@ function renderCombat(state: CombatState, ui: CombatUi): string {
       <header class="top-bar">
         <span>${ui.label ? `${esc(ui.label)} · ` : ''}Turn ${state.turn}</span>
         ${ui.sandbox ? renderSandboxTools() : ''}
+        ${renderPotions(state, ui.selectedPotion)}
         <button class="text-button" data-action="exit">Quit</button>
       </header>
 
@@ -205,7 +271,7 @@ function renderCombat(state: CombatState, ui: CombatUi): string {
         ${state.enemies.map((e, i) => renderEnemy(e, i, targeting, state.weather.current)).join('')}
       </section>
 
-      ${renderCauldron(state)}
+      ${renderCauldron(state, ui.known)}
 
       <p class="hint" aria-live="polite">${esc(hint)}</p>
 
@@ -231,7 +297,7 @@ function renderCombat(state: CombatState, ui: CombatUi): string {
         <span class="pile" title="Discard pile">${ICONS.discardPile} ${state.discardPile.length}</span>
       </footer>
 
-      ${ui.overlay === 'recipes' ? renderRecipeBook(state) : ''}
+      ${ui.overlay === 'recipes' ? renderRecipeBook(state, ui.known) : ''}
       ${ui.overlay === 'cards' ? renderCardPicker() : ''}
       ${state.status === 'playing' ? '' : renderResult(state, ui.sandbox)}
     </main>
@@ -369,8 +435,23 @@ function elementChip(element: ElementId, extraClass = ''): string {
   return `<span class="slot filled ${extraClass}" style="--chip-color: ${look.color}" title="${esc(look.name)}">${look.icon}</span>`;
 }
 
+function renderPotions(state: CombatState, selected: number | null): string {
+  if (state.potions.length === 0) return '';
+  return `
+    <span class="potion-belt" aria-label="Potions">
+      ${state.potions
+        .map((id, i) => {
+          const recipe = getRecipe(id);
+          return `<button class="potion ${selected === i ? 'selected' : ''}" data-potion="${i}" title="${esc(recipe.name)}">
+            ${ICONS.potion}<small>${recipe.elements.map((e) => ELEMENTS[e].icon).join('')}</small></button>`;
+        })
+        .join('')}
+    </span>
+  `;
+}
+
 /** The cauldron's slots, the weather's free element, and what brewing now would make. */
-function renderCauldron(state: CombatState): string {
+function renderCauldron(state: CombatState, known: (recipeId: string) => boolean): string {
   const weather = state.weather.current;
   const free = WEATHER_ELEMENTS[weather];
   const slots = Array.from({ length: state.cauldronSlots }, (_, i) => {
@@ -380,8 +461,11 @@ function renderCauldron(state: CombatState): string {
   let preview = 'Gather elements, then Stir to brew. Tap for recipes.';
   if (state.cauldron.length > 0) {
     const brew = findBrew(state.cauldron, weather);
-    preview = `Stir now: <strong>${esc(brew.recipe.name)}</strong> · ${richText(brew.recipe, weather, !!state.player.statuses.weak)}`;
+    preview = known(brew.recipe.id)
+      ? `Stir now: <strong>${esc(brew.recipe.name)}</strong> · ${richText(brew.recipe, weather, !!state.player.statuses.weak)}`
+      : 'Stir now: <strong>???</strong> · an unknown recipe. Brew it to learn it!';
   }
+  if (state.bottleNext > 0) preview += ` <strong>${ICONS.potion} The next brew will be bottled.</strong>`;
   return `
     <button class="cauldron" data-action="recipes" aria-label="Cauldron. Tap to see recipes.">
       <span class="cauldron-row">
@@ -399,19 +483,27 @@ function renderCauldron(state: CombatState): string {
   `;
 }
 
-function renderRecipeBook(state: CombatState): string {
+function renderRecipeBook(state: CombatState, known: (recipeId: string) => boolean): string {
   const weather = state.weather.current;
-  const row = (r: RecipeDef) => `
+  const row = (r: RecipeDef) =>
+    known(r.id)
+      ? `
     <li class="recipe">
       <span class="recipe-elements">${r.elements.map((e) => ELEMENTS[e].icon).join('')}</span>
       <span class="recipe-body"><strong>${esc(r.name)}</strong> ${richText(r, weather, !!state.player.statuses.weak)}</span>
+    </li>`
+      : `
+    <li class="recipe unknown">
+      <span class="recipe-elements">${r.elements.map(() => '❔').join('')}</span>
+      <span class="recipe-body"><strong>???</strong> Not discovered yet.</span>
     </li>`;
+  const discovered = RECIPES.filter((r) => known(r.id)).length;
   const free = WEATHER_ELEMENTS[weather];
   return `
     <span class="overlay" data-action="close">
       <span class="recipe-panel" role="dialog" aria-label="Recipes" data-action="none">
         <span class="recipe-header">
-          <h2>Recipes</h2>
+          <h2>Recipes <small class="muted">${discovered}/${RECIPES.length}</small></h2>
           <button class="text-button" data-action="close">Close</button>
         </span>
         <span class="recipe-rules">
@@ -494,6 +586,10 @@ function describeEvents(state: CombatState, events: CombatEvent[]): string {
             ? `${actingEnemy} summoned ${name}!`
             : `You summoned ${name}.`;
       messages.push(`${WEATHERS[event.to].icon} ${what} ${WEATHER_INFO[event.to].effect}`);
+    } else if (event.type === 'potion') {
+      messages.push(`${ICONS.potion} You drank ${getRecipe(event.recipeId).name}!`);
+    } else if (event.type === 'brew' && event.bottled) {
+      messages.push(`${ICONS.potion} Bottled ${getRecipe(event.recipeId).name} for later!`);
     } else if (event.type === 'brew') {
       const recipe = getRecipe(event.recipeId);
       const used = event.used.map((e) => ELEMENTS[e].icon).join('');

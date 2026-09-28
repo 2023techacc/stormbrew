@@ -4,6 +4,7 @@ import {
   addCardToDeck,
   availableNodes,
   buyCard,
+  buyPotion,
   buyRelic,
   canInfuse,
   createRun,
@@ -16,28 +17,39 @@ import {
   restHealAmount,
   startFight,
   type FightRewards,
+  type RunScreen,
   type RunState,
 } from '../core/run';
+import type { Grimoire } from '../core/grimoire';
+import { makeRunSave, type RunSave } from '../core/save';
 import type { CombatState, ElementId } from '../core/types';
 import { getCard } from '../data/cards';
+import { getRecipe } from '../data/recipes';
 import { getRelic } from '../data/relics';
 import { cardFace, showCombat } from './combatView';
 import { esc } from './dom';
+import { clearRun, saveGrimoire, saveRun } from './storage';
+import { baseText } from './text';
 import { ELEMENTS, ICONS, NODE_ICONS, NODE_NAMES, RELIC_ICONS } from './theme';
 
 const MAP_ROW = 64;
 
-type Screen =
-  | { name: 'map' }
-  | { name: 'reward'; rewards: FightRewards }
-  | { name: 'rest'; step: 'choose' | 'pickCard' | 'pickElement'; deckIndex?: number }
-  | { name: 'shop'; removing: boolean }
-  | { name: 'over' };
+export interface RunViewOptions {
+  onExit: () => void;
+  /** Recipes known so far; updated (and saved) as new ones are brewed. */
+  grimoire: Grimoire;
+  /** A saved run to continue instead of starting a new one. */
+  resume?: RunSave | null;
+}
 
-/** A run through Act 1: map, fights, rewards, rest sites and shops, up to the boss. */
-export function showRun(root: HTMLElement, onExit: () => void): void {
-  let run: RunState = createRun(randomSeed());
-  let screen: Screen = { name: 'map' };
+/**
+ * A run through Act 1: map, fights, rewards, rest sites and shops, up to the
+ * boss. The run is saved after every action, so it can be continued later.
+ */
+export function showRun(root: HTMLElement, options: RunViewOptions): void {
+  const { onExit, grimoire } = options;
+  let run: RunState = options.resume?.run ?? createRun(randomSeed());
+  let screen: RunScreen = options.resume?.screen ?? { name: 'map' };
   let showDeck = false;
   let message = '';
   /**
@@ -47,10 +59,18 @@ export function showRun(root: HTMLElement, onExit: () => void): void {
    */
   let scroll: 'map' | 'top' | 'keep' = 'map';
 
-  const go = (next: Screen, note = '') => {
+  /** Saves the run (and the fight in progress, if any). A finished run is deleted. */
+  const persist = (combat?: CombatState) => {
+    if (run.status !== 'playing') clearRun();
+    else saveRun(makeRunSave(run, screen, combat));
+    saveGrimoire(grimoire);
+  };
+
+  const go = (next: RunScreen, note = '') => {
     if (next.name !== screen.name) scroll = next.name === 'map' ? 'map' : 'top';
     screen = next;
     message = note;
+    persist();
     render();
   };
 
@@ -60,6 +80,7 @@ export function showRun(root: HTMLElement, onExit: () => void): void {
       root.innerHTML = renderOver(run);
       return;
     }
+    if (screen.name === 'combat') return;
     const body =
       screen.name === 'map'
         ? renderMap(run)
@@ -82,10 +103,15 @@ export function showRun(root: HTMLElement, onExit: () => void): void {
     scroll = 'keep';
   };
 
+  const showFight = (state: CombatState, label: string) => {
+    screen = { name: 'combat', label };
+    persist(state);
+    showCombat(root, { state, label, grimoire, onFinished: afterFight, onExit, onChange: persist });
+  };
+
   const startNodeFight = (node: MapNode) => {
     const { state } = startFight(run);
-    const label = node.type === 'boss' ? 'Boss' : `${node.type === 'elite' ? 'Elite · ' : ''}Floor ${node.floor + 1}`;
-    showCombat(root, { state, label, onFinished: afterFight, onExit });
+    showFight(state, node.type === 'boss' ? 'Boss' : `${node.type === 'elite' ? 'Elite · ' : ''}Floor ${node.floor + 1}`);
   };
 
   const afterFight = (combat: CombatState) => {
@@ -95,7 +121,9 @@ export function showRun(root: HTMLElement, onExit: () => void): void {
   };
 
   const onClick = (event: MouseEvent) => {
-    const el = (event.target as HTMLElement).closest<HTMLElement>('[data-action],[data-node],[data-relic],[data-reward],[data-deck-index],[data-element],[data-buy-card],[data-buy-relic]');
+    const el = (event.target as HTMLElement).closest<HTMLElement>(
+      '[data-action],[data-node],[data-relic],[data-potion-info],[data-reward],[data-deck-index],[data-element],[data-buy-card],[data-buy-relic],[data-buy-potion]',
+    );
     if (!el) return;
     const d = el.dataset;
 
@@ -104,6 +132,10 @@ export function showRun(root: HTMLElement, onExit: () => void): void {
     if (d.relic) {
       const relic = getRelic(d.relic);
       return go(screen, `${RELIC_ICONS[relic.id] ?? ''} ${relic.name}: ${relic.text}`);
+    }
+    if (d.potionInfo) {
+      const recipe = getRecipe(d.potionInfo);
+      return go(screen, `${ICONS.potion} ${recipe.name} potion: ${baseText(recipe)} Drink it during a fight.`);
     }
     if (d.action === 'none' || showDeck) return;
 
@@ -151,6 +183,10 @@ export function showRun(root: HTMLElement, onExit: () => void): void {
         const result = buyRelic(run, Number(d.buyRelic));
         return go(screen, result.ok ? 'Bought!' : result.reason);
       }
+      if (d.buyPotion !== undefined) {
+        const result = buyPotion(run, Number(d.buyPotion));
+        return go(screen, result.ok ? 'Bought!' : result.reason);
+      }
       if (d.deckIndex !== undefined && screen.removing) {
         const card = run.deck[Number(d.deckIndex)];
         const result = removeCard(run, Number(d.deckIndex));
@@ -171,7 +207,12 @@ export function showRun(root: HTMLElement, onExit: () => void): void {
     }
   };
 
-  render();
+  const resumed = options.resume;
+  if (resumed?.screen.name === 'combat' && resumed.combat) showFight(resumed.combat, resumed.screen.label);
+  else {
+    persist();
+    render();
+  }
 }
 
 function randomSeed(): number {
@@ -185,9 +226,14 @@ function renderHeader(run: RunState): string {
       <span class="stat" title="Gold">${ICONS.gold} ${run.gold}</span>
       <button class="tool-button" data-action="deck" title="Your deck">${ICONS.deck} ${run.deck.length}</button>
     </header>
-    <section class="relic-bar" aria-label="Relics">
+    <section class="relic-bar" aria-label="Relics and potions">
       ${run.relics
         .map((id) => `<button class="relic" data-relic="${esc(id)}" title="${esc(getRelic(id).name)}">${RELIC_ICONS[id] ?? '❔'}</button>`)
+        .join('')}
+      ${run.potions
+        .map(
+          (id) => `<button class="relic potion-icon" data-potion-info="${esc(id)}" title="${esc(getRecipe(id).name)}">${ICONS.potion}</button>`,
+        )
         .join('')}
     </section>
   `;
@@ -243,6 +289,7 @@ function renderReward(rewards: FightRewards): string {
         ? `<p class="relic-found">${RELIC_ICONS[relic.id] ?? ''} <strong>${esc(relic.name)}</strong>: ${esc(relic.text)}</p>`
         : ''
     }
+    ${rewards.potion ? `<p class="relic-found">${ICONS.potion} Found a <strong>${esc(getRecipe(rewards.potion).name)}</strong> potion!</p>` : ''}
     <p>Choose a card to add to your deck:</p>
     <section class="reward-cards">
       ${rewards.cardChoices.map((id) => cardFace(getCard(id), 'clear', { attrs: `data-reward="${esc(id)}"` })).join('')}
@@ -320,6 +367,18 @@ function renderShop(run: RunState, removing: boolean): string {
           return `<button class="shop-relic ${item.sold ? 'sold' : ''}" data-buy-relic="${i}">
             <span class="relic-icon">${RELIC_ICONS[relic.id] ?? '❔'}</span>
             <span class="recipe-body"><strong>${esc(relic.name)}</strong> ${esc(relic.text)}</span>
+            ${price(item.price, item.sold)}
+          </button>`;
+        })
+        .join('')}
+    </section>
+    <section class="shop-relics">
+      ${shop.potions
+        .map((item, i) => {
+          const recipe = getRecipe(item.id);
+          return `<button class="shop-relic ${item.sold ? 'sold' : ''}" data-buy-potion="${i}">
+            <span class="relic-icon">${ICONS.potion}</span>
+            <span class="recipe-body"><strong>${esc(recipe.name)} potion</strong> ${esc(baseText(recipe))}</span>
             ${price(item.price, item.sold)}
           </button>`;
         })

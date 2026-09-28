@@ -24,7 +24,9 @@ export type Effect =
   /** Restart the current weather's countdown. */
   | { type: 'holdWeather' }
   | { type: 'addElement'; element: ElementId }
-  | { type: 'brew' };
+  | { type: 'brew' }
+  /** The next brew this fight is bottled as a potion instead of used. */
+  | { type: 'bottle' };
 
 export type CardKind = 'attack' | 'skill';
 
@@ -130,6 +132,10 @@ export interface CombatState {
   cauldron: ElementId[];
   cauldronSlots: number;
   relics: string[];
+  /** Bottled brews (recipe ids) the player carries; used for free. */
+  potions: string[];
+  /** How many upcoming brews will be bottled instead of used. */
+  bottleNext: number;
   status: CombatStatus;
   rngState: number;
 }
@@ -144,7 +150,8 @@ export type CombatEvent =
   | { type: 'status'; target: UnitRef; status: StatusId; amount: number }
   | { type: 'weather'; from: WeatherId; to: WeatherId; cause: 'schedule' | 'player' | 'enemy' }
   | { type: 'element'; element: ElementId }
-  | { type: 'brew'; recipeId: string; used: ElementId[]; weatherElement?: ElementId }
+  | { type: 'brew'; recipeId: string; used: ElementId[]; weatherElement?: ElementId; bottled?: boolean }
+  | { type: 'potion'; recipeId: string }
   | { type: 'heal'; amount: number }
   | { type: 'steal'; index: number; element: ElementId }
   | { type: 'relic'; relic: string }

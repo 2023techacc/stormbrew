@@ -86,6 +86,7 @@ export const CARD_ICONS: Record<string, string> = {
   deluge: '🌊',
   thunderclap: '💥',
   brace: '🧱',
+  bottleIt: '🍶',
 };
 
 export const CARD_KIND_COLORS = {
@@ -106,5 +107,7 @@ export const ICONS = {
   cauldron: '🧪',
   recipes: '📖',
   gold: '💰',
+  potion: '🧴',
+  grimoire: '📕',
   deck: '🂠',
 } as const;

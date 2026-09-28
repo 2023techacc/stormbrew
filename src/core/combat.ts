@@ -1,5 +1,6 @@
 import { getCard } from '../data/cards';
 import { getEnemy } from '../data/enemies';
+import { SLUDGE, getRecipe } from '../data/recipes';
 import { CAULDRON_SLOTS, effectsNeedTarget, findBrew, type BrewResult } from './brewing';
 import { dealDamage, gainBlock } from './effects';
 import { Rng } from './rng';
@@ -35,6 +36,7 @@ export const WEAK_MULTIPLIER = 0.75;
 
 export const BASE_ELEMENTS: readonly ElementId[] = ['fire', 'water', 'earth', 'air'];
 export const WEATHERVANE_BLOCK = 3;
+export const MAX_POTIONS = 3;
 export const SNOW_GLOBE_BLOCK = 3;
 
 export interface CombatSetup {
@@ -46,6 +48,7 @@ export interface CombatSetup {
   playerMaxHp: number;
   startWeather?: WeatherId;
   relics?: string[];
+  potions?: string[];
 }
 
 export type PlayResult = { ok: true; events: CombatEvent[] } | { ok: false; reason: string };
@@ -98,6 +101,8 @@ export function createCombat(setup: CombatSetup): { state: CombatState; events: 
     cauldron,
     cauldronSlots: CAULDRON_SLOTS + (relics.includes('ironCauldron') ? 1 : 0),
     relics: [...relics],
+    potions: [...(setup.potions ?? [])],
+    bottleNext: 0,
     status: 'playing',
     rngState: rng.getState(),
   };
@@ -417,6 +422,9 @@ function applyEffects(state: CombatState, effects: readonly Effect[], target?: n
       case 'brew':
         events.push(...brew(state, target));
         break;
+      case 'bottle':
+        state.bottleNext += 1;
+        break;
     }
   }
   return events;
@@ -430,7 +438,37 @@ function brew(state: CombatState, target?: number): CombatEvent[] {
   state.cauldron = state.cauldron.filter((_, i) => !result.usedSlots.includes(i));
   const event: CombatEvent = { type: 'brew', recipeId: result.recipe.id, used };
   if (result.weatherElement) event.weatherElement = result.weatherElement;
+  // Bottling keeps a real recipe for later; Sludge and full potion belts are used as normal.
+  if (state.bottleNext > 0 && result.recipe.id !== SLUDGE.id && state.potions.length < MAX_POTIONS) {
+    state.bottleNext -= 1;
+    state.potions.push(result.recipe.id);
+    event.bottled = true;
+    return [event];
+  }
   return [event, ...applyEffects(state, result.recipe.effects, target)];
+}
+
+/** Whether using this potion needs an enemy chosen. */
+export function potionNeedsTarget(state: CombatState, index: number): boolean {
+  const id = state.potions[index];
+  return id !== undefined && effectsNeedTarget(getRecipe(id).effects);
+}
+
+/** Drinks a potion: its brew's effects happen right away, for free. */
+export function usePotion(state: CombatState, index: number, targetIndex?: number): PlayResult {
+  if (state.status !== 'playing') return { ok: false, reason: 'The fight is over.' };
+  const id = state.potions[index];
+  if (id === undefined) return { ok: false, reason: 'No potion there.' };
+  let target: number | undefined;
+  if (potionNeedsTarget(state, index)) {
+    const enemy = targetIndex === undefined ? undefined : state.enemies[targetIndex];
+    if (targetIndex === undefined || !enemy || !isAlive(enemy)) return { ok: false, reason: 'Choose an enemy.' };
+    target = targetIndex;
+  }
+  state.potions.splice(index, 1);
+  const events: CombatEvent[] = [{ type: 'potion', recipeId: id }, ...applyEffects(state, getRecipe(id).effects, target)];
+  updateStatus(state);
+  return { ok: true, events };
 }
 
 /** Burn: lose that much HP (ignoring Block) at the end of your turn, then it goes down by 1. */
