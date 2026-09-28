@@ -65,6 +65,10 @@ Start run → Map (choose path) → Node
 | *Later:* **Gale** | Top card of draw pile discarded each turn; Air +1. | Air elements count double            |
 | *Later:* **Eclipse** (rare) | All brews are “inverted” (buffs ↔ debuffs). | —                                    |
 
+*Status:* the combat effects above are in the game (Milestone 2), except Rain's
+“Water effects +1” and the brewing column, which arrive with water cards and
+the cauldron in Milestone 3.
+
 ### 3.2 How weather changes
 1. **Natural cycle**: weather changes on a **fixed schedule**, every **N rounds**.
    N is a single constant for the whole game and is never random. It starts at
@@ -88,7 +92,10 @@ scheduled change (e.g. *Hold the Sky*: the next scheduled change is skipped).
 ### 3.3 Weather-related keywords
 - **Attuned (X)**: this card has a bonus effect while the weather is X.
 - **Forecast**: look at or change an upcoming weather slot.
-- **Weathered**: an enemy that is immune to the current weather's effect.
+- **Weathered (X)**: this enemy ignores the harmful effects of weather X
+  (it can't be hit by Storm lightning, or doesn't gain Heatwave Burn).
+- **Burn**: at the end of your turn, lose HP equal to your Burn (ignoring
+  Block), then Burn goes down by 1.
 
 ---
 
@@ -302,7 +309,7 @@ Important choices:
 |---|-----------|-------------|
 | 0 | **Setup** ✅ | Vite + TS project (strict type checks), Vitest, Capacitor Android project, GitHub Actions building the web version **and a downloadable APK** |
 | 1 | **Combat core** ✅ | Deck/hand/energy, Strike/Defend, one enemy with intents, win/lose screens, touch controls in portrait layout |
-| 2 | **Weather** | 5 weathers, fixed-interval schedule, forecast UI with countdown, weather modifiers in the effects pipeline, 1 enemy that changes weather |
+| 2 | **Weather** ✅ | 5 weathers, fixed-interval schedule, forecast UI with countdown, weather modifiers in the effects pipeline, 1 enemy that changes weather |
 | 3 | **Brewing** | Cauldron UI, Element and Brew cards, 10 recipes, Sludge, weather ↔ brew interactions |
 | 4 | **Playable fight loop** | 3–4 enemy types, card rewards after combat, a “sandbox” mode to test cards |
 | 5 | **Run structure** | Branching Act 1 map, rest sites (including Infuse), shop, gold, relics, the Act 1 boss |

@@ -28,6 +28,13 @@ export const WEATHERS = {
 
 export const ENEMY_LOOKS: Record<string, Look> = {
   cinderImp: { name: 'Cinder Imp', icon: '👿', color: '#e0603a' },
+  stormCaller: { name: 'Storm Caller', icon: '🧙', color: '#7b68c8' },
+};
+
+/** Card art for now is a single icon; cards without one use their kind's icon. */
+export const CARD_ICONS: Record<string, string> = {
+  emberBolt: '🔥',
+  summonRain: '🌧️',
 };
 
 export const CARD_KIND_COLORS = {
@@ -42,4 +49,6 @@ export const ICONS = {
   hp: '❤️',
   drawPile: '📚',
   discardPile: '🗑️',
+  burn: '🔥',
+  lightning: '⚡',
 } as const;

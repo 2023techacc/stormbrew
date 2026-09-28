@@ -124,7 +124,12 @@ button {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: radial-gradient(ellipse at top, var(--bg-accent), transparent 60%);
+  background: radial-gradient(
+    ellipse at top,
+    color-mix(in srgb, var(--weather-color, var(--bg-accent)) 45%, var(--bg)),
+    transparent 65%
+  );
+  transition: background 0.6s ease;
 }
 
 .top-bar {
@@ -375,6 +380,131 @@ button {
 .result-panel p {
   margin: 0;
   color: var(--text-muted);
+}
+
+/* ---------- Weather ---------- */
+
+.forecast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 56px;
+  padding: 6px 10px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 14px;
+  background: rgb(0 0 0 / 0.25);
+  text-align: left;
+}
+
+.forecast-now {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.forecast-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.forecast-now .forecast-icon {
+  background: color-mix(in srgb, var(--chip-color) 35%, transparent);
+  border: 2px solid var(--chip-color);
+}
+
+.forecast-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.forecast-text small,
+.forecast-next small {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.2;
+}
+
+.forecast-next {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding-left: 8px;
+  border-left: 1px solid rgb(255 255 255 / 0.12);
+  opacity: 0.85;
+}
+
+.forecast-next .forecast-icon {
+  width: 32px;
+  height: 32px;
+  font-size: 1.1rem;
+}
+
+.weathered {
+  padding: 1px 8px;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.08);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.burn-badge {
+  flex: none;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: #b5471f;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.buffed {
+  color: #7ee08a;
+  font-weight: 800;
+}
+
+.nerfed {
+  color: #ff8a7a;
+  font-weight: 800;
+}
+
+.float.burn {
+  color: #ff9d4d;
+}
+
+.float.lightning {
+  color: #f5d547;
+}
+
+.weather-changed {
+  animation: weather-changed 0.8s ease-out;
+}
+
+.lightning-flash {
+  animation: lightning-flash 0.35s ease-out;
+}
+
+@keyframes weather-changed {
+  30% {
+    box-shadow: 0 0 0 3px #e0a33a;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes lightning-flash {
+  20% {
+    filter: brightness(1.8);
+  }
 }
 
 /* ---------- Feedback animations ---------- */
