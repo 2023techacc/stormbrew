@@ -356,7 +356,7 @@ Important choices:
 | 4 | **Playable fight loop** ✅ | 3–4 enemy types, card rewards after combat, a “sandbox” mode to test cards |
 | 5 | **Run structure** ✅ | Branching Act 1 map, rest sites (including Infuse), shop, gold, relics, the Act 1 boss |
 | 6 | **Discovery & potions** ✅ | Grimoire (persistent), Bottling, potions, auto-save and resume |
-| 7 | **Identity** (A–C done, see §11) | The features that make Stormbrew play differently from *Slay the Spire*: Exposure, enemy cauldrons, the Sky Deck, Distilling |
+| 7 | **Identity** (A–D done, see §11) | The features that make Stormbrew play differently from *Slay the Spire*: Exposure, enemy cauldrons, the Sky Deck, Distilling |
 | 8 | **MVP content & balance** | Reach the MVP content targets, playtest on real phones, tune `WEATHER_INTERVAL` |
 | 9 | **Polish** | Animations, sound, vibration feedback, weather particles, app icon and splash screen |
 | 10 | **Expansion** | Acts 2–3, Fog/Gale/Eclipse, a second character, ascension levels, iOS/desktop builds |
@@ -377,7 +377,7 @@ is fun in a single fight on a phone, the rest is adding content.
 | Weather timing | Each weather lasts a fixed N turns (starting at 3), never random; any weather change restarts the countdown |
 | Brewing location | Only inside fights; potions come from Bottling, rewards, and shops |
 | Weather ↔ brewing | Exposure: out in the open, the weather drops its element (Rain → Water, Storm → Spark, Heatwave → Fire, Snow → Frost) into your cauldron each turn |
-| Identity | Built A (Exposure), B (enemy cauldrons), C (Sky Deck); D (Distilling) still to decide |
+| Identity | Built A (Exposure), B (enemy cauldrons), C (Sky Deck), D (Distilling: up to 2 of 3 rewards, repeats at 25%) |
 | Sludge | Friendly: a failed brew gives 2 Block |
 | Act 1 structure | 10-floor branching map (4 lanes, paths never cross): fights, elites, rest sites, shops, then the boss. HP carries over (no free heal); rest sites heal 30% or Infuse |
 | Rewards | Fights: 12–18 gold + pick 1 of 3 cards; elites: 28–35 gold + a relic + a card. Start with 50 gold |
@@ -488,7 +488,22 @@ it is (cost).
   Deep Freeze, Calm, or basics), rest sites can **chart the sky** to remove one,
   the Storm Caller shuffles Storms into your sky, and *Scatter Clouds* replaces
   the next forecast. (Special weathers like Dry Storm or Aurora are for later.)
-- Not built yet: **D (Distilling)**, **E (storm front)**, **F (elements as energy)**.
+- **D. Distilling**: every recipe brewed in a fight (by you or an enemy) can be
+  offered as a card afterwards, in one of two forms picked at random: a
+  **Flask** (the brew as a card) or an **Essence** (adds the recipe's elements
+  to your cauldron). Both are generated from the recipe list: 2-element recipes
+  cost 1, 3-element ones cost 2. To protect diversity:
+  - Up to 2 of the 3 reward choices are distilled; **at least 1 is always a
+    random card** from the normal pool.
+  - A recipe already distilled into your deck is offered again with only a
+    **25% chance** (no hard limit), so decks branch out instead of stacking one brew.
+  - Enemy brews count, so different enemies lead to different options.
+  - A simulation (60 auto-played runs, random reward picks) checks it: with
+    distilling, distinct cards per card added went from 0.87 to 0.97, the
+    similarity between two runs' decks from 0.14 to 0.06, and the number of
+    different cards seen across runs from 22 to 61. A test fails if distilling
+    ever makes decks less varied than random rewards alone.
+- Not built yet: **E (storm front)**, **F (elements as energy)**.
 
 ### 11.4 Recommendation
 

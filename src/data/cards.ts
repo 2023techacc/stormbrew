@@ -1,4 +1,5 @@
 import type { CardDef } from '../core/types';
+import { DISTILLED_CARDS } from './distilled';
 
 // Card text can use {damage}; the UI fills it in with the damage after weather.
 
@@ -226,7 +227,7 @@ export const CARDS: Record<string, CardDef> = {
     kind: 'skill',
     target: 'self',
     effects: [{ type: 'scatter' }],
-    text: 'Replace the next weather with a new one.',
+    text: 'Change the next weather.',
   },
   pilfer: {
     id: 'pilfer',
@@ -299,7 +300,7 @@ export const STARTER_DECK: string[] = [
 ];
 
 export function getCard(id: string): CardDef {
-  const card = CARDS[id];
+  const card = CARDS[id] ?? DISTILLED_CARDS[id];
   if (!card) throw new Error(`Unknown card: ${id}`);
   return card;
 }
