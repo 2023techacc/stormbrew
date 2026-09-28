@@ -18,11 +18,14 @@ export function isKnown(grimoire: Grimoire, recipeId: string): boolean {
   return recipeId === SLUDGE.id || grimoire.discovered.includes(recipeId);
 }
 
-/** Records the recipes brewed in these events. Returns the newly discovered ones. */
+/**
+ * Records the recipes brewed in these events, by the player or by enemies
+ * (watching an enemy brew teaches it too). Returns the newly discovered ones.
+ */
 export function discoverFrom(grimoire: Grimoire, events: readonly CombatEvent[]): string[] {
   const found: string[] = [];
   for (const event of events) {
-    if (event.type !== 'brew' || isKnown(grimoire, event.recipeId)) continue;
+    if ((event.type !== 'brew' && event.type !== 'enemyBrew') || isKnown(grimoire, event.recipeId)) continue;
     grimoire.discovered.push(event.recipeId);
     found.push(event.recipeId);
   }

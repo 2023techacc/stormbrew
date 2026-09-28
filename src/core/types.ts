@@ -26,7 +26,11 @@ export type Effect =
   | { type: 'addElement'; element: ElementId }
   | { type: 'brew' }
   /** The next brew this fight is bottled as a potion instead of used. */
-  | { type: 'bottle' };
+  | { type: 'bottle' }
+  /** Take the newest element from the target enemy's cauldron into yours. */
+  | { type: 'steal' }
+  /** The target enemy's next brew fails (becomes Sludge). */
+  | { type: 'spoil' };
 
 export type CardKind = 'attack' | 'skill';
 
@@ -92,6 +96,12 @@ export interface EnemyDef {
   sheltered?: boolean;
   /** Once HP is at or below this fraction of max HP, these moves are used instead. */
   phase2?: { below: number; moves: EnemyMove[] };
+  /**
+   * Enemies that brew: after each move they add the next element from
+   * `gathers` (in order, repeating) and brew when the cauldron holds `size`.
+   * Elements they steal from the player also go in.
+   */
+  cauldron?: { size: number; gathers: ElementId[] };
 }
 
 export interface Combatant {
@@ -115,6 +125,11 @@ export interface EnemyState extends Combatant {
   defId: string;
   name: string;
   moveIndex: number;
+  /** The enemy's own cauldron (empty for enemies that don't brew). */
+  cauldron: ElementId[];
+  gatherIndex: number;
+  /** Its next brew fails. */
+  spoiled: boolean;
 }
 
 export type CombatStatus = 'playing' | 'won' | 'lost';
@@ -164,6 +179,12 @@ export type CombatEvent =
   | { type: 'brew'; recipeId: string; used: ElementId[]; bottled?: boolean }
   | { type: 'potion'; recipeId: string }
   | { type: 'heal'; amount: number }
+  /** An enemy took an element from the player's cauldron. */
   | { type: 'steal'; index: number; element: ElementId }
+  /** The player took an element from an enemy's cauldron. */
+  | { type: 'pilfer'; index: number; element: ElementId; kept: boolean }
+  | { type: 'spoiled'; index: number }
+  | { type: 'enemyGather'; index: number; element: ElementId }
+  | { type: 'enemyBrew'; index: number; recipeId: string; used: ElementId[] }
   | { type: 'relic'; relic: string }
   | { type: 'shuffle' };

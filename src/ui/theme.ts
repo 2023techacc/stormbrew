@@ -35,6 +35,7 @@ export const ENEMY_LOOKS: Record<string, Look> = {
   frostGolem: { name: 'Frost Golem', icon: '🗿', color: '#a9c6d9' },
   trainingDummy: { name: 'Training Dummy', icon: '🎯', color: '#9aa3b8' },
   eyeOfTheStorm: { name: 'Eye of the Storm', icon: '👁️', color: '#5b6bbf' },
+  mireWitch: { name: 'Mire Witch', icon: '🧌', color: '#6b8e4e' },
 };
 
 export const RELIC_ICONS: Record<string, string> = {
@@ -87,6 +88,8 @@ export const CARD_ICONS: Record<string, string> = {
   thunderclap: '💥',
   brace: '🧱',
   bottleIt: '🍶',
+  pilfer: '🫳',
+  curdle: '🤢',
 };
 
 export const CARD_KIND_COLORS = {
@@ -109,6 +112,7 @@ export const ICONS = {
   gold: '💰',
   potion: '🧴',
   cover: '☂️',
+  spoiled: '🤢',
   grimoire: '📕',
   deck: '🂠',
 } as const;

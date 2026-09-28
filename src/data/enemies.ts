@@ -44,6 +44,19 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { name: 'Slam', damage: 11 },
       { name: 'Slam', damage: 11 },
     ],
+    // Brews Permafrost (15 Block) every other turn.
+    cauldron: { size: 2, gathers: ['earth', 'frost'] },
+  },
+  mireWitch: {
+    id: 'mireWitch',
+    name: 'Mire Witch',
+    maxHp: 36,
+    moves: [
+      { name: 'Hex', damage: 5, status: { status: 'weak', amount: 1 } },
+      { name: 'Ward', block: 7 },
+    ],
+    // Brews Fireball, then Tonic, and so on.
+    cauldron: { size: 2, gathers: ['fire', 'fire', 'water', 'water'] },
   },
   /** Act 1 boss: changes the weather every round in a fixed cycle. */
   eyeOfTheStorm: {
@@ -57,6 +70,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
       { name: 'Whiteout', weather: 'snow', damage: 7, block: 8 },
     ],
     weathered: ['storm', 'heatwave'],
+    // Only fills with what it steals from you, then brews it against you.
+    cauldron: { size: 3, gathers: [] },
     // Below half HP it also steals the newest element from your cauldron.
     phase2: {
       below: 0.5,
@@ -79,14 +94,16 @@ export const ENEMIES: Record<string, EnemyDef> = {
 
 /** Groups of enemies that can appear together in one fight, by difficulty. */
 export const ENCOUNTERS = {
-  easy: [['cinderImp'], ['drizzleSlime'], ['stormCaller']],
+  easy: [['cinderImp'], ['drizzleSlime'], ['stormCaller'], ['mireWitch']],
   hard: [
     ['frostGolem'],
     ['drizzleSlime', 'drizzleSlime'],
     ['cinderImp', 'drizzleSlime'],
     ['stormCaller', 'drizzleSlime'],
+    ['mireWitch', 'drizzleSlime'],
   ],
   elite: [
+    ['mireWitch', 'cinderImp'],
     ['frostGolem', 'drizzleSlime'],
     ['stormCaller', 'cinderImp'],
     ['stormCaller', 'stormCaller'],

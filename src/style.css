@@ -935,6 +935,36 @@ button {
   text-align: left;
 }
 
+.enemy-cauldron {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.8rem;
+}
+
+.enemy-cauldron small {
+  margin-left: 2px;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.mini-slot {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  background: color-mix(in srgb, var(--chip-color) 30%, transparent);
+  border: 1px solid var(--chip-color);
+}
+
+.mini-slot.empty {
+  background: none;
+  border: 1px dashed rgb(255 255 255 / 0.3);
+}
+
 .forecast-icons {
   display: flex;
   align-items: center;

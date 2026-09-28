@@ -8,6 +8,7 @@ import {
   currentIntent,
   endTurn,
   enemyAttackDamage,
+  enemyBrewPreview,
   isAlive,
   isSheltered,
   isWeathered,
@@ -34,6 +35,7 @@ import type {
 import { sandboxAddCard, sandboxRefillEnergy, sandboxSetWeather } from '../core/sandbox';
 import { WEATHER_IDS, WEATHER_INFO, modifyDamage, turnsUntilChange } from '../core/weather';
 import { CARDS, getCard } from '../data/cards';
+import { getEnemy } from '../data/enemies';
 import { RECIPES, SLUDGE, getRecipe } from '../data/recipes';
 import { getRelic } from '../data/relics';
 import { esc } from './dom';
@@ -271,7 +273,7 @@ function renderCombat(state: CombatState, ui: CombatUi): string {
       ${renderForecast(state)}
 
       <section class="enemies">
-        ${state.enemies.map((e, i) => renderEnemy(e, i, targeting, state.weather.current)).join('')}
+        ${state.enemies.map((e, i) => renderEnemy(e, i, targeting, state.weather.current, ui.known)).join('')}
       </section>
 
       ${renderCauldron(state, ui.known)}
@@ -317,6 +319,7 @@ function renderEnemy(
   index: number,
   targeting: boolean,
   weather: WeatherId,
+  known: (recipeId: string) => boolean,
 ): string {
   const look = ENEMY_LOOKS[enemy.defId] ?? { name: enemy.name, icon: '👾', color: '#888' };
   if (!isAlive(enemy)) {
@@ -336,6 +339,13 @@ function renderEnemy(
     move.block ? `${ICONS.block} ${move.block}` : '',
     move.status ? `${ICONS[move.status.status]} ${move.status.amount}` : '',
   ].filter(Boolean);
+  // A brew fills up at the end of this turn: show its damage in the intent too.
+  const brewing = enemyBrewPreview(enemy);
+  const brewDamage = brewing?.effects.find((e) => e.type === 'damage');
+  if (brewing && brewDamage?.type === 'damage') {
+    const amount = enemyAttackDamage(enemy, { name: 'brew', damage: brewDamage.amount, element: brewDamage.element }, attackWeather);
+    intentParts.push(`${ICONS.cauldron} ${amount}`);
+  } else if (brewing) intentParts.push(ICONS.cauldron);
   const weathered = WEATHER_IDS.filter((w) => isWeathered(enemy, w));
   return `
     <button class="enemy unit ${targeting ? 'targetable' : ''}" data-enemy="${index}" data-unit="enemy-${index}"
@@ -351,9 +361,28 @@ function renderEnemy(
         }
         ${isSheltered(enemy) ? `<span class="weathered" title="Sheltered: the weather never reaches it">${ICONS.cover}</span>` : ''}
       </span>
+      ${renderEnemyCauldron(enemy, brewing, known)}
       ${renderHpBar(enemy)}
     </button>
   `;
+}
+
+/** A brewing enemy's small cauldron, and what it will brew this turn. */
+function renderEnemyCauldron(enemy: EnemyState, brewing: RecipeDef | null, known: (recipeId: string) => boolean): string {
+  const size = getEnemy(enemy.defId).cauldron?.size;
+  if (!size) return '';
+  const slots = Array.from({ length: size }, (_, i) => {
+    const element = enemy.cauldron[i];
+    return element
+      ? `<span class="mini-slot" style="--chip-color: ${ELEMENTS[element].color}">${ELEMENTS[element].icon}</span>`
+      : '<span class="mini-slot empty"></span>';
+  }).join('');
+  const note = enemy.spoiled
+    ? `${ICONS.spoiled} spoiled`
+    : brewing
+      ? `brews ${known(brewing.id) ? esc(brewing.name) : '???'}!`
+      : '';
+  return `<span class="enemy-cauldron" title="Its cauldron">${ICONS.cauldron}${slots}<small>${note}</small></span>`;
 }
 
 function renderHpBar(unit: Combatant): string {
@@ -610,6 +639,22 @@ function describeEvents(state: CombatState, events: CombatEvent[]): string {
       messages.push(
         recipe.id === SLUDGE.id ? `${ICONS.cauldron} ${used} made Sludge.` : `${ICONS.cauldron} ${used} → ${recipe.name}!`,
       );
+    } else if (event.type === 'enemyBrew') {
+      const name = state.enemies[event.index]?.name ?? 'An enemy';
+      messages.push(
+        event.recipeId === SLUDGE.id
+          ? `${name}'s brew fizzled into Sludge!`
+          : `${ICONS.cauldron} ${name} brewed ${getRecipe(event.recipeId).name}!`,
+      );
+    } else if (event.type === 'pilfer') {
+      const name = state.enemies[event.index]?.name ?? 'the enemy';
+      messages.push(
+        event.kept
+          ? `You stole ${ELEMENTS[event.element].icon} from ${name}'s cauldron.`
+          : `You knocked ${ELEMENTS[event.element].icon} out of ${name}'s cauldron (yours was full).`,
+      );
+    } else if (event.type === 'spoiled') {
+      messages.push(`${ICONS.spoiled} ${state.enemies[event.index]?.name ?? 'The enemy'}'s next brew will fail.`);
     } else if (event.type === 'element' && event.fromWeather) {
       messages.push(`You caught ${ELEMENTS[event.element].icon} from the ${WEATHER_INFO[state.weather.current].name}.`);
     } else if (event.type === 'spill') {
@@ -676,6 +721,12 @@ function animate(root: HTMLElement, events: CombatEvent[]): void {
     if (event.type === 'heal') {
       const player = root.querySelector<HTMLElement>('[data-unit="player"]');
       if (player && event.amount > 0) floatText(player, `+${event.amount}`, 'heal');
+      continue;
+    }
+    if (event.type === 'enemyBrew') {
+      const unit = root.querySelector<HTMLElement>(`[data-unit="enemy-${event.index}"]`);
+      flash(unit, 'brewed');
+      if (unit) floatText(unit, getRecipe(event.recipeId).name, 'brew');
       continue;
     }
     if (event.type === 'steal') {
