@@ -142,17 +142,32 @@ describe('brewing in combat', () => {
     expect(cannotPlayReason(s, stir)).toBe('The cauldron is empty.');
   });
 
-  it('filling the last slot brews automatically', () => {
-    const s = newCombat(['gatherEmber', 'gatherEmber', 'gatherGust', 'defend', 'defend']);
+  it('the cauldron holds three elements without brewing', () => {
+    const s = newCombat(['gatherEmber', 'gatherEmber', 'gatherGust', 'stir', 'defend']);
     play(s, 'gatherEmber', 0);
     play(s, 'gatherEmber', 0);
-    expect(s.cauldron).toHaveLength(2);
-    const events = play(s, 'gatherGust', 0);
-    expect(events.some((e) => e.type === 'brew' && e.recipeId === 'heatHaze')).toBe(true);
+    const events = play(s, 'gatherGust');
+    expect(events.some((e) => e.type === 'brew')).toBe(false);
+    expect(s.cauldron).toEqual(['fire', 'fire', 'air']);
+    play(s, 'stir'); // Heat Haze hits ALL enemies, so no target needed
     expect(s.cauldron).toEqual([]);
     expect(s.weather.current).toBe('heatwave');
     // 4 + 4 from the Gathers, then Heat Haze's 6 fire damage boosted by its own Heatwave to 7.
     expect(imp(s).hp).toBe(42 - 4 - 4 - 7);
+  });
+
+  it('adding to a full cauldron brews it first, then adds the new element', () => {
+    const s = newCombat(['gatherStone', 'gatherStone', 'gatherDew', 'gatherGust', 'defend']);
+    s.player.energy = 4;
+    play(s, 'gatherStone');
+    play(s, 'gatherStone');
+    play(s, 'gatherDew');
+    expect(s.cauldron).toEqual(['earth', 'earth', 'water']);
+    expect(previewCardBrew(s, getCard('gatherGust'))?.recipe.id).toBe('stoneskin');
+    const events = play(s, 'gatherGust');
+    expect(events.find((e) => e.type === 'brew')).toEqual({ type: 'brew', recipeId: 'stoneskin', used: ['earth', 'earth'] });
+    // Water was left over; Air goes in after the brew.
+    expect(s.cauldron).toEqual(['water', 'air']);
   });
 
   it('elements stay in the cauldron between turns', () => {

@@ -97,7 +97,10 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
     }
     selectedUid = uid;
     const brew = previewCardBrew(state, getCard(card.defId));
-    const brewNote = brew ? `Brews ${brew.recipe.name}: ${plainText(brew.recipe, state.weather.current)} ` : '';
+    const overflow = state.cauldron.length >= CAULDRON_SLOTS && getCard(card.defId).effects.some((e) => e.type === 'addElement');
+    const brewNote = brew
+      ? `${overflow ? 'Cauldron full! First brews' : 'Brews'} ${brew.recipe.name}: ${plainText(brew.recipe, state.weather.current)} `
+      : '';
     hint =
       brewNote +
       (needsTarget
@@ -337,7 +340,8 @@ function renderRecipeBook(state: CombatState): string {
           <button class="text-button" data-action="close-recipes">Close</button>
         </span>
         <span class="recipe-rules">
-          Order doesn't matter. The biggest recipe you can make is brewed, oldest elements first; the rest stay.
+          Order doesn't matter. Stir brews the biggest recipe you can make, oldest elements first; the rest stay.
+          The cauldron holds ${CAULDRON_SLOTS}; adding another brews it first.
           Each weather adds its element to every brew${free ? ` (now: ${ELEMENTS[free].icon} from ${esc(WEATHER_INFO[weather].name)})` : ''}.
           No match makes Sludge (${esc(SLUDGE.text)})
         </span>

@@ -122,8 +122,9 @@ export function previewCardBrew(state: CombatState, def: CardDef): BrewResult | 
   for (const effect of def.effects) {
     if (effect.type === 'setWeather') weather = effect.weather;
     if (effect.type === 'addElement') {
-      cauldron.push(effect.element);
+      // A full cauldron brews first to make room.
       if (cauldron.length >= CAULDRON_SLOTS) return findBrew(cauldron, weather);
+      cauldron.push(effect.element);
     }
     if (effect.type === 'brew') return cauldron.length > 0 ? findBrew(cauldron, weather) : null;
   }
@@ -322,9 +323,11 @@ function applyEffects(state: CombatState, effects: readonly Effect[], target?: n
         events.push(...setWeather(state, effect.weather, 'player'));
         break;
       case 'addElement':
+        // Adding to a full cauldron brews it first; a brew always uses at least one slot.
+        if (state.cauldron.length >= CAULDRON_SLOTS) events.push(...brew(state, target));
+        if (state.status !== 'playing') break;
         state.cauldron.push(effect.element);
         events.push({ type: 'element', element: effect.element });
-        if (state.cauldron.length >= CAULDRON_SLOTS) events.push(...brew(state, target));
         break;
       case 'brew':
         events.push(...brew(state, target));

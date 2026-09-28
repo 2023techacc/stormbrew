@@ -111,8 +111,10 @@ so the next change always changes something.
 - Has **3 slots** by default. Relics can increase this to 4 or 5.
 - **Element** cards (*Gather Ember/Dew/Stone/Gust*) add elements to empty slots.
   Elements stay in the cauldron between turns.
-- Playing a **Brew** card (*Stir*, 0 energy), or filling the last slot,
-  **brews**, and the result fires right away:
+- Playing a **Brew** card (*Stir*, 0 energy) **brews**, and the result fires
+  right away. The cauldron really holds 3 elements, so you choose when to brew;
+  adding an element to a **full** cauldron brews it first to make room (the
+  preview warns you), so a Gather card never wastes its element. When brewing:
   1. The weather's free element joins the brew (it doesn't take a slot) and is
      tried first.
   2. The **largest** matching recipe is brewed; among recipes of the same size,
