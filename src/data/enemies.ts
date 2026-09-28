@@ -23,10 +23,45 @@ export const ENEMIES: Record<string, EnemyDef> = {
     ],
     weathered: ['storm'],
   },
+  drizzleSlime: {
+    id: 'drizzleSlime',
+    name: 'Drizzle Slime',
+    maxHp: 26,
+    moves: [
+      { name: 'Spit', damage: 4, element: 'water', status: { status: 'weak', amount: 1 } },
+      { name: 'Wobble', block: 5 },
+      { name: 'Splash', damage: 8, element: 'water' },
+    ],
+  },
+  frostGolem: {
+    id: 'frostGolem',
+    name: 'Frost Golem',
+    maxHp: 55,
+    moves: [
+      { name: 'Frost Breath', weather: 'snow', block: 8 },
+      { name: 'Slam', damage: 11 },
+      { name: 'Slam', damage: 11 },
+    ],
+  },
+  /** Sandbox only: never attacks and is hard to kill. */
+  trainingDummy: {
+    id: 'trainingDummy',
+    name: 'Training Dummy',
+    maxHp: 999,
+    moves: [{ name: 'Wait' }],
+  },
 };
 
-/** Groups of enemies that can appear together in one fight. */
-export const ENCOUNTERS: string[][] = [['cinderImp'], ['stormCaller']];
+/** Groups of enemies that can appear together in one fight, by difficulty. */
+export const ENCOUNTERS = {
+  easy: [['cinderImp'], ['drizzleSlime'], ['stormCaller']],
+  hard: [
+    ['frostGolem'],
+    ['drizzleSlime', 'drizzleSlime'],
+    ['cinderImp', 'drizzleSlime'],
+    ['stormCaller', 'drizzleSlime'],
+  ],
+} satisfies Record<string, string[][]>;
 
 export function getEnemy(id: string): EnemyDef {
   const enemy = ENEMIES[id];

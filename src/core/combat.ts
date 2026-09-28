@@ -175,6 +175,7 @@ export function endTurn(state: CombatState): CombatEvent[] {
   state.discardPile.push(...state.hand);
   state.hand = [];
   events.push(...tickBurn(state, { side: 'player' }));
+  if (state.player.statuses.weak) state.player.statuses.weak -= 1;
   updateStatus(state);
 
   state.enemies.forEach((enemy, index) => {
@@ -193,6 +194,11 @@ export function endTurn(state: CombatState): CombatEvent[] {
       const { blocked, hpLost } = dealDamage(state.player, amount);
       events.push({ type: 'damage', target: { side: 'player' }, amount: hpLost, blocked });
     }
+    if (move.status) {
+      const { status, amount } = move.status;
+      state.player.statuses[status] = (state.player.statuses[status] ?? 0) + amount;
+      events.push({ type: 'status', target: { side: 'player' }, status, amount });
+    }
     enemy.moveIndex += 1;
     events.push(...tickBurn(state, { side: 'enemy', index }));
     if (enemy.statuses.weak) enemy.statuses.weak -= 1;
@@ -206,6 +212,16 @@ export function endTurn(state: CombatState): CombatEvent[] {
 
   if (state.status === 'playing') events.push(...startPlayerTurn(state));
   return events;
+}
+
+/** How much the player's attack will hit for: weather first, then Weak. */
+export function playerAttackDamage(
+  state: CombatState,
+  amount: number,
+  element: ElementId | undefined,
+): number {
+  const modified = modifyDamage(amount, element, state.weather.current);
+  return state.player.statuses.weak ? Math.floor(modified * WEAK_MULTIPLIER) : modified;
 }
 
 /** How much an enemy's attack will hit for: weather first, then Weak. */
@@ -290,7 +306,7 @@ function applyEffects(state: CombatState, effects: readonly Effect[], target?: n
       case 'damage':
         for (const index of targets(effect.all)) {
           const enemy = state.enemies[index] as EnemyState;
-          const amount = modifyDamage(effect.amount, effect.element, state.weather.current);
+          const amount = playerAttackDamage(state, effect.amount, effect.element);
           const { blocked, hpLost } = dealDamage(enemy, amount);
           events.push({ type: 'damage', target: { side: 'enemy', index }, amount: hpLost, blocked });
         }
@@ -321,6 +337,16 @@ function applyEffects(state: CombatState, effects: readonly Effect[], target?: n
         break;
       case 'setWeather':
         events.push(...setWeather(state, effect.weather, 'player'));
+        break;
+      case 'swapForecast': {
+        const next = state.weather.forecast[0];
+        if (!next) break;
+        state.weather.forecast[0] = state.weather.current;
+        events.push(...setWeather(state, next, 'player'));
+        break;
+      }
+      case 'holdWeather':
+        events.push(...setWeather(state, state.weather.current, 'player'));
         break;
       case 'addElement':
         // Adding to a full cauldron brews it first; a brew always uses at least one slot.
