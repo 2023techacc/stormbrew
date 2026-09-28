@@ -301,7 +301,7 @@ Important choices:
 | # | Milestone | Deliverable |
 |---|-----------|-------------|
 | 0 | **Setup** ✅ | Vite + TS project (strict type checks), Vitest, Capacitor Android project, GitHub Actions building the web version **and a downloadable APK** |
-| 1 | **Combat core** | Deck/hand/energy, Strike/Defend, one enemy with intents, win/lose screens, touch controls in portrait layout |
+| 1 | **Combat core** ✅ | Deck/hand/energy, Strike/Defend, one enemy with intents, win/lose screens, touch controls in portrait layout |
 | 2 | **Weather** | 5 weathers, fixed-interval schedule, forecast UI with countdown, weather modifiers in the effects pipeline, 1 enemy that changes weather |
 | 3 | **Brewing** | Cauldron UI, Element and Brew cards, 10 recipes, Sludge, weather ↔ brew interactions |
 | 4 | **Playable fight loop** | 3–4 enemy types, card rewards after combat, a “sandbox” mode to test cards |

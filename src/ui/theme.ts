@@ -25,3 +25,21 @@ export const WEATHERS = {
   heatwave: { name: 'Heatwave', icon: '☀️', color: '#e07a2f' },
   snow: { name: 'Snow', icon: '🌨️', color: '#a9c6d9' },
 } satisfies Record<string, Look>;
+
+export const ENEMY_LOOKS: Record<string, Look> = {
+  cinderImp: { name: 'Cinder Imp', icon: '👿', color: '#e0603a' },
+};
+
+export const CARD_KIND_COLORS = {
+  attack: '#d9534f',
+  skill: '#3f7fbf',
+} as const;
+
+export const ICONS = {
+  attack: '⚔️',
+  block: '🛡️',
+  energy: '⚡',
+  hp: '❤️',
+  drawPile: '📚',
+  discardPile: '🗑️',
+} as const;
