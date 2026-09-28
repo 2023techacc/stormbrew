@@ -23,6 +23,10 @@ others weaker, and many brews change the weather themselves.
 3. **Readable, not random.** A visible forecast shows upcoming weather and enemy
    intents are shown, so the player can plan ahead the way they do in *Slay the
    Spire*.
+4. **Brewing happens in the fight.** All brewing happens during combat, where
+   weather and enemies make it matter. There is no separate crafting screen.
+5. **Mobile first.** The game is designed for a phone in portrait mode with
+   touch controls, then ported to other platforms.
 
 ---
 
@@ -30,10 +34,9 @@ others weaker, and many brews change the weather themselves.
 
 ```
 Start run → Map (choose path) → Node
-   ├─ Combat / Elite / Boss → Rewards (card, gold, ingredients, relic)
-   ├─ Cauldron site (brew potions out of combat)
-   ├─ Rest site (heal or upgrade a card)
-   ├─ Shop (cards, relics, ingredients, card removal)
+   ├─ Combat / Elite / Boss → Rewards (card, gold, potion, relic)
+   ├─ Rest site (heal, upgrade a card, or infuse a card with an element)
+   ├─ Shop (cards, relics, potions, card removal)
    └─ Event (story choice, often weather-related)
 → Defeat the act boss → next act (3 acts total) → Final boss
 ```
@@ -63,9 +66,11 @@ Start run → Map (choose path) → Node
 | *Later:* **Eclipse** (rare) | All brews are “inverted” (buffs ↔ debuffs). | —                                    |
 
 ### 3.2 How weather changes
-1. **Natural cycle**: weather changes every **3 rounds** by default. The
-   **Forecast** bar shows the current weather and the next one or two, which works
-   like intents for the sky.
+1. **Natural cycle**: weather changes on a **fixed schedule**, every **N rounds**.
+   N is a single constant for the whole game and is never random. It starts at
+   **3** and gets tuned in playtesting. The **Forecast** bar shows the current
+   weather, a countdown to the next change, and what the next weather will be,
+   which works like intents for the sky.
 2. **Player**: cards (*Summon Rain*, *Clear Skies*), brews (Water + Air → *Rain
    Cloud*), potions, relics.
 3. **Enemies**: some enemies call weather as their intent (e.g. *Storm Caller*:
@@ -73,8 +78,12 @@ Start run → Map (choose path) → Node
 4. **Other sources**: map events, act themes (Act 2 leans toward Snow and Storm),
    boss phases.
 
-Manually setting weather **resets the 3-round timer**. That means the player can
-hold a good weather state by recasting it, or push out a bad one early.
+Manually changing the weather **does not move the schedule**. It replaces the
+current weather only until the next scheduled change. This keeps the rhythm
+predictable: the player always knows when the sky will turn, and the decision is
+whether a weather change is worth spending a card on for the rounds that are
+left. Some rare cards and relics can explicitly **delay** or **skip** a
+scheduled change (e.g. *Hold the Sky*: the next scheduled change is skipped).
 
 ### 3.3 Weather-related keywords
 - **Attuned (X)**: this card has a bonus effect while the weather is X.
@@ -95,8 +104,10 @@ hold a good weather state by recasting it, or push out a bad one early.
 - **Element** cards add elements to empty slots.
 - Playing a **Brew** card, or filling the last slot, **brews**: the contents are
   matched against the recipe table and the result fires right away.
-- Order does **not** matter in the MVP; recipes are matched as unordered sets.
-  Order-sensitive “advanced recipes” can be added later.
+- Order does **not** matter: recipes are matched as unordered sets, so Fire +
+  Water and Water + Fire both make Steam. (A small number of rare, clearly
+  marked exceptions could be added much later, but only if the base system
+  feels too simple.)
 - Contents that match no recipe produce **Sludge**: a weak random effect, or a
   *Sludge* curse card goes into your discard pile.
 
@@ -130,11 +141,26 @@ for later.
   preview of the result before you brew.
 - Some events and relics reveal recipes early.
 
-### 4.5 Brewing outside combat
-- **Ingredients** drop as rewards (e.g. “2× Ember”).
-- At **Cauldron sites** on the map you can turn ingredients into **Potions**
-  (single-use items for combat) or **Infuse** a card (permanently add an
-  element to it).
+### 4.5 Brewing only happens in fights
+All brewing happens **inside combat**. There is no crafting screen and there
+are no Cauldron sites on the map. Here is why:
+- The fight is where brewing is interesting. Weather, enemy intents, and energy
+  all change what the best brew is, so the same recipe can be a great or a bad
+  move depending on the turn.
+- Out-of-combat crafting splits the player's attention and slows the run down
+  on mobile, where short sessions matter.
+- There is less to build (one cauldron UI instead of two), so the core idea can
+  be tested sooner.
+
+How elements improve your deck between fights:
+- **Element cards** are regular card rewards (e.g. *Gather Frost*), so building
+  your deck *is* choosing your ingredients.
+- **Bottling**: a few cards (e.g. *Bottle It*: the next brew is saved instead of
+  used) turn an in-fight brew into a **Potion** that you can keep and use in a
+  later fight. This is the only way to make potions yourself; potions can also
+  drop as rewards or be bought in shops.
+- Rest sites can **Infuse** a card (permanently add an element to it) instead
+  of upgrading it.
 
 ---
 
@@ -155,6 +181,8 @@ for later.
 - *Lightning Rod* (Power, 2): When Storm bolts would hit you, they hit a random enemy instead.
 - *Barometric Shift* (0): Swap the current weather with the next forecast slot.
 - *Double Boil* (2): Brew, then brew again with the same contents.
+- *Bottle It* (1): The next brew this turn is saved as a Potion instead of being used.
+- *Hold the Sky* (2, Exhaust): Skip the next scheduled weather change.
 - *Frostbite* (1, Attuned Snow): Deal 6. In Snow: apply 2 Frozen.
 
 ### 5.3 Enemies (Act 1 examples)
@@ -178,19 +206,57 @@ for later.
 
 ---
 
-## 6. Technical Plan
+## 6. Platforms & Art
 
-### 6.1 Recommended stack
-- **TypeScript + Vite**, running in the browser. It is easy to share (just a
-  link), fast to iterate on, and a card game's UI works well with DOM/CSS.
+### 6.1 Target platforms
+1. **Android (APK)**: the main target.
+2. **Web browser**: the same build runs on any phone or PC browser. It is also
+   the quickest way to share test builds.
+3. **iOS**: possible with the same code later. Building for iOS needs a Mac with
+   Xcode, and publishing needs a paid Apple developer account.
+4. **Desktop (Windows/Mac/Linux)**: optional later, by wrapping the web build
+   with Tauri or Electron (e.g. for Steam or itch.io).
+
+### 6.2 Mobile-first design
+- **Portrait layout**: enemies and the forecast at the top, the cauldron in the
+  middle, the hand at the bottom within reach of your thumb.
+- **Touch controls**: tap a card to select it, then tap a target (drag to play
+  is optional). Long-press shows details for any card, status effect, weather,
+  or recipe.
+- Large touch targets (at least 44px), readable text on small screens, and
+  support for screen notches (safe areas).
+- **Auto-save** after every action, because the phone may close the app at any
+  time. Leaving mid-fight and coming back must work.
+- Runs in 20–40 minutes, and a single fight takes a few minutes.
+
+### 6.3 Art style: minimal (for now)
+- Flat shapes, one icon set, and a limited color palette. No character art yet.
+- Each element and weather has a color and an icon (e.g. Fire = orange 🔥),
+  so the game can be read at a glance.
+- Weather appears as a background color tint plus simple particles (rain lines,
+  snow dots, a lightning flash).
+- Cards are text plus an icon in a colored frame by type.
+- All visuals come from a single theme file, so real art can be swapped in
+  later without changing game code.
+
+---
+
+## 7. Technical Plan
+
+### 7.1 Stack
+- **TypeScript + Vite**: the game is a web app at its core.
+- **Capacitor**: wraps the web app into a native **Android APK** (and an iOS app
+  later) from the same code. It also provides access to phone features such as
+  vibration, the back button, and file storage for saves.
 - Rendering: plain DOM + CSS animations to start. Switch to **PixiJS** later if
   effects need it.
 - Tests: **Vitest** for game-logic unit tests.
-- Deploy: GitHub Pages.
+- **GitHub Actions**:
+  - Every push runs tests and builds the web version (deployed to GitHub Pages).
+  - An Android job builds an **APK** you can download from the Actions page and
+    install on a phone, so no Android Studio is needed to try it.
 
-*(If you would rather use Godot or Unity, the architecture below still applies.)*
-
-### 6.2 Architecture
+### 7.2 Architecture
 Keep **game logic separate from rendering** so rules can be tested and
 balanced on their own.
 
@@ -200,14 +266,16 @@ src/
     state.ts       # RunState, CombatState
     combat.ts      # turn flow, energy, draw/discard
     effects.ts     # damage, block, status effects (single effect pipeline)
-    weather.ts     # WeatherState, forecast queue, timers, modifiers
+    weather.ts     # WeatherState, fixed schedule, forecast, modifiers
     cauldron.ts    # slots, brew resolution, recipe matching
     events.ts      # event bus: onTurnStart, onWeatherChange, onBrew...
     rng.ts         # seeded RNG (reproducible runs)
   data/            # content as data, not code
     cards.ts  enemies.ts  relics.ts  recipes.ts  weathers.ts
-  ui/              # rendering and input
+  ui/              # rendering and touch input
+    theme.ts       # colors, icons (minimal art lives here)
   main.ts
+android/           # generated by Capacitor
 tests/
 ```
 
@@ -216,40 +284,55 @@ Important choices:
   `Effect` objects (e.g. `{type:'damage', amount:8, target}`). Weather and
   relics act as **modifiers** that hook into the pipeline, so “Rain: Fire −25%”
   is a single rule and not a check scattered across many cards.
-- **Recipes as data**: `{ ingredients: ['fire','water'], result: 'steam' }`,
-  matched on a sorted multiset key. This makes adding recipes trivial.
+- **Recipes as data**: `{ elements: ['fire','water'], result: 'steam' }`,
+  matched on a sorted key (`"fire+water"`), so order never matters and adding
+  recipes is trivial.
+- **Weather schedule**: a round counter plus the constant `WEATHER_INTERVAL`
+  (starts at 3). Manual changes only replace the current weather; they never
+  touch the counter.
 - **Seeded RNG**, so bugs and balance problems can be reproduced.
-- **Save/load**: `RunState` is serialized to localStorage between map nodes.
-  The Grimoire has its own save.
+- **Save/load**: the whole game state is serialized after every action (local
+  storage on web, device storage on Android). The Grimoire has its own save.
 
 ---
 
-## 7. Milestones
+## 8. Milestones
 
 | # | Milestone | Deliverable |
 |---|-----------|-------------|
-| 0 | **Setup** | Vite + TS project, lint, Vitest, GitHub Pages deploy |
-| 1 | **Combat core** | Deck/hand/energy, Strike/Defend, one enemy with intents, win/lose screens |
-| 2 | **Weather** | 5 weathers, 3-round cycle, forecast UI, weather modifiers in the effects pipeline, 1 enemy that changes weather |
+| 0 | **Setup** | Vite + TS project, lint, Vitest, Capacitor Android project, GitHub Actions building the web version **and a downloadable APK** |
+| 1 | **Combat core** | Deck/hand/energy, Strike/Defend, one enemy with intents, win/lose screens, touch controls in portrait layout |
+| 2 | **Weather** | 5 weathers, fixed-interval schedule, forecast UI with countdown, weather modifiers in the effects pipeline, 1 enemy that changes weather |
 | 3 | **Brewing** | Cauldron UI, Element and Brew cards, 10 recipes, Sludge, weather ↔ brew interactions |
 | 4 | **Playable fight loop** | 3–4 enemy types, card rewards after combat, a “sandbox” mode to test cards |
-| 5 | **Run structure** | Branching Act 1 map, rest sites, shop, gold, relics, the Act 1 boss |
-| 6 | **Discovery & out-of-combat brewing** | Grimoire (persistent), ingredients, Cauldron sites, potions |
-| 7 | **MVP content & balance** | Reach the MVP content targets and playtest |
-| 8 | **Polish** | Animations, sound, weather visuals (rain particles, lightning flashes), save/load |
-| 9 | **Expansion** | Acts 2–3, Fog/Gale/Eclipse, a second character, ascension levels |
+| 5 | **Run structure** | Branching Act 1 map, rest sites (including Infuse), shop, gold, relics, the Act 1 boss |
+| 6 | **Discovery & potions** | Grimoire (persistent), Bottling, potions, auto-save and resume |
+| 7 | **MVP content & balance** | Reach the MVP content targets, playtest on real phones, tune `WEATHER_INTERVAL` |
+| 8 | **Polish** | Animations, sound, vibration feedback, weather particles, app icon and splash screen |
+| 9 | **Expansion** | Acts 2–3, Fog/Gale/Eclipse, a second character, ascension levels, iOS/desktop builds |
 
 Milestones 1–3 prove the game's core idea. If combat with weather and brewing
-is fun in a single fight, the rest is adding content.
+is fun in a single fight on a phone, the rest is adding content.
 
 ---
 
-## 8. Open Questions
+## 9. Decisions So Far
 
-1. **Platform/engine**: browser (TypeScript) as proposed, or Godot/Unity?
-2. **Art direction**: pixel art, hand-drawn, or minimal/text-first for now?
-3. **Recipe order**: should ingredient order ever matter (e.g. Fire then Water =
-   Steam, Water then Fire = Hiss)?
-4. **Weather cycle**: a fixed 3-round timer, or a random 2–4 rounds that the
-   forecast shows?
-5. **Scope**: one character for the MVP (recommended), or more?
+| Topic | Decision |
+|-------|----------|
+| Platforms | Android APK first, plus web; iOS/desktop later if possible |
+| Engine | TypeScript + Vite, wrapped with Capacitor for mobile |
+| Art | Minimal for now (shapes, icons, color) |
+| Recipe order | Does not matter |
+| Weather timing | Fixed interval (N rounds, starting at 3); manual changes don't move the schedule |
+| Brewing location | Only inside fights; potions come from Bottling, rewards, and shops |
+| Scope | One character (the Stormbrewer) for the MVP |
+
+## 10. Open Questions
+
+1. **Weather interval**: is 3 rounds right? This will be tested in milestone 2
+   and tuned in milestone 7.
+2. **Store release**: sideloaded APK only, or eventually Google Play? (Google
+   Play needs a one-time $25 developer account and a signed release build.)
+3. **Sludge**: should failed brews be a small random effect (friendlier) or add
+   a curse card (harsher, more *Slay the Spire*-like)?
