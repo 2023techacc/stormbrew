@@ -70,9 +70,9 @@ Start run → Map (choose path) → Node
 the cauldron in Milestone 3.
 
 ### 3.2 How weather changes
-1. **Natural cycle**: weather changes on a **fixed schedule**, every **N rounds**.
-   N is a single constant for the whole game and is never random. It starts at
-   **3** and gets tuned in playtesting. The **Forecast** bar shows the current
+1. **Natural cycle**: each weather lasts a **fixed number of turns, N**, then
+   changes to the forecast weather. N is a single constant for the whole game and
+   is never random. It starts at **3** and gets tuned in playtesting. The **Forecast** bar shows the current
    weather, a countdown to the next change, and what the next weather will be,
    which works like intents for the sky.
 2. **Player**: cards (*Summon Rain*, *Clear Skies*), brews (Water + Air → *Rain
@@ -82,12 +82,12 @@ the cauldron in Milestone 3.
 4. **Other sources**: map events, act themes (Act 2 leans toward Snow and Storm),
    boss phases.
 
-Manually changing the weather **does not move the schedule**. It replaces the
-current weather only until the next scheduled change. This keeps the rhythm
-predictable: the player always knows when the sky will turn, and the decision is
-whether a weather change is worth spending a card on for the rounds that are
-left. Some rare cards and relics can explicitly **delay** or **skip** a
-scheduled change (e.g. *Hold the Sky*: the next scheduled change is skipped).
+Changing the weather with a card, brew or enemy move **restarts the countdown**:
+the new weather lasts a full N turns (for an enemy's change, counting from your
+next turn). Summoning the weather that is already active extends it, so the
+player can hold a good weather by recasting it. The forecast (what comes next)
+stays the same; if it showed the weather that was just summoned, it skips ahead
+so the next change always changes something.
 
 ### 3.3 Weather-related keywords
 - **Attuned (X)**: this card has a bonus effect while the weather is X.
@@ -294,9 +294,9 @@ Important choices:
 - **Recipes as data**: `{ elements: ['fire','water'], result: 'steam' }`,
   matched on a sorted key (`"fire+water"`), so order never matters and adding
   recipes is trivial.
-- **Weather schedule**: a round counter plus the constant `WEATHER_INTERVAL`
-  (starts at 3). Manual changes only replace the current weather; they never
-  touch the counter.
+- **Weather countdown**: the turn of the next change (`nextChangeTurn`) plus the
+  constant `WEATHER_INTERVAL` (starts at 3); any weather change sets
+  `nextChangeTurn` N turns ahead.
 - **Seeded RNG**, so bugs and balance problems can be reproduced.
 - **Save/load**: the whole game state is serialized after every action (local
   storage on web, device storage on Android). The Grimoire has its own save.
@@ -331,7 +331,7 @@ is fun in a single fight on a phone, the rest is adding content.
 | Engine | TypeScript + Vite, wrapped with Capacitor for mobile |
 | Art | Minimal for now (shapes, icons, color) |
 | Recipe order | Does not matter |
-| Weather timing | Fixed interval (N rounds, starting at 3); manual changes don't move the schedule |
+| Weather timing | Each weather lasts a fixed N turns (starting at 3), never random; any weather change restarts the countdown |
 | Brewing location | Only inside fights; potions come from Bottling, rewards, and shops |
 | Scope | One character (the Stormbrewer) for the MVP |
 

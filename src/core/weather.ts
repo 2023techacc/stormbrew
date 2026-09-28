@@ -1,7 +1,10 @@
 import type { Rng } from './rng';
 import type { ElementId, WeatherId, WeatherState } from './types';
 
-/** The weather changes on a fixed schedule: every this many turns. */
+/**
+ * Each weather lasts this many turns, then changes to the forecast. Changing the
+ * weather with a card or enemy move restarts the countdown.
+ */
 export const WEATHER_INTERVAL = 3;
 
 /** How many upcoming weathers are generated ahead of time. */
@@ -31,28 +34,47 @@ export const WEATHER_INFO: Record<WeatherId, WeatherInfo> = {
   snow: { name: 'Snow', effect: 'Block does not wear off.' },
 };
 
-/** Weather changes at the start of turns 1 + N, 1 + 2N, ... */
-export function isScheduledChangeTurn(turn: number): boolean {
-  return turn > 1 && (turn - 1) % WEATHER_INTERVAL === 0;
+/** Turns left until the next change (1 = it changes next turn). */
+export function turnsUntilChange(weather: WeatherState, turn: number): number {
+  return weather.nextChangeTurn - turn;
 }
 
-/** Turns left until the next scheduled change (1 = it changes next turn). */
-export function turnsUntilChange(turn: number): number {
-  return WEATHER_INTERVAL - ((turn - 1) % WEATHER_INTERVAL);
+export function isChangeDue(weather: WeatherState, turn: number): boolean {
+  return turn >= weather.nextChangeTurn;
 }
 
+/** The fight's first weather starts on turn 1. */
 export function createWeather(rng: Rng, start: WeatherId = 'clear'): WeatherState {
-  const weather: WeatherState = { current: start, forecast: [] };
+  const weather: WeatherState = { current: start, forecast: [], nextChangeTurn: 1 + WEATHER_INTERVAL };
   fillForecast(weather, rng);
   return weather;
 }
 
-/** Moves to the next forecast weather and extends the forecast. */
-export function advanceWeather(weather: WeatherState, rng: Rng): WeatherId {
+/** Moves to the next forecast weather on `turn` and extends the forecast. */
+export function advanceWeather(weather: WeatherState, rng: Rng, turn: number): WeatherId {
   const next = weather.forecast.shift() ?? pickNext(rng, weather.current);
   weather.current = next;
+  weather.nextChangeTurn = turn + WEATHER_INTERVAL;
   fillForecast(weather, rng);
   return next;
+}
+
+/**
+ * Sets the weather outside the schedule. The new weather gets a full
+ * WEATHER_INTERVAL of the player's turns, starting with `firstTurn`.
+ * The forecast stays the same, except that a forecast of the weather that is
+ * now current is skipped, since the next change should change something.
+ */
+export function overrideWeather(
+  weather: WeatherState,
+  rng: Rng,
+  to: WeatherId,
+  firstTurn: number,
+): void {
+  weather.current = to;
+  weather.nextChangeTurn = firstTurn + WEATHER_INTERVAL;
+  while (weather.forecast[0] === to) weather.forecast.shift();
+  fillForecast(weather, rng);
 }
 
 function fillForecast(weather: WeatherState, rng: Rng): void {

@@ -78,6 +78,8 @@ export interface WeatherState {
   current: WeatherId;
   /** Upcoming scheduled weathers, soonest first. */
   forecast: WeatherId[];
+  /** The turn on which the weather next changes to the forecast. */
+  nextChangeTurn: number;
 }
 
 export interface CombatState {

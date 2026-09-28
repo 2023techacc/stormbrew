@@ -19,8 +19,9 @@ import {
   advanceWeather,
   blockPersists,
   createWeather,
-  isScheduledChangeTurn,
+  isChangeDue,
   modifyDamage,
+  overrideWeather,
 } from './weather';
 
 export const HAND_SIZE = 5;
@@ -166,8 +167,9 @@ export function endTurn(state: CombatState): CombatEvent[] {
 }
 
 /**
- * Changes the current weather. Only the scheduled cycle moves the forecast;
- * a card or enemy changing the weather never shifts when the next change comes.
+ * Changes the weather outside the schedule and restarts the countdown, so the
+ * new weather lasts a full interval of the player's turns. Setting the current
+ * weather again extends it. The forecast is unchanged.
  */
 export function setWeather(
   state: CombatState,
@@ -175,8 +177,9 @@ export function setWeather(
   cause: 'player' | 'enemy',
 ): CombatEvent[] {
   const from = state.weather.current;
-  if (from === weather) return [];
-  state.weather.current = weather;
+  // An enemy acts at the end of the round, so its weather starts counting next turn.
+  const firstTurn = cause === 'enemy' ? state.turn + 1 : state.turn;
+  withRng(state, (rng) => overrideWeather(state.weather, rng, weather, firstTurn));
   return [{ type: 'weather', from, to: weather, cause }];
 }
 
@@ -184,9 +187,9 @@ function startPlayerTurn(state: CombatState): CombatEvent[] {
   const events: CombatEvent[] = [];
   state.turn += 1;
 
-  if (isScheduledChangeTurn(state.turn)) {
+  if (isChangeDue(state.weather, state.turn)) {
     const from = state.weather.current;
-    const to = withRng(state, (rng) => advanceWeather(state.weather, rng));
+    const to = withRng(state, (rng) => advanceWeather(state.weather, rng, state.turn));
     if (from !== to) events.push({ type: 'weather', from, to, cause: 'schedule' });
   }
 

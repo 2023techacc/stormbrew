@@ -7,7 +7,6 @@ import {
   WEATHER_INTERVAL,
   advanceWeather,
   createWeather,
-  isScheduledChangeTurn,
   modifyDamage,
   turnsUntilChange,
 } from '../src/core/weather';
@@ -35,44 +34,74 @@ const lockWeather = (s: CombatState, weather: WeatherId) => {
 };
 
 describe('weather schedule', () => {
-  it('changes on a fixed interval', () => {
-    const changeTurns = Array.from({ length: 10 }, (_, i) => i + 1).filter(isScheduledChangeTurn);
-    expect(changeTurns).toEqual([1 + WEATHER_INTERVAL, 1 + 2 * WEATHER_INTERVAL, 1 + 3 * WEATHER_INTERVAL]);
-    expect([1, 2, 3, 4].map(turnsUntilChange)).toEqual([3, 2, 1, 3]);
-  });
-
   it('moves to the forecast weather and never repeats the previous one', () => {
     const rng = new Rng(3);
     const weather = createWeather(rng);
-    for (let i = 0; i < 50; i++) {
+    for (let turn = 1; turn < 50; turn++) {
       const previous = weather.current;
       const expected = weather.forecast[0];
-      expect(advanceWeather(weather, rng)).toBe(expected);
+      expect(advanceWeather(weather, rng, turn)).toBe(expected);
       expect(weather.current).not.toBe(previous);
       expect(weather.forecast).toHaveLength(2);
+      expect(weather.nextChangeTurn).toBe(turn + WEATHER_INTERVAL);
     }
   });
 
-  it('starts clear and changes to the forecast at the scheduled turn', () => {
-    const s = newCombat();
+  it('changes every WEATHER_INTERVAL turns when nothing interferes', () => {
+    const s = newCombat({ playerHp: 500, playerMaxHp: 500 });
     expect(s.weather.current).toBe('clear');
-    const forecast = s.weather.forecast[0];
-    for (let turn = 1; turn < 1 + WEATHER_INTERVAL; turn++) {
-      expect(s.weather.current).toBe('clear');
+    const changeTurns: number[] = [];
+    let last = s.weather.current;
+    for (let i = 0; i < 3 * WEATHER_INTERVAL; i++) {
+      endTurn(s);
+      if (s.weather.current !== last) changeTurns.push(s.turn);
+      last = s.weather.current;
+    }
+    expect(changeTurns).toEqual([1 + WEATHER_INTERVAL, 1 + 2 * WEATHER_INTERVAL, 1 + 3 * WEATHER_INTERVAL]);
+  });
+
+  it('counts down to the next change', () => {
+    const s = newCombat();
+    const counts = [];
+    for (let i = 0; i < WEATHER_INTERVAL + 1; i++) {
+      counts.push(turnsUntilChange(s.weather, s.turn));
       endTurn(s);
     }
-    expect(s.weather.current).toBe(forecast);
+    expect(counts).toEqual([3, 2, 1, 3]);
   });
 
-  it('a manual change does not move the schedule or the forecast', () => {
+  it('a player weather change restarts the countdown and keeps the forecast', () => {
     const s = newCombat();
+    endTurn(s); // turn 2
     const forecast = [...s.weather.forecast];
-    const events = setWeather(s, 'snow', 'player');
-    expect(events).toEqual([{ type: 'weather', from: 'clear', to: 'snow', cause: 'player' }]);
+    const summoned = (['snow', 'rain'] as const).find((w) => w !== forecast[0]) ?? 'snow';
+    setWeather(s, summoned, 'player');
     expect(s.weather.forecast).toEqual(forecast);
-    for (let turn = 1; turn < 1 + WEATHER_INTERVAL; turn++) endTurn(s);
-    expect(s.turn).toBe(1 + WEATHER_INTERVAL);
+    // It lasts turns 2, 3 and 4, then changes to the forecast on turn 5.
+    expect(turnsUntilChange(s.weather, s.turn)).toBe(WEATHER_INTERVAL);
+    endTurn(s);
+    endTurn(s);
+    expect(s.turn).toBe(4);
+    expect(s.weather.current).toBe(summoned);
+    endTurn(s);
+    expect(s.turn).toBe(5);
     expect(s.weather.current).toBe(forecast[0]);
+  });
+
+  it("an enemy's weather change lasts a full interval of the player's turns", () => {
+    const s = newCombat({ enemies: ['stormCaller'], playerHp: 500, playerMaxHp: 500 });
+    endTurn(s); // the Storm Caller calls a Storm at the end of turn 1
+    expect(s.weather.current).toBe('storm');
+    expect(turnsUntilChange(s.weather, s.turn)).toBe(WEATHER_INTERVAL);
+  });
+
+  it('skips a forecast of the weather that was just summoned', () => {
+    const s = newCombat();
+    const next = s.weather.forecast[0];
+    if (!next) throw new Error('no forecast');
+    setWeather(s, next, 'player');
+    expect(s.weather.forecast[0]).not.toBe(next);
+    expect(s.weather.forecast).toHaveLength(2);
   });
 
   it('Summon Rain sets the weather to Rain and draws a card', () => {

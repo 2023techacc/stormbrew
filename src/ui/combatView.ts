@@ -274,7 +274,7 @@ function renderResult(state: CombatState): string {
 function renderForecast(state: CombatState): string {
   const { current, forecast } = state.weather;
   const next = forecast[0];
-  const turns = turnsUntilChange(state.turn);
+  const turns = turnsUntilChange(state.weather, state.turn);
   return `
     <button class="forecast" data-action="forecast" aria-label="Weather forecast">
       <span class="forecast-now" style="--chip-color: ${WEATHERS[current].color}">
@@ -299,7 +299,7 @@ function renderForecast(state: CombatState): string {
 function describeForecast(state: CombatState): string {
   const { current, forecast } = state.weather;
   const next = forecast[0];
-  const turns = turnsUntilChange(state.turn);
+  const turns = turnsUntilChange(state.weather, state.turn);
   const now = `${WEATHER_INFO[current].name}: ${WEATHER_INFO[current].effect}`;
   if (!next) return now;
   const when = turns === 1 ? 'next turn' : `in ${turns} turns`;
