@@ -37,6 +37,7 @@ export const RECIPES: RecipeDef[] = [
       { type: 'energy', amount: 1 },
     ],
     text: 'Draw 2 cards. Gain 1 energy.',
+    cardText: 'Draw 2. Gain 1 energy.',
   },
   {
     id: 'steam',
@@ -44,6 +45,7 @@ export const RECIPES: RecipeDef[] = [
     elements: ['fire', 'water'],
     effects: [{ type: 'applyStatus', status: 'weak', amount: 2, all: true }],
     text: 'Apply 2 Weak to ALL enemies.',
+    cardText: 'Apply 2 Weak to ALL.',
   },
   {
     id: 'magma',
@@ -54,6 +56,7 @@ export const RECIPES: RecipeDef[] = [
       { type: 'applyStatus', status: 'burn', amount: 3 },
     ],
     text: 'Deal {damage} fire damage. Apply 3 Burn.',
+    cardText: 'Deal {damage} fire. Apply 3 Burn.',
   },
   {
     id: 'wildfire',
@@ -61,6 +64,7 @@ export const RECIPES: RecipeDef[] = [
     elements: ['fire', 'air'],
     effects: [{ type: 'damage', amount: 6, element: 'fire', all: true }],
     text: 'Deal {damage} fire damage to ALL enemies.',
+    cardText: 'Deal {damage} fire to ALL.',
   },
   {
     id: 'mud',
@@ -81,6 +85,7 @@ export const RECIPES: RecipeDef[] = [
       { type: 'block', amount: 4 },
     ],
     text: 'Set the weather to Rain. Gain 4 Block.',
+    cardText: 'Weather: Rain. Gain 4 Block.',
   },
   {
     id: 'sandstorm',
@@ -91,6 +96,7 @@ export const RECIPES: RecipeDef[] = [
       { type: 'block', amount: 4 },
     ],
     text: 'Deal {damage} damage to ALL enemies. Gain 4 Block.',
+    cardText: 'Deal {damage} to ALL. Gain 4 Block.',
   },
 
   // A weather element plus a base element. Weather adds its element to every brew.
@@ -107,6 +113,7 @@ export const RECIPES: RecipeDef[] = [
     elements: ['spark', 'water'],
     effects: [{ type: 'damage', amount: 7, element: 'spark', all: true }],
     text: 'Deal {damage} lightning damage to ALL enemies.',
+    cardText: 'Deal {damage} to ALL.',
   },
   {
     id: 'lodestone',
@@ -117,6 +124,7 @@ export const RECIPES: RecipeDef[] = [
       { type: 'draw', amount: 1 },
     ],
     text: 'Gain 10 Block. Draw 1 card.',
+    cardText: 'Gain 10 Block. Draw 1.',
   },
   {
     id: 'ballLightning',
@@ -127,6 +135,7 @@ export const RECIPES: RecipeDef[] = [
       { type: 'draw', amount: 1 },
     ],
     text: 'Deal {damage} lightning damage. Draw 1 card.',
+    cardText: 'Deal {damage}. Draw 1.',
   },
   {
     id: 'thaw',
@@ -137,6 +146,7 @@ export const RECIPES: RecipeDef[] = [
       { type: 'draw', amount: 1 },
     ],
     text: 'Heal 6. Draw 1 card.',
+    cardText: 'Heal 6. Draw 1.',
   },
   {
     id: 'iceLance',
@@ -147,6 +157,7 @@ export const RECIPES: RecipeDef[] = [
       { type: 'applyStatus', status: 'weak', amount: 2 },
     ],
     text: 'Deal {damage} frost damage. Apply 2 Weak.',
+    cardText: 'Deal {damage}. Apply 2 Weak.',
   },
   {
     id: 'permafrost',
@@ -164,6 +175,7 @@ export const RECIPES: RecipeDef[] = [
       { type: 'block', amount: 6 },
     ],
     text: 'Set the weather to Snow. Gain 6 Block.',
+    cardText: 'Weather: Snow. Gain 6 Block.',
   },
 
   // Three elements: stronger, and they take a whole cauldron.
@@ -176,6 +188,7 @@ export const RECIPES: RecipeDef[] = [
       { type: 'damage', amount: 6, element: 'fire', all: true },
     ],
     text: 'Set the weather to Heatwave. Deal {damage} fire damage to ALL enemies.',
+    cardText: 'Weather: Heatwave. {damage} to ALL.',
   },
   {
     id: 'thunderhead',
@@ -186,6 +199,7 @@ export const RECIPES: RecipeDef[] = [
       { type: 'damage', amount: 10, element: 'spark' },
     ],
     text: 'Set the weather to Storm. Deal {damage} lightning damage.',
+    cardText: 'Weather: Storm. Deal {damage}.',
   },
   {
     id: 'downpour',
@@ -197,6 +211,7 @@ export const RECIPES: RecipeDef[] = [
       { type: 'block', amount: 6 },
     ],
     text: 'Set the weather to Rain. Heal 4. Gain 6 Block.',
+    cardText: 'Weather: Rain. Heal 4. Gain 6 Block.',
   },
 ];
 

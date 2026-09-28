@@ -27,6 +27,7 @@ import type { Grimoire } from '../core/grimoire';
 import { makeRunSave, type RunSave } from '../core/save';
 import type { CombatState, ElementId } from '../core/types';
 import { getCard } from '../data/cards';
+import { distilledRecipe } from '../data/distilled';
 import { getRecipe } from '../data/recipes';
 import { getRelic } from '../data/relics';
 import { getSkyCard } from '../data/sky';
@@ -312,8 +313,22 @@ function renderReward(rewards: FightRewards): string {
     }
     ${rewards.potion ? `<p class="relic-found">${ICONS.potion} Found a <strong>${esc(getRecipe(rewards.potion).name)}</strong> potion!</p>` : ''}
     <p>Choose a card to add to your deck:</p>
+    ${
+      rewards.cardChoices.some((id) => distilledRecipe(id))
+        ? `<p class="muted small">${ICONS.cauldron} Distilled cards come from recipes brewed in this fight.</p>`
+        : ''
+    }
     <section class="reward-cards">
-      ${rewards.cardChoices.map((id) => cardFace(getCard(id), 'clear', { attrs: `data-reward="${esc(id)}"` })).join('')}
+      ${rewards.cardChoices
+        .map((id) => {
+          const from = distilledRecipe(id);
+          return cardFace(getCard(id), 'clear', {
+            attrs: `data-reward="${esc(id)}"`,
+            className: from ? 'distilled' : '',
+            note: from ? `${ICONS.cauldron} Distilled` : undefined,
+          });
+        })
+        .join('')}
     </section>
     <button class="text-button" data-action="skip">Skip</button>
   `;

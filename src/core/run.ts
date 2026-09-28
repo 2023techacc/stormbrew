@@ -1,4 +1,5 @@
 import { REWARD_POOL, STARTER_DECK, getCard } from '../data/cards';
+import { distilledRecipe, essenceId, flaskId } from '../data/distilled';
 import { ENCOUNTERS } from '../data/enemies';
 import { RECIPES } from '../data/recipes';
 import { RELIC_POOL, STARTING_RELICS, getRelic } from '../data/relics';
@@ -13,6 +14,10 @@ export const STARTING_GOLD = 50;
 /** Floors (from 0) that use easy encounters before normal fights get harder. */
 export const EASY_FLOORS = 3;
 export const REWARD_CHOICES = 3;
+/** At most this many reward choices are distilled; the rest are random cards. */
+export const MAX_DISTILLED = 2;
+/** A recipe already distilled into your deck is only offered again with this chance. */
+export const REPEAT_DISTILL_CHANCE = 0.25;
 /** Resting heals this fraction of max HP. */
 export const REST_HEAL = 0.3;
 export const HEALING_HERB_HEAL = 6;
@@ -164,7 +169,12 @@ export function startFight(run: RunState): { state: CombatState; events: CombatE
  * right away, plus card choices for the player to pick from. Beating the boss
  * wins the run; losing ends it.
  */
-export function finishFight(run: RunState, combat: CombatState): FightRewards {
+export function finishFight(
+  run: RunState,
+  combat: CombatState,
+  /** `distill: false` offers only random cards (used to measure what Distilling changes). */
+  options: { distill?: boolean } = {},
+): FightRewards {
   const none: FightRewards = { gold: 0, healed: 0, cardChoices: [] };
   if (combat.status !== 'won') {
     run.hp = 0;
@@ -186,7 +196,8 @@ export function finishFight(run: RunState, combat: CombatState): FightRewards {
     withRng(run, (rng) => rng.int(min, max)) + (run.relics.includes('luckyCoin') ? LUCKY_COIN_GOLD : 0);
   run.gold += gold;
 
-  const rewards: FightRewards = { gold, healed, cardChoices: rewardChoices(run) };
+  const brewed = options.distill === false ? [] : combat.brewed;
+  const rewards: FightRewards = { gold, healed, cardChoices: rewardChoices(run, brewed) };
   const potion = withRng(run, (rng) => (rng.next() < POTION_DROP_CHANCE ? rng.pick(POTION_POOL) : undefined));
   if (potion && run.potions.length < MAX_POTIONS) {
     run.potions.push(potion);
@@ -202,9 +213,24 @@ export function finishFight(run: RunState, combat: CombatState): FightRewards {
   return rewards;
 }
 
-/** Distinct cards to choose from after a victory. */
-export function rewardChoices(run: RunState): string[] {
-  return withRng(run, (rng) => rng.shuffle(REWARD_POOL).slice(0, REWARD_CHOICES));
+/**
+ * The cards to choose from after a victory. Up to MAX_DISTILLED are distilled
+ * from recipes brewed in the fight (as a Flask or an Essence, at random); the
+ * rest, at least one, are random cards from the reward pool. A recipe already
+ * distilled into the deck is only offered again now and then, so decks keep
+ * branching out instead of stacking one brew.
+ */
+export function rewardChoices(run: RunState, brewed: readonly string[] = []): string[] {
+  return withRng(run, (rng) => {
+    const owned = new Set(run.deck.flatMap((c) => distilledRecipe(c.id) ?? []));
+    const eligible = brewed.filter((id) => !owned.has(id) || rng.next() < REPEAT_DISTILL_CHANCE);
+    const distilled = rng
+      .shuffle(eligible)
+      .slice(0, MAX_DISTILLED)
+      .map((id) => (rng.next() < 0.5 ? flaskId(id) : essenceId(id)));
+    const random = rng.shuffle(REWARD_POOL).slice(0, REWARD_CHOICES - distilled.length);
+    return [...distilled, ...random];
+  });
 }
 
 export function addCardToDeck(run: RunState, cardId: string): void {

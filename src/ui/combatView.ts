@@ -35,12 +35,13 @@ import type {
 import { sandboxAddCard, sandboxRefillEnergy, sandboxSetWeather } from '../core/sandbox';
 import { WEATHER_IDS, WEATHER_INFO, modifyDamage, skyWeather, turnsUntilChange } from '../core/weather';
 import { CARDS, getCard } from '../data/cards';
+import { DISTILLED_CARDS } from '../data/distilled';
 import { getEnemy } from '../data/enemies';
 import { RECIPES, SLUDGE, getRecipe } from '../data/recipes';
 import { getRelic } from '../data/relics';
 import { getSkyCard } from '../data/sky';
 import { esc } from './dom';
-import { CARD_ICONS, CARD_KIND_COLORS, ELEMENTS, ENEMY_LOOKS, ICONS, RELIC_ICONS, WEATHERS } from './theme';
+import { CARD_KIND_COLORS, cardIcon, ELEMENTS, ENEMY_LOOKS, ICONS, RELIC_ICONS, WEATHERS } from './theme';
 
 export interface CombatViewOptions {
   state: CombatState;
@@ -419,7 +420,7 @@ function renderCard(state: CombatState, card: CardInstance, selected: boolean): 
 export function cardFace(
   def: CardDef,
   weather: WeatherId,
-  options: { className?: string; attrs?: string; weak?: boolean; infusion?: ElementId | undefined } = {},
+  options: { className?: string; attrs?: string; weak?: boolean; infusion?: ElementId | undefined; note?: string } = {},
 ): string {
   const added = def.effects.find((e) => e.type === 'addElement');
   const element = added?.type === 'addElement' ? added.element : undefined;
@@ -433,8 +434,9 @@ export function cardFace(
       ${element ? `<span class="card-element" style="--chip-color: ${ELEMENTS[element].color}">${ELEMENTS[element].icon}</span>` : ''}
       ${infusion ? `<span class="card-infusion" style="--chip-color: ${ELEMENTS[infusion].color}" title="Infused">${ELEMENTS[infusion].icon}</span>` : ''}
       <span class="card-name">${esc(def.name)}</span>
-      <span class="card-icon">${CARD_ICONS[def.id] ?? (def.kind === 'attack' ? ICONS.attack : ICONS.block)}</span>
+      <span class="card-icon">${cardIcon(def)}</span>
       <span class="card-text">${richText(def, weather, options.weak)}${infusionText}</span>
+      ${options.note ? `<span class="card-note">${esc(options.note)}</span>` : ''}
     </button>
   `;
 }
@@ -453,7 +455,7 @@ function renderSandboxTools(): string {
 function renderCardPicker(): string {
   const row = (def: CardDef) => `
     <li><button class="picker-row" data-add-card="${esc(def.id)}">
-      <span class="picker-icon">${CARD_ICONS[def.id] ?? (def.kind === 'attack' ? ICONS.attack : ICONS.block)}</span>
+      <span class="picker-icon">${cardIcon(def)}</span>
       <span class="recipe-body"><strong>${esc(def.name)}</strong> (${def.cost}) ${richText(def, 'clear')}</span>
     </button></li>`;
   return `
@@ -463,7 +465,7 @@ function renderCardPicker(): string {
           <h2>Add a card</h2>
           <button class="text-button" data-action="close">Close</button>
         </span>
-        <ul class="recipe-list">${Object.values(CARDS).map(row).join('')}</ul>
+        <ul class="recipe-list">${[...Object.values(CARDS), ...Object.values(DISTILLED_CARDS)].map(row).join('')}</ul>
       </span>
     </span>
   `;

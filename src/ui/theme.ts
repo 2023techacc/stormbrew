@@ -93,6 +93,15 @@ export const CARD_ICONS: Record<string, string> = {
   scatterClouds: '🌬️',
 };
 
+/** A card's icon: its own, a flask or essence for distilled cards, or its kind's icon. */
+export function cardIcon(def: { id: string; kind: 'attack' | 'skill' }): string {
+  const own = CARD_ICONS[def.id];
+  if (own) return own;
+  if (def.id.startsWith('flask-')) return '⚗️';
+  if (def.id.startsWith('essence-')) return '✨';
+  return def.kind === 'attack' ? '⚔️' : '🛡️';
+}
+
 export const CARD_KIND_COLORS = {
   attack: '#d9534f',
   skill: '#3f7fbf',

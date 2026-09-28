@@ -58,6 +58,8 @@ export interface RecipeDef {
   effects: Effect[];
   /** Rules text. `{damage}` is replaced with the current damage. */
   text: string;
+  /** Shorter text for the recipe's distilled card, when `text` is too long for a card. */
+  cardText?: string;
 }
 
 /** A card in the run's deck. An infused card also adds its element when played. */
@@ -168,6 +170,8 @@ export interface CombatState {
   potions: string[];
   /** How many upcoming brews will be bottled instead of used. */
   bottleNext: number;
+  /** Recipes brewed this fight, by the player or enemies (no Sludge); they can be distilled afterwards. */
+  brewed: string[];
   status: CombatStatus;
   rngState: number;
 }

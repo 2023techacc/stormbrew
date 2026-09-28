@@ -799,6 +799,17 @@ button {
   overflow-y: auto;
 }
 
+.card.distilled {
+  box-shadow: 0 0 0 2px #c7a4ff;
+}
+
+.card-note {
+  margin-top: auto;
+  color: #c7a4ff;
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
 .card.infused {
   box-shadow: 0 0 0 2px rgb(255 255 255 / 0.35) inset;
 }

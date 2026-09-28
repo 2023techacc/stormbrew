@@ -113,6 +113,7 @@ export function createCombat(setup: CombatSetup): { state: CombatState; events: 
     relics: [...relics],
     potions: [...(setup.potions ?? [])],
     bottleNext: 0,
+    brewed: [],
     status: 'playing',
     rngState: rng.getState(),
   };
@@ -500,6 +501,7 @@ function brew(state: CombatState, target?: number): CombatEvent[] {
   const used = result.usedSlots.map((i) => state.cauldron[i] as ElementId);
   state.cauldron = state.cauldron.filter((_, i) => !result.usedSlots.includes(i));
   const event: CombatEvent = { type: 'brew', recipeId: result.recipe.id, used };
+  recordBrewed(state, result.recipe.id);
   // Bottling keeps a real recipe for later; Sludge and full potion belts are used as normal.
   if (state.bottleNext > 0 && result.recipe.id !== SLUDGE.id && state.potions.length < MAX_POTIONS) {
     state.bottleNext -= 1;
@@ -535,6 +537,7 @@ function enemyBrew(state: CombatState, index: number): CombatEvent[] {
   const used = result.usedSlots.map((i) => enemy.cauldron[i] as ElementId);
   enemy.cauldron = enemy.cauldron.filter((_, i) => !result.usedSlots.includes(i));
   enemy.spoiled = false;
+  recordBrewed(state, result.recipe.id);
   const events: CombatEvent[] = [{ type: 'enemyBrew', index, recipeId: result.recipe.id, used }];
   for (const effect of result.recipe.effects) {
     if (state.status !== 'playing') break;
@@ -578,6 +581,11 @@ export function enemyBrewPreview(enemy: EnemyState): RecipeDef | null {
   const contents = next && enemy.cauldron.length < def.size ? [...enemy.cauldron, next] : [...enemy.cauldron];
   if (contents.length < def.size) return null;
   return enemy.spoiled ? SLUDGE : findBrew(contents).recipe;
+}
+
+/** Remembers a brewed recipe so it can be distilled after the fight. */
+function recordBrewed(state: CombatState, recipeId: string): void {
+  if (recipeId !== SLUDGE.id && !state.brewed.includes(recipeId)) state.brewed.push(recipeId);
 }
 
 /** Whether using this potion needs an enemy chosen. */
