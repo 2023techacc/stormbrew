@@ -678,6 +678,11 @@ button {
   background: var(--bg);
 }
 
+.header-buttons {
+  display: flex;
+  gap: 6px;
+}
+
 .stat {
   font-weight: 700;
 }

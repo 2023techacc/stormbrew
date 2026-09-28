@@ -33,11 +33,12 @@ import type {
   WeatherId,
 } from '../core/types';
 import { sandboxAddCard, sandboxRefillEnergy, sandboxSetWeather } from '../core/sandbox';
-import { WEATHER_IDS, WEATHER_INFO, modifyDamage, turnsUntilChange } from '../core/weather';
+import { WEATHER_IDS, WEATHER_INFO, modifyDamage, skyWeather, turnsUntilChange } from '../core/weather';
 import { CARDS, getCard } from '../data/cards';
 import { getEnemy } from '../data/enemies';
 import { RECIPES, SLUDGE, getRecipe } from '../data/recipes';
 import { getRelic } from '../data/relics';
+import { getSkyCard } from '../data/sky';
 import { esc } from './dom';
 import { CARD_ICONS, CARD_KIND_COLORS, ELEMENTS, ENEMY_LOOKS, ICONS, RELIC_ICONS, WEATHERS } from './theme';
 
@@ -573,7 +574,7 @@ function renderForecast(state: CombatState): string {
       <span class="forecast-now" style="--chip-color: ${WEATHERS[current].color}">
         <span class="forecast-icon">${WEATHERS[current].icon}</span>
         <span class="forecast-text">
-          <strong>${esc(WEATHER_INFO[current].name)}</strong>
+          <strong>${esc(getSkyCard(state.weather.currentCard).name)}</strong>
           <small>${esc(WEATHER_INFO[current].effect)}</small>
         </span>
       </span>
@@ -582,8 +583,8 @@ function renderForecast(state: CombatState): string {
           ? `<span class="forecast-next" title="Next weather">
               <small>${turns === 1 ? 'Next turn' : `In ${turns} turns`}</small>
               <span class="forecast-icons">
-                <span class="forecast-icon">${WEATHERS[next].icon}</span>
-                ${after ? `<span class="forecast-icon later" title="Then (Barometer)">${WEATHERS[after].icon}</span>` : ''}
+                <span class="forecast-icon" title="${esc(getSkyCard(next).name)}">${WEATHERS[skyWeather(next)].icon}</span>
+                ${after ? `<span class="forecast-icon later" title="Then ${esc(getSkyCard(after).name)} (Barometer)">${WEATHERS[skyWeather(after)].icon}</span>` : ''}
               </span>
             </span>`
           : ''
@@ -609,8 +610,22 @@ function describeForecast(state: CombatState): string {
   const turns = turnsUntilChange(state.weather, state.turn);
   const now = `${WEATHER_INFO[current].name}: ${WEATHER_INFO[current].effect}`;
   const when = turns === 1 ? 'next turn' : `in ${turns} turns`;
-  const change = next ? ` Changes to ${WEATHER_INFO[next].name} ${when}.` : '';
-  return `${now}${change} ${describeExposure(state)}`;
+  const change = next ? ` Next: ${describeSkyCard(next)} ${when}.` : '';
+  return `${now}${change} ${describeExposure(state)} ${ICONS.sky} Sky: ${summarizeSky(state.weather.skyDeck)}.`;
+}
+
+/** "Monsoon (Rain, 5 turns)" or just "Storm" for a basic card. */
+function describeSkyCard(id: string): string {
+  const card = getSkyCard(id);
+  const weather = WEATHER_INFO[card.weather].name;
+  return card.name === weather ? weather : `${card.name} (${weather}, ${card.turns} turns)`;
+}
+
+/** "2 Storm, 1 Rain, …" */
+export function summarizeSky(sky: readonly string[]): string {
+  const counts = new Map<string, number>();
+  for (const id of sky) counts.set(getSkyCard(id).name, (counts.get(getSkyCard(id).name) ?? 0) + 1);
+  return [...counts].map(([name, n]) => `${n} ${name}`).join(', ');
 }
 
 /** A short message about the most important thing that just happened. */
@@ -639,6 +654,12 @@ function describeEvents(state: CombatState, events: CombatEvent[]): string {
       messages.push(
         recipe.id === SLUDGE.id ? `${ICONS.cauldron} ${used} made Sludge.` : `${ICONS.cauldron} ${used} → ${recipe.name}!`,
       );
+    } else if (event.type === 'forecast') {
+      const next = state.weather.forecast[0];
+      if (next) messages.push(`${ICONS.sky} The clouds shift: next comes ${describeSkyCard(next)}.`);
+    } else if (event.type === 'skyAdded') {
+      const name = state.enemies[event.index]?.name ?? 'An enemy';
+      messages.push(`${ICONS.sky} ${name} added ${event.cards.map(describeSkyCard).join(', ')} to your sky!`);
     } else if (event.type === 'enemyBrew') {
       const name = state.enemies[event.index]?.name ?? 'An enemy';
       messages.push(

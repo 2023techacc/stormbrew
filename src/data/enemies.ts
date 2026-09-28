@@ -19,7 +19,8 @@ export const ENEMIES: Record<string, EnemyDef> = {
     moves: [
       { name: 'Call the Storm', weather: 'storm', block: 6 },
       { name: 'Zap', damage: 6, element: 'spark' },
-      { name: 'Zap', damage: 6, element: 'spark' },
+      // Adds two Storm cards to your sky for the rest of the fight.
+      { name: 'Gather Clouds', damage: 4, element: 'spark', addSky: ['storm', 'storm'] },
     ],
     weathered: ['storm'],
   },

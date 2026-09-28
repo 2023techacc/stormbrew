@@ -3,7 +3,7 @@ import type { RunScreen, RunState } from './run';
 import type { CombatState } from './types';
 
 /** Bump when the saved shape changes incompatibly; older saves are then ignored. */
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
 /** Everything needed to resume a run exactly where it was left, even mid-fight. */
 export interface RunSave {

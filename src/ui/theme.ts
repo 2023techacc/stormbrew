@@ -90,6 +90,7 @@ export const CARD_ICONS: Record<string, string> = {
   bottleIt: '🍶',
   pilfer: '🫳',
   curdle: '🤢',
+  scatterClouds: '🌬️',
 };
 
 export const CARD_KIND_COLORS = {
@@ -112,6 +113,7 @@ export const ICONS = {
   gold: '💰',
   potion: '🧴',
   cover: '☂️',
+  sky: '☁️',
   spoiled: '🤢',
   grimoire: '📕',
   deck: '🂠',

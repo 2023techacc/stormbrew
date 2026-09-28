@@ -1,4 +1,5 @@
 import type { Rng } from './rng';
+import { STARTING_SKY, getSkyCard } from '../data/sky';
 import type { ElementId, WeatherId, WeatherState } from './types';
 
 /**
@@ -43,20 +44,33 @@ export function isChangeDue(weather: WeatherState, turn: number): boolean {
   return turn >= weather.nextChangeTurn;
 }
 
-/** The fight's first weather starts on turn 1. */
-export function createWeather(rng: Rng, start: WeatherId = 'clear'): WeatherState {
-  const weather: WeatherState = { current: start, forecast: [], nextChangeTurn: 1 + WEATHER_INTERVAL };
+/** The weather a sky card brings. */
+export function skyWeather(cardId: string): WeatherId {
+  return getSkyCard(cardId).weather;
+}
+
+/** The fight's first weather starts on turn 1; the forecast is drawn from the sky deck. */
+export function createWeather(rng: Rng, start: WeatherId = 'clear', sky: readonly string[] = STARTING_SKY): WeatherState {
+  const weather: WeatherState = {
+    current: start,
+    currentCard: start,
+    forecast: [],
+    nextChangeTurn: 1 + WEATHER_INTERVAL,
+    skyPile: rng.shuffle(sky),
+    skyDeck: [...sky],
+  };
   fillForecast(weather, rng);
   return weather;
 }
 
-/** Moves to the next forecast weather on `turn` and extends the forecast. */
+/** Moves to the next forecast weather on `turn` for as many turns as its card lasts, and extends the forecast. */
 export function advanceWeather(weather: WeatherState, rng: Rng, turn: number): WeatherId {
-  const next = weather.forecast.shift() ?? pickNext(rng, weather.current);
-  weather.current = next;
-  weather.nextChangeTurn = turn + WEATHER_INTERVAL;
+  const card = weather.forecast.shift() ?? drawSky(weather, rng, weather.current);
+  weather.currentCard = card;
+  weather.current = skyWeather(card);
+  weather.nextChangeTurn = turn + getSkyCard(card).turns;
   fillForecast(weather, rng);
-  return next;
+  return weather.current;
 }
 
 /**
@@ -72,20 +86,52 @@ export function overrideWeather(
   firstTurn: number,
 ): void {
   weather.current = to;
+  weather.currentCard = to;
   weather.nextChangeTurn = firstTurn + WEATHER_INTERVAL;
-  while (weather.forecast[0] === to) weather.forecast.shift();
+  while (weather.forecast[0] !== undefined && skyWeather(weather.forecast[0]) === to) weather.forecast.shift();
   fillForecast(weather, rng);
+}
+
+/** Replaces the next forecast weather with a new card from the sky. */
+export function scatterForecast(weather: WeatherState, rng: Rng): void {
+  weather.forecast.shift();
+  fillForecast(weather, rng);
+}
+
+/** Shuffles extra sky cards (e.g. from an enemy) into this fight's sky pile. */
+export function addToSky(weather: WeatherState, rng: Rng, cards: readonly string[]): void {
+  for (const card of cards) {
+    getSkyCard(card); // throws on unknown ids
+    weather.skyDeck.push(card);
+    weather.skyPile.splice(rng.int(0, weather.skyPile.length), 0, card);
+  }
 }
 
 function fillForecast(weather: WeatherState, rng: Rng): void {
   while (weather.forecast.length < FORECAST_LENGTH) {
-    const last = weather.forecast[weather.forecast.length - 1] ?? weather.current;
-    weather.forecast.push(pickNext(rng, last));
+    const last = weather.forecast[weather.forecast.length - 1];
+    weather.forecast.push(drawSky(weather, rng, last === undefined ? weather.current : skyWeather(last)));
   }
 }
 
-/** A scheduled change always changes something, so never repeat the previous weather. */
-function pickNext(rng: Rng, previous: WeatherId): WeatherId {
+/**
+ * Draws the next sky card, reshuffling the sky deck when the pile is empty.
+ * A change should change something, so a card with the previous weather goes
+ * to the bottom of the pile (unless the whole sky is that weather).
+ */
+function drawSky(weather: WeatherState, rng: Rng, previous: WeatherId): string {
+  if (weather.skyPile.length === 0) weather.skyPile = rng.shuffle(weather.skyDeck);
+  const differs = (card: string) => skyWeather(card) !== previous;
+  // Only the previous weather is left in the pile, but the sky has others: start a fresh shuffle.
+  if (!weather.skyPile.some(differs) && weather.skyDeck.some(differs)) weather.skyPile = rng.shuffle(weather.skyDeck);
+  for (let tries = 0; tries < weather.skyPile.length; tries++) {
+    const card = weather.skyPile.pop() as string;
+    if (differs(card)) return card;
+    weather.skyPile.unshift(card);
+  }
+  const fallback = weather.skyPile.pop();
+  if (fallback !== undefined) return fallback;
+  // An empty sky deck can only happen with bad data; fall back to any other weather.
   return rng.pick(WEATHER_IDS.filter((w) => w !== previous));
 }
 

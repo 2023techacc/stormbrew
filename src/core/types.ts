@@ -23,6 +23,8 @@ export type Effect =
   | { type: 'swapForecast' }
   /** Restart the current weather's countdown. */
   | { type: 'holdWeather' }
+  /** Replace the next forecast weather with a new one from the sky. */
+  | { type: 'scatter' }
   | { type: 'addElement'; element: ElementId }
   | { type: 'brew' }
   /** The next brew this fight is bottled as a potion instead of used. */
@@ -82,6 +84,8 @@ export interface EnemyMove {
   status?: { status: StatusId; amount: number };
   /** Takes the newest element out of the player's cauldron. */
   stealElement?: boolean;
+  /** Shuffles these sky cards into the player's sky for this fight. */
+  addSky?: string[];
 }
 
 export interface EnemyDef {
@@ -136,10 +140,16 @@ export type CombatStatus = 'playing' | 'won' | 'lost';
 
 export interface WeatherState {
   current: WeatherId;
-  /** Upcoming scheduled weathers, soonest first. */
-  forecast: WeatherId[];
+  /** The sky card the current weather came from (e.g. 'monsoon'). */
+  currentCard: string;
+  /** Upcoming sky cards, soonest first. A basic card's id is its weather's id. */
+  forecast: string[];
   /** The turn on which the weather next changes to the forecast. */
   nextChangeTurn: number;
+  /** Sky cards still to be drawn this fight. */
+  skyPile: string[];
+  /** Every sky card in this fight (the run's sky deck plus any added by enemies); reshuffled when the pile runs out. */
+  skyDeck: string[];
 }
 
 export interface CombatState {
@@ -176,6 +186,9 @@ export type CombatEvent =
   /** A weather element was lost because the cauldron was full. */
   | { type: 'spill'; element: ElementId }
   | { type: 'exposure'; exposed: boolean }
+  /** The forecast changed without the weather changing. */
+  | { type: 'forecast' }
+  | { type: 'skyAdded'; index: number; cards: string[] }
   | { type: 'brew'; recipeId: string; used: ElementId[]; bottled?: boolean }
   | { type: 'potion'; recipeId: string }
   | { type: 'heal'; amount: number }

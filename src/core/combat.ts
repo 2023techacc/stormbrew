@@ -21,12 +21,15 @@ import type {
 import {
   HEATWAVE_BURN,
   STORM_BOLT_DAMAGE,
+  addToSky,
   advanceWeather,
   blockPersists,
   createWeather,
   isChangeDue,
   modifyDamage,
   overrideWeather,
+  scatterForecast,
+  skyWeather,
 } from './weather';
 
 export const HAND_SIZE = 5;
@@ -50,6 +53,8 @@ export interface CombatSetup {
   startWeather?: WeatherId;
   relics?: string[];
   potions?: string[];
+  /** The run's sky deck (weather cards) the forecast is drawn from. */
+  sky?: string[];
 }
 
 export type PlayResult = { ok: true; events: CombatEvent[] } | { ok: false; reason: string };
@@ -102,7 +107,7 @@ export function createCombat(setup: CombatSetup): { state: CombatState; events: 
     hand: [],
     discardPile: [],
     turn: 0,
-    weather: createWeather(rng, setup.startWeather),
+    weather: createWeather(rng, setup.startWeather, setup.sky),
     cauldron,
     cauldronSlots: CAULDRON_SLOTS + (relics.includes('ironCauldron') ? 1 : 0),
     relics: [...relics],
@@ -223,6 +228,11 @@ export function endTurn(state: CombatState): CombatEvent[] {
     const move = currentIntent(enemy);
     events.push({ type: 'enemyMove', index, move });
     if (move.weather) events.push(...setWeather(state, move.weather, 'enemy'));
+    if (move.addSky) {
+      const cards = move.addSky;
+      withRng(state, (rng) => addToSky(state.weather, rng, cards));
+      events.push({ type: 'skyAdded', index, cards });
+    }
     if (move.block) {
       gainBlock(enemy, move.block);
       events.push({ type: 'block', target: { side: 'enemy', index }, amount: move.block });
@@ -437,10 +447,14 @@ function applyEffects(state: CombatState, effects: readonly Effect[], target?: n
       case 'swapForecast': {
         const next = state.weather.forecast[0];
         if (!next) break;
-        state.weather.forecast[0] = state.weather.current;
-        events.push(...setWeather(state, next, 'player'));
+        state.weather.forecast[0] = state.weather.currentCard;
+        events.push(...setWeather(state, skyWeather(next), 'player'));
         break;
       }
+      case 'scatter':
+        withRng(state, (rng) => scatterForecast(state.weather, rng));
+        events.push({ type: 'forecast' });
+        break;
       case 'holdWeather':
         events.push(...setWeather(state, state.weather.current, 'player'));
         break;

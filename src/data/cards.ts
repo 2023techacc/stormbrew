@@ -219,6 +219,15 @@ export const CARDS: Record<string, CardDef> = {
     effects: [{ type: 'bottle' }, { type: 'draw', amount: 1 }],
     text: 'Your next brew becomes a potion. Draw 1.',
   },
+  scatterClouds: {
+    id: 'scatterClouds',
+    name: 'Scatter Clouds',
+    cost: 0,
+    kind: 'skill',
+    target: 'self',
+    effects: [{ type: 'scatter' }],
+    text: 'Replace the next weather with a new one.',
+  },
   pilfer: {
     id: 'pilfer',
     name: 'Pilfer',
@@ -265,6 +274,7 @@ export const REWARD_POOL: string[] = [
   'bottleIt',
   'pilfer',
   'curdle',
+  'scatterClouds',
   'gatherEmber',
   'gatherDew',
   'gatherStone',

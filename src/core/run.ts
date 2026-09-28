@@ -2,6 +2,7 @@ import { REWARD_POOL, STARTER_DECK, getCard } from '../data/cards';
 import { ENCOUNTERS } from '../data/enemies';
 import { RECIPES } from '../data/recipes';
 import { RELIC_POOL, STARTING_RELICS, getRelic } from '../data/relics';
+import { SKY_POOL, STARTING_SKY, getSkyCard } from '../data/sky';
 import { MAX_POTIONS, createCombat } from './combat';
 import { generateMap, reachableNodes, type MapNode, type MapState } from './map';
 import { Rng } from './rng';
@@ -17,7 +18,9 @@ export const REST_HEAL = 0.3;
 export const HEALING_HERB_HEAL = 6;
 export const LUCKY_COIN_GOLD = 10;
 export const GOLD_REWARD = { fight: [12, 18], elite: [28, 35] } as const;
-export const SHOP_PRICES = { card: [40, 55], relic: [110, 140], potion: [30, 45], removal: 60 } as const;
+export const SHOP_PRICES = { card: [40, 55], relic: [110, 140], potion: [30, 45], sky: [35, 50], removal: 60 } as const;
+/** The sky deck can't be charted below this many cards. */
+export const MIN_SKY = 2;
 /** Chance that a won fight also drops a potion. */
 export const POTION_DROP_CHANCE = 0.3;
 /** Potions that can drop or be sold: the two-element base recipes. */
@@ -38,6 +41,7 @@ export interface ShopState {
   cards: ShopItem[];
   relics: ShopItem[];
   potions: ShopItem[];
+  sky: ShopItem[];
   removalPrice: number;
   removalUsed: boolean;
 }
@@ -55,6 +59,8 @@ export interface RunState {
   relics: string[];
   /** Bottled brews (recipe ids), at most MAX_POTIONS. */
   potions: string[];
+  /** The sky deck: weather cards the forecast is drawn from in every fight. */
+  sky: string[];
   map: MapState;
   /** The node the player is on, or null before the first move. */
   nodeId: string | null;
@@ -83,7 +89,7 @@ export type RunScreen =
   | { name: 'map' }
   | { name: 'combat'; label: string }
   | { name: 'reward'; rewards: FightRewards }
-  | { name: 'rest'; step: 'choose' | 'pickCard' | 'pickElement'; deckIndex?: number }
+  | { name: 'rest'; step: 'choose' | 'pickCard' | 'pickElement' | 'pickSky'; deckIndex?: number }
   | { name: 'shop'; removing: boolean }
   | { name: 'over' };
 
@@ -98,6 +104,7 @@ export function createRun(seed: number): RunState {
     deck: STARTER_DECK.map((id) => ({ id })),
     relics: [...STARTING_RELICS],
     potions: [],
+    sky: [...STARTING_SKY],
     map,
     nodeId: null,
     visited: [],
@@ -148,6 +155,7 @@ export function startFight(run: RunState): { state: CombatState; events: CombatE
     playerMaxHp: run.maxHp,
     relics: run.relics,
     potions: run.potions,
+    sky: run.sky,
   });
 }
 
@@ -233,10 +241,12 @@ function createShop(run: RunState): ShopState {
     const cards = rng.shuffle(REWARD_POOL).slice(0, 3);
     const relics = rng.shuffle(RELIC_POOL.filter((id) => !run.relics.includes(id))).slice(0, 2);
     const potion = rng.pick(POTION_POOL);
+    const sky = rng.pick(SKY_POOL);
     return {
       cards: cards.map((id) => ({ id, price: rng.int(...SHOP_PRICES.card), sold: false })),
       relics: relics.map((id) => ({ id, price: rng.int(...SHOP_PRICES.relic), sold: false })),
       potions: [{ id: potion, price: rng.int(...SHOP_PRICES.potion), sold: false }],
+      sky: [{ id: sky, price: rng.int(...SHOP_PRICES.sky), sold: false }],
       removalPrice: SHOP_PRICES.removal,
       removalUsed: false,
     };
@@ -281,6 +291,25 @@ export function buyPotion(run: RunState, index: number): ShopResult {
   item.sold = true;
   run.potions.push(item.id);
   return paid;
+}
+
+/** Buys a weather card for the sky deck. */
+export function buySky(run: RunState, index: number): ShopResult {
+  const item = run.shop?.sky[index];
+  if (!item || item.sold) return { ok: false, reason: 'Sold out.' };
+  const paid = pay(run, item.price);
+  if (!paid.ok) return paid;
+  item.sold = true;
+  run.sky.push(getSkyCard(item.id).id);
+  return paid;
+}
+
+/** Rest site option: take a weather card out of the sky deck. */
+export function chartSky(run: RunState, index: number): ShopResult {
+  if (run.sky.length <= MIN_SKY) return { ok: false, reason: `Your sky needs at least ${MIN_SKY} weathers.` };
+  if (run.sky[index] === undefined) return { ok: false, reason: 'No such weather.' };
+  run.sky.splice(index, 1);
+  return { ok: true };
 }
 
 /** Removes a card from the deck, once per shop visit. */
