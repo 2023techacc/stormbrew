@@ -2,14 +2,25 @@ import './style.css';
 import { SANDBOX_ENEMIES, createSandbox } from './core/sandbox';
 import { showCombat } from './ui/combatView';
 import { showRun } from './ui/runView';
-import { showTitle } from './ui/titleView';
+import { loadGrimoire, loadRun } from './ui/storage';
+import { showGrimoire, showTitle } from './ui/titleView';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('#app element not found');
 const root: HTMLElement = app;
 
+/** Discovered recipes, kept across runs. Loaded once and updated in place. */
+const grimoire = loadGrimoire();
+
 function goToTitle(): void {
-  showTitle(root, { onNewRun: () => showRun(root, goToTitle), onSandbox: () => startSandbox(0) });
+  window.scrollTo(0, 0);
+  const saved = loadRun();
+  showTitle(root, {
+    onContinue: saved ? () => showRun(root, { onExit: goToTitle, grimoire, resume: saved }) : undefined,
+    onNewRun: () => showRun(root, { onExit: goToTitle, grimoire }),
+    onSandbox: () => startSandbox(0),
+    onGrimoire: () => showGrimoire(root, grimoire, goToTitle),
+  });
 }
 
 function startSandbox(enemyIndex: number): void {

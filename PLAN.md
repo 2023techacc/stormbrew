@@ -162,8 +162,13 @@ for later.
 - Recipes start **unknown**. When you brew one for the first time, it is
   written into the **Grimoire**.
 - The Grimoire is saved between runs (meta-progression). Known recipes show a
-  preview of the result before you brew.
-- Some events and relics reveal recipes early.
+  preview of the result before you brew; unknown ones show as **???** in the
+  cauldron preview and the recipe book. (The sandbox shows everything.)
+- Some events and relics reveal recipes early (later).
+- *Status:* in the game (Milestone 6), together with **Bottle It** / potions
+  (up to 3, free to drink, also found after fights and sold in shops) and
+  **auto-save** (the run, even mid-fight, is saved after every action; the
+  title screen offers **Continue run**).
 
 ### 4.5 Brewing only happens in fights
 All brewing happens **inside combat**. There is no crafting screen and there
@@ -349,10 +354,11 @@ Important choices:
 | 3 | **Brewing** ✅ | Cauldron UI, Element and Brew cards, 10 recipes, Sludge, weather ↔ brew interactions |
 | 4 | **Playable fight loop** ✅ | 3–4 enemy types, card rewards after combat, a “sandbox” mode to test cards |
 | 5 | **Run structure** ✅ | Branching Act 1 map, rest sites (including Infuse), shop, gold, relics, the Act 1 boss |
-| 6 | **Discovery & potions** | Grimoire (persistent), Bottling, potions, auto-save and resume |
-| 7 | **MVP content & balance** | Reach the MVP content targets, playtest on real phones, tune `WEATHER_INTERVAL` |
-| 8 | **Polish** | Animations, sound, vibration feedback, weather particles, app icon and splash screen |
-| 9 | **Expansion** | Acts 2–3, Fog/Gale/Eclipse, a second character, ascension levels, iOS/desktop builds |
+| 6 | **Discovery & potions** ✅ | Grimoire (persistent), Bottling, potions, auto-save and resume |
+| 7 | **Identity** (proposed, see §11) | The features that make Stormbrew play differently from *Slay the Spire*: Exposure, enemy cauldrons, the Sky Deck, Distilling |
+| 8 | **MVP content & balance** | Reach the MVP content targets, playtest on real phones, tune `WEATHER_INTERVAL` |
+| 9 | **Polish** | Animations, sound, vibration feedback, weather particles, app icon and splash screen |
+| 10 | **Expansion** | Acts 2–3, Fog/Gale/Eclipse, a second character, ascension levels, iOS/desktop builds |
 
 Milestones 1–3 prove the game's core idea. If combat with weather and brewing
 is fun in a single fight on a phone, the rest is adding content.
@@ -383,5 +389,93 @@ is fun in a single fight on a phone, the rest is adding content.
    and tuned in milestone 7.
 2. **Store release**: sideloaded APK only, or eventually Google Play? (Google
    Play needs a one-time $25 developer account and a signed release build.)
-3. **Stir cost**: Stir costs 0 for now, because the Copper Cauldron relic
-   (first brew free) doesn't exist yet. Revisit once relics arrive.
+3. **Stir cost**: Stir costs 0, and the Copper Cauldron became "start with an
+   element" instead of "first brew free". Revisit during balancing.
+4. **Identity**: which of the §11 features to build, and in what order.
+
+---
+
+## 11. Making Stormbrew Its Own Game
+
+### 11.1 What is still *Slay the Spire*
+
+Playtesting shows the core still feels like *Slay the Spire*: every turn is
+"spend 3 energy on 5 cards, read the enemy's intent, end turn", and the run is
+"pick 1 of 3 cards, walk a node map, rest or shop, beat the boss". Weather and
+brewing are real, but they sit **on top of** that loop as modifiers instead of
+**changing** it. The player's decisions each turn are almost the same as in
+*Slay the Spire*; the cauldron is a side pocket.
+
+The fix is not more content. It is a few rules that change *what the player
+decides*, and they should all come from the two pillars: **the sky** and **the
+cauldron**.
+
+### 11.2 Proposed features
+
+Each one is rated for how much it changes the game (impact) and how much work
+it is (cost).
+
+**A. Exposure: stand in the open or take cover** (impact: high, cost: small)
+- Every turn you choose **Out** or **Under cover** (a toggle next to End turn).
+- **Out**: the weather's element **falls into your cauldron** at the start of
+  your turn (Rain drops 💧, Storm drops ⚡…) and you take the weather's harm
+  (lightning, Burn). **Under cover**: safe from the weather, but no free element.
+- Enemies have fixed positions too: flying enemies are always Out, burrowing
+  ones always under cover, so the weather hits them differently.
+- This replaces today's "every brew gets the weather's element for free" with a
+  real choice made every turn, which *Slay the Spire* has nothing like.
+
+**B. Enemies brew too** (impact: high, cost: medium)
+- Some enemies have their own small cauldron on screen. Their intent shows the
+  elements they are collecting; when it fills, their brew goes off (e.g. a
+  Frost Golem brewing *Permafrost*).
+- You can interfere: cards and brews that **steal** an element from an enemy
+  cauldron into yours, or **spoil** it by adding a wrong element (their
+  Fireball becomes Sludge).
+- Fights become a race and a puzzle over *the same elements*, not just
+  "block the attack intent".
+
+**C. The Sky Deck: build your weather** (impact: high, cost: medium)
+- The forecast is drawn from a second, small deck of **weather cards** that you
+  build during the run, alongside your normal deck. You start with Clear, Rain,
+  Storm, Heatwave and Snow.
+- Rewards and shops sometimes offer weather cards (e.g. *Monsoon*: Rain for 5
+  turns; *Dry Storm*: Storm whose lightning only hits enemies; *Aurora*: every
+  brew gets one extra element). You can also **remove** weathers you don't want.
+- Enemies and bosses **shuffle their weather into your sky** (the Storm Caller
+  adds two Storms). Cards like *Read the Sky* look at and reorder the next
+  weathers.
+- Two decks to build (your hand and your sky) that have to work together: a
+  deckbuilder idea of its own.
+
+**D. Distilling: your deck grows from your brews** (impact: medium-high, cost: medium)
+- After a fight, each recipe you brewed in it can be **distilled into a card**
+  (e.g. brewing Magma unlocks a *Magma Flask* card). You choose one to add to
+  the deck.
+- The random "pick 1 of 3" card reward mostly goes away (shops still sell
+  cards). Your deck becomes a record of what you learned to brew, and the
+  Grimoire turns into deckbuilding, not just a list.
+- Brewing still happens only in fights, as decided earlier.
+
+**E. The storm front on the map** (impact: medium, cost: medium-large)
+- A storm front moves up the map one row each time you move. Spots it covers
+  become Storm fights with better rewards, and rest sites inside it are closed.
+- You choose between racing ahead of the storm and diving into it for loot:
+  the map itself becomes about weather, instead of a static node map.
+
+**F. Elements replace energy** (impact: very high, cost: large; a bold option)
+- No energy: cards cost elements from the cauldron, and the weather and Gather
+  cards refill it. Brewing and playing cards become one system.
+- This would make Stormbrew the least like *Slay the Spire*, but it means
+  redesigning every card and rebalancing everything, so it should only be
+  tried after A–D, as a separate experiment.
+
+### 11.3 Recommendation
+
+Build **A (Exposure)** first. It is small, it changes every turn, and it turns
+the existing weather-element rule into a decision. Then **B (enemy
+cauldrons)** and **C (the Sky Deck)**, which make the two pillars interact
+with the enemies and the run. Then decide on **D (Distilling)** to replace
+card rewards. Keep **E** for when the map needs more depth, and treat **F** as
+a later experiment. Balancing (the old Milestone 7) should wait until these
+are in, since they change the numbers.

@@ -873,6 +873,44 @@ button {
   margin-left: auto;
 }
 
+.potion-belt {
+  display: flex;
+  gap: 4px;
+}
+
+.potion {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid #c7a4ff;
+  border-radius: 10px;
+  background: rgb(199 164 255 / 0.15);
+  font-size: 0.85rem;
+}
+
+.potion small {
+  font-size: 0.6rem;
+}
+
+.potion.selected {
+  box-shadow: 0 0 0 2px #e0a33a;
+}
+
+.relic.potion-icon {
+  border-color: #c7a4ff;
+}
+
+.recipe.unknown {
+  opacity: 0.6;
+}
+
+.grimoire-list {
+  width: 100%;
+  text-align: left;
+}
+
 .forecast-icons {
   display: flex;
   align-items: center;

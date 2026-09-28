@@ -1,7 +1,8 @@
 import { REWARD_POOL, STARTER_DECK, getCard } from '../data/cards';
 import { ENCOUNTERS } from '../data/enemies';
+import { RECIPES } from '../data/recipes';
 import { RELIC_POOL, STARTING_RELICS, getRelic } from '../data/relics';
-import { createCombat } from './combat';
+import { MAX_POTIONS, createCombat } from './combat';
 import { generateMap, reachableNodes, type MapNode, type MapState } from './map';
 import { Rng } from './rng';
 import type { CombatEvent, CombatState, DeckCard, ElementId } from './types';
@@ -16,7 +17,13 @@ export const REST_HEAL = 0.3;
 export const HEALING_HERB_HEAL = 6;
 export const LUCKY_COIN_GOLD = 10;
 export const GOLD_REWARD = { fight: [12, 18], elite: [28, 35] } as const;
-export const SHOP_PRICES = { card: [40, 55], relic: [110, 140], removal: 60 } as const;
+export const SHOP_PRICES = { card: [40, 55], relic: [110, 140], potion: [30, 45], removal: 60 } as const;
+/** Chance that a won fight also drops a potion. */
+export const POTION_DROP_CHANCE = 0.3;
+/** Potions that can drop or be sold: the two-element base recipes. */
+export const POTION_POOL = RECIPES.filter(
+  (r) => r.elements.length === 2 && r.elements.every((e) => ['fire', 'water', 'earth', 'air'].includes(e)),
+).map((r) => r.id);
 export const INFUSE_ELEMENTS: readonly ElementId[] = ['fire', 'water', 'earth', 'air'];
 
 export type RunStatus = 'playing' | 'won' | 'lost';
@@ -30,6 +37,7 @@ export interface ShopItem {
 export interface ShopState {
   cards: ShopItem[];
   relics: ShopItem[];
+  potions: ShopItem[];
   removalPrice: number;
   removalUsed: boolean;
 }
@@ -45,6 +53,8 @@ export interface RunState {
   gold: number;
   deck: DeckCard[];
   relics: string[];
+  /** Bottled brews (recipe ids), at most MAX_POTIONS. */
+  potions: string[];
   map: MapState;
   /** The node the player is on, or null before the first move. */
   nodeId: string | null;
@@ -60,8 +70,22 @@ export interface FightRewards {
   gold: number;
   healed: number;
   relic?: string;
+  /** A potion found after the fight (already added if there was room). */
+  potion?: string;
   cardChoices: string[];
 }
+
+/**
+ * Where the player is in the run, so a saved run can resume on the same screen.
+ * During a fight the fight itself is saved separately.
+ */
+export type RunScreen =
+  | { name: 'map' }
+  | { name: 'combat'; label: string }
+  | { name: 'reward'; rewards: FightRewards }
+  | { name: 'rest'; step: 'choose' | 'pickCard' | 'pickElement'; deckIndex?: number }
+  | { name: 'shop'; removing: boolean }
+  | { name: 'over' };
 
 export function createRun(seed: number): RunState {
   const rng = new Rng(seed);
@@ -73,6 +97,7 @@ export function createRun(seed: number): RunState {
     gold: STARTING_GOLD,
     deck: STARTER_DECK.map((id) => ({ id })),
     relics: [...STARTING_RELICS],
+    potions: [],
     map,
     nodeId: null,
     visited: [],
@@ -122,6 +147,7 @@ export function startFight(run: RunState): { state: CombatState; events: CombatE
     playerHp: run.hp,
     playerMaxHp: run.maxHp,
     relics: run.relics,
+    potions: run.potions,
   });
 }
 
@@ -139,6 +165,7 @@ export function finishFight(run: RunState, combat: CombatState): FightRewards {
   }
   run.fightsWon += 1;
   run.hp = combat.player.hp;
+  run.potions = [...combat.potions];
   const node = currentNode(run);
   if (node?.type === 'boss') {
     run.status = 'won';
@@ -152,6 +179,11 @@ export function finishFight(run: RunState, combat: CombatState): FightRewards {
   run.gold += gold;
 
   const rewards: FightRewards = { gold, healed, cardChoices: rewardChoices(run) };
+  const potion = withRng(run, (rng) => (rng.next() < POTION_DROP_CHANCE ? rng.pick(POTION_POOL) : undefined));
+  if (potion && run.potions.length < MAX_POTIONS) {
+    run.potions.push(potion);
+    rewards.potion = potion;
+  }
   if (node?.type === 'elite') {
     const relic = randomRelic(run);
     if (relic) {
@@ -200,9 +232,11 @@ function createShop(run: RunState): ShopState {
   return withRng(run, (rng) => {
     const cards = rng.shuffle(REWARD_POOL).slice(0, 3);
     const relics = rng.shuffle(RELIC_POOL.filter((id) => !run.relics.includes(id))).slice(0, 2);
+    const potion = rng.pick(POTION_POOL);
     return {
       cards: cards.map((id) => ({ id, price: rng.int(...SHOP_PRICES.card), sold: false })),
       relics: relics.map((id) => ({ id, price: rng.int(...SHOP_PRICES.relic), sold: false })),
+      potions: [{ id: potion, price: rng.int(...SHOP_PRICES.potion), sold: false }],
       removalPrice: SHOP_PRICES.removal,
       removalUsed: false,
     };
@@ -235,6 +269,17 @@ export function buyRelic(run: RunState, index: number): ShopResult {
   if (!paid.ok) return paid;
   item.sold = true;
   run.relics.push(getRelic(item.id).id);
+  return paid;
+}
+
+export function buyPotion(run: RunState, index: number): ShopResult {
+  const item = run.shop?.potions[index];
+  if (!item || item.sold) return { ok: false, reason: 'Sold out.' };
+  if (run.potions.length >= MAX_POTIONS) return { ok: false, reason: 'Your potion belt is full.' };
+  const paid = pay(run, item.price);
+  if (!paid.ok) return paid;
+  item.sold = true;
+  run.potions.push(item.id);
   return paid;
 }
 

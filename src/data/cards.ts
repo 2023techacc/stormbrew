@@ -210,6 +210,15 @@ export const CARDS: Record<string, CardDef> = {
     ],
     text: 'Deal {damage} damage. Apply 1 Weak.',
   },
+  bottleIt: {
+    id: 'bottleIt',
+    name: 'Bottle It',
+    cost: 1,
+    kind: 'skill',
+    target: 'self',
+    effects: [{ type: 'bottle' }, { type: 'draw', amount: 1 }],
+    text: 'Your next brew becomes a potion. Draw 1.',
+  },
   brace: {
     id: 'brace',
     name: 'Brace',
@@ -235,6 +244,7 @@ export const REWARD_POOL: string[] = [
   'deluge',
   'thunderclap',
   'brace',
+  'bottleIt',
   'gatherEmber',
   'gatherDew',
   'gatherStone',
