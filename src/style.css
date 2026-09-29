@@ -3,9 +3,26 @@
   --bg-accent: #2a3350;
   --text: #eef1f7;
   --text-muted: #9aa3b8;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* The height between the phone's status bar and navigation bar. Screens fit
+     inside it, so the game never has to scroll up and down. */
+  --screen-h: calc(100vh - var(--safe-top) - var(--safe-bottom));
+  /* How much taller than a small (600px) screen this one is, up to 160px:
+     sizes grow from their compact size to their full size with it. */
+  --roomy: clamp(0px, calc(var(--screen-h) - 600px), 160px);
+  /* Cards in the hand and the shop: shorter on small screens (every card's text still fits). */
+  --card-h: calc(113px + var(--roomy) * 0.08125);
   color-scheme: dark;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   -webkit-tap-highlight-color: transparent;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    /* The visible height, even while a browser's address bar comes and goes. */
+    --screen-h: calc(100dvh - var(--safe-top) - var(--safe-bottom));
+  }
 }
 
 * {
@@ -34,19 +51,18 @@ body {
 #app {
   min-height: 100%;
   /* Keep content clear of phone notches and system bars. */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
-    env(safe-area-inset-left);
+  padding: var(--safe-top) env(safe-area-inset-right) var(--safe-bottom) env(safe-area-inset-left);
 }
 
 .title-screen {
-  min-height: 100dvh;
+  min-height: var(--screen-h);
   max-width: 480px;
   margin: 0 auto;
-  padding: 48px 16px 24px;
+  padding: calc(24px + var(--roomy) * 0.15) 16px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 32px;
+  gap: calc(20px + var(--roomy) * 0.075);
   background: radial-gradient(ellipse at top, var(--bg-accent), transparent 70%);
 }
 
@@ -186,18 +202,29 @@ button {
 /* ---------- Combat screen ---------- */
 
 .combat {
+  /* Compact on a 600px-tall screen, full size from 760px (see --roomy). */
+  --unit-size: calc(56px + var(--roomy) * 0.15);
+  --orb: calc(46px + var(--roomy) * 0.0625);
+  --slot: calc(30px + var(--roomy) * 0.0375);
+  --control-h: calc(42px + var(--roomy) * 0.0375);
   position: relative;
-  min-height: 100dvh;
+  /* Exactly the phone's height: the message area in the middle takes what's left. */
+  height: var(--screen-h);
   max-width: 480px;
   margin: 0 auto;
-  padding: 0 12px 8px;
+  padding: 0 12px calc(4px + var(--roomy) * 0.025);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: calc(3px + var(--roomy) * 0.01875);
+  overflow: hidden;
+}
+
+.combat > * {
+  flex: none;
 }
 
 .top-bar {
-  height: 32px;
+  height: calc(28px + var(--roomy) * 0.025);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -219,7 +246,7 @@ button {
   flex: 1 1 0;
   min-width: 0;
   max-width: 200px;
-  padding: 4px 8px 8px;
+  padding: 2px 8px calc(4px + var(--roomy) * 0.025);
   border: 2px solid transparent;
   border-radius: 16px;
   background: none;
@@ -239,7 +266,7 @@ button {
 }
 
 .intent {
-  padding: 4px 10px;
+  padding: calc(2px + var(--roomy) * 0.0125) 10px;
   border-radius: 12px;
   background: rgb(0 0 0 / 0.35);
   font-weight: 700;
@@ -253,10 +280,10 @@ button {
 .enemy-body {
   display: grid;
   place-items: center;
-  width: 80px;
-  height: 80px;
+  width: var(--unit-size);
+  height: var(--unit-size);
   border-radius: 50%;
-  font-size: 2.6rem;
+  font-size: calc(var(--unit-size) * 0.52);
   background: color-mix(in srgb, var(--unit-color) 25%, transparent);
   border: 3px solid var(--unit-color);
 }
@@ -311,16 +338,29 @@ button {
   text-shadow: 0 1px 2px rgb(0 0 0 / 0.8);
 }
 
+/* The message area takes the fight's leftover height; a long message scrolls in place. */
+.combat > .hint {
+  flex: 1 1 0;
+}
+
 .hint {
-  flex: 1;
   margin: 0;
-  display: grid;
-  place-items: center;
-  min-height: 1.3em;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
   font-size: 0.85rem;
   line-height: 1.3;
   color: var(--text-muted);
   text-align: center;
+  /* A message longer than the space fades out at the bottom edge (it scrolls). */
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 8px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 8px), transparent);
+}
+
+/* Centered while it fits; a longer message starts at the top instead of being cut off. */
+.hint > span {
+  margin: auto 0;
 }
 
 .player {
@@ -333,13 +373,13 @@ button {
   flex: none;
   display: grid;
   place-items: center;
-  width: 56px;
-  height: 56px;
+  width: var(--orb);
+  height: var(--orb);
   border-radius: 50%;
   background: radial-gradient(circle, #f5d547, #c78a1c);
   color: #1b2233;
   font-weight: 800;
-  font-size: 1.1rem;
+  font-size: calc(var(--orb) * 0.31);
 }
 
 .player-stats {
@@ -353,8 +393,19 @@ button {
   --card-width: 68px;
   display: flex;
   justify-content: center;
-  min-height: 138px;
+  min-height: calc(var(--card-h) + 12px);
   padding-top: 12px;
+}
+
+.hand .card,
+.shop-item .card {
+  height: var(--card-h);
+  padding-top: calc(10px + var(--roomy) * 0.025);
+}
+
+.hand .card-icon,
+.shop-item .card-icon {
+  font-size: calc(15px + var(--roomy) * 0.02);
 }
 
 .card {
@@ -441,7 +492,7 @@ button {
   align-items: center;
   justify-content: center;
   width: 56px;
-  height: 48px;
+  height: var(--control-h);
   border: 2px solid rgb(255 255 255 / 0.25);
   border-radius: 14px;
   background: rgb(0 0 0 / 0.25);
@@ -459,6 +510,10 @@ button {
   background: color-mix(in srgb, var(--weather-color, #6fa8dc) 30%, transparent);
 }
 
+.controls .primary-button {
+  min-height: var(--control-h);
+}
+
 .pile {
   min-width: 44px;
   color: var(--text-muted);
@@ -472,6 +527,8 @@ button {
   inset: 0;
   display: grid;
   place-items: center;
+  /* Panels stay clear of the phone's status and navigation bars. */
+  padding: var(--safe-top) 0 var(--safe-bottom);
   background: rgb(10 14 24 / 0.75);
 }
 
@@ -503,8 +560,8 @@ button {
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-height: 52px;
-  padding: 4px 10px;
+  min-height: calc(44px + var(--roomy) * 0.05);
+  padding: calc(2px + var(--roomy) * 0.0125) 10px;
   border: 1px solid rgb(255 255 255 / 0.12);
   border-radius: 14px;
   background: rgb(0 0 0 / 0.25);
@@ -523,10 +580,10 @@ button {
   flex: none;
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: calc(32px + var(--roomy) * 0.05);
+  height: calc(32px + var(--roomy) * 0.05);
   border-radius: 50%;
-  font-size: 1.4rem;
+  font-size: calc(18px + var(--roomy) * 0.03);
   background: rgb(255 255 255 / 0.08);
 }
 
@@ -560,9 +617,9 @@ button {
 }
 
 .forecast-next .forecast-icon {
-  width: 32px;
-  height: 32px;
-  font-size: 1.1rem;
+  width: calc(28px + var(--roomy) * 0.025);
+  height: calc(28px + var(--roomy) * 0.025);
+  font-size: calc(15px + var(--roomy) * 0.0175);
 }
 
 .weathered {
@@ -624,14 +681,14 @@ button {
 /* ---------- Run screens and sandbox ---------- */
 
 .screen {
-  min-height: 100dvh;
+  min-height: var(--screen-h);
   max-width: 480px;
   margin: 0 auto;
-  padding: 48px 16px 24px;
+  padding: calc(16px + var(--roomy) * 0.2) 16px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 14px;
+  gap: calc(8px + var(--roomy) * 0.0375);
   text-align: center;
   background: radial-gradient(ellipse at top, var(--bg-accent), transparent 70%);
 }
@@ -709,8 +766,20 @@ button {
 /* ---------- Map and run screens ---------- */
 
 .run-screen {
-  padding-top: 12px;
-  gap: 10px;
+  padding-top: 4px;
+  gap: calc(6px + var(--roomy) * 0.025);
+}
+
+.run-screen h2 {
+  font-size: calc(1.4rem + var(--roomy) * 0.0025);
+}
+
+/* A row of buttons side by side (e.g. the shop's "Remove a card" and "Leave"). */
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
 }
 
 .run-header {
@@ -759,10 +828,23 @@ button {
   font-size: 0.85rem;
 }
 
+/* No message, no empty line taking up height. */
+.run-message:empty {
+  display: none;
+}
+
+.map-title {
+  margin: 0;
+}
+
+/* The map fills the screen's free height: each floor gets 38 to 64px. */
 .map {
   position: relative;
   width: min(100%, 360px);
-  flex: none;
+  flex: 1 1 0;
+  min-height: calc(var(--rows) * 38px);
+  max-height: calc(var(--rows) * 64px);
+  container-type: size;
 }
 
 .map svg {
@@ -805,6 +887,23 @@ button {
   opacity: 0.8;
 }
 
+/* Spots shrink with the floors when the map is short. */
+@supports (height: 1cqh) {
+  .map-node {
+    --node: clamp(32px, calc(100cqh / var(--rows) - 6px), 44px);
+    width: var(--node);
+    height: var(--node);
+    font-size: calc(var(--node) * 0.45);
+  }
+
+  .map-node.boss {
+    --node: clamp(38px, calc(100cqh / var(--rows) + 2px), 60px);
+    width: var(--node);
+    height: var(--node);
+    font-size: calc(var(--node) * 0.5);
+  }
+}
+
 .map-node.visited {
   opacity: 0.9;
   border-color: #e0a33a;
@@ -825,7 +924,8 @@ button {
 }
 
 .map-legend {
-  line-height: 1.6;
+  margin: 0;
+  line-height: 1.5;
 }
 
 .relic-found {
@@ -911,8 +1011,9 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: calc(4px + var(--roomy) * 0.025);
 }
+
 
 .price {
   font-weight: 700;
@@ -930,7 +1031,7 @@ button {
 .shop-relics {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: calc(4px + var(--roomy) * 0.025);
   width: 100%;
 }
 
@@ -939,12 +1040,12 @@ button {
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 8px 10px;
+  padding: calc(4px + var(--roomy) * 0.025) 10px;
   border: 1px solid rgb(255 255 255 / 0.15);
   border-radius: 12px;
   background: rgb(0 0 0 / 0.25);
   text-align: left;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   line-height: 1.3;
 }
 
@@ -1088,9 +1189,9 @@ button {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: calc(2px + var(--roomy) * 0.0125);
   width: 100%;
-  padding: 6px 10px;
+  padding: calc(4px + var(--roomy) * 0.0125) 10px;
   border: 1px solid rgb(255 255 255 / 0.12);
   border-radius: 14px;
   background: rgb(0 0 0 / 0.25);
@@ -1115,10 +1216,10 @@ button {
 .slot {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: var(--slot);
+  height: var(--slot);
   border-radius: 50%;
-  font-size: 1.2rem;
+  font-size: calc(var(--slot) * 0.53);
 }
 
 .slot.empty {
@@ -1196,7 +1297,7 @@ button {
   flex-direction: column;
   gap: 10px;
   width: min(440px, calc(100% - 24px));
-  max-height: calc(100dvh - 48px);
+  max-height: calc(var(--screen-h) - 24px);
   padding: 16px;
   border-radius: 20px;
   background: var(--bg-accent);
@@ -1341,7 +1442,7 @@ html.calm .slot.pop {
 @keyframes enter {
   from {
     opacity: 0;
-    translate: 0 10px;
+    scale: 0.985;
   }
 }
 
@@ -1432,6 +1533,18 @@ html.calm .slot.pop {
 @keyframes pulse {
   to {
     box-shadow: 0 0 16px #e0a33a;
+  }
+}
+
+@media (max-height: 520px) {
+  .combat {
+    height: auto;
+    min-height: var(--screen-h);
+    overflow: visible;
+  }
+
+  .combat > .hint {
+    flex: 1 0 auto;
   }
 }
 

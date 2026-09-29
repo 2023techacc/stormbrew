@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CombatEvent, CombatState, UnitRef } from '../src/core/types';
-import { combatFeedback } from '../src/ui/feedback';
+import { BUZZ_HURT, BUZZ_HURT_HARD, combatFeedback } from '../src/ui/feedback';
 import { buzz } from '../src/ui/haptics';
 import { playSfx } from '../src/ui/sound';
 
@@ -33,11 +33,15 @@ describe('combat feedback', () => {
     expect(buzzes()).toEqual([]);
   });
 
-  it('buzzes when you are hurt, harder for big hits', () => {
-    combatFeedback([hit(4, player)], playing, true);
+  it('buzzes only for a real hit, harder for big ones', () => {
+    combatFeedback([hit(BUZZ_HURT - 1, player)], playing, true);
+    expect(sounds()).toEqual(['hurt']);
+    expect(buzzes()).toEqual([]);
+    combatFeedback([hit(BUZZ_HURT, player)], playing, true);
     expect(buzzes()).toEqual(['medium']);
     vi.mocked(buzz).mockClear();
-    combatFeedback([hit(6, player), hit(6, player)], playing, true);
+    // Hits in the same turn add up.
+    combatFeedback([hit(BUZZ_HURT_HARD / 2, player), hit(BUZZ_HURT_HARD / 2, player)], playing, true);
     expect(buzzes()).toEqual(['heavy']);
   });
 
@@ -55,10 +59,10 @@ describe('combat feedback', () => {
     expect(buzzes()).toContain('heavy');
   });
 
-  it('brewing bubbles and buzzes lightly', () => {
+  it('brewing bubbles without a buzz', () => {
     combatFeedback([{ type: 'brew', recipeId: 'steam', used: ['fire', 'water'] }], playing, true);
     expect(sounds()).toEqual(['brew']);
-    expect(buzzes()).toEqual(['light']);
+    expect(buzzes()).toEqual([]);
   });
 
   it('celebrates (or mourns) only the moment the fight ends', () => {

@@ -57,7 +57,6 @@ import {
 } from '../i18n/content';
 import { esc } from './dom';
 import { combatFeedback } from './feedback';
-import { buzz } from './haptics';
 import { playSfx } from './sound';
 import { CARD_KIND_COLORS, cardIcon, ELEMENTS, ENEMY_LOOKS, ICONS, RELIC_ICONS, WEATHERS } from './theme';
 import { flashSky, motionAllowed, setWeatherFx } from './weatherFx';
@@ -191,7 +190,6 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       render();
       shake(root.querySelector(`[data-uid="${uid}"]`));
       playSfx('deny');
-      buzz('light');
       return;
     }
 
@@ -337,7 +335,7 @@ function renderCombat(state: CombatState, ui: CombatUi): string {
 
       ${renderCauldron(state, ui.known)}
 
-      <p class="hint" aria-live="polite">${esc(hint)}</p>
+      <p class="hint" aria-live="polite"><span>${esc(hint)}</span></p>
 
       <section class="player unit" data-unit="player">
         <span class="energy" title="${esc(t('combat.energy'))}">
