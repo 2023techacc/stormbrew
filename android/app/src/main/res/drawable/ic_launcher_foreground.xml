@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Stormbrew's icon art, the same paths as resources/icon.svg. Used for the
+     adaptive launcher icon and the splash screen. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#C7A4FF"
+        android:pathData="M41,59 a4,4 0 1,1 8,0 a4,4 0 1,1 -8,0 Z M47.5,57 a5.5,5.5 0 1,1 11,0 a5.5,5.5 0 1,1 -11,0 Z M57.3,58.5 a4.2,4.2 0 1,1 8.4,0 a4.2,4.2 0 1,1 -8.4,0 Z M65.2,60.5 a2.8,2.8 0 1,1 5.6,0 a2.8,2.8 0 1,1 -5.6,0 Z M37,58.5 H71 a3,3 0 0,1 0,6 H37 a3,3 0 0,1 0,-6 Z" />
+    <path
+        android:fillColor="#EADFFF"
+        android:pathData="M49.6,55.2 a1.4,1.4 0 1,1 2.8,0 a1.4,1.4 0 1,1 -2.8,0 Z M59,56.8 a1,1 0 1,1 2,0 a1,1 0 1,1 -2,0 Z" />
+    <path
+        android:fillColor="#F5D547"
+        android:pathData="M58,40 L45,56 H53 L48.5,67 L63.5,50 H56 L61.5,40 Z" />
+    <path
+        android:fillColor="#D5DDEE"
+        android:pathData="M36,38 a7,7 0 1,1 14,0 a7,7 0 1,1 -14,0 Z M44,33 a10,10 0 1,1 20,0 a10,10 0 1,1 -20,0 Z M58.5,38.5 a6.5,6.5 0 1,1 13,0 a6.5,6.5 0 1,1 -13,0 Z M39.5,38 H68 a3.5,3.5 0 0,1 0,7 H39.5 a3.5,3.5 0 0,1 0,-7 Z" />
+    <path
+        android:fillColor="#4B5784"
+        android:pathData="M35,66 H73 C75,72 73,80 66,83 C60,85.5 48,85.5 42,83 C35,80 33,72 35,66 Z" />
+    <path
+        android:fillColor="#7F8BB5"
+        android:pathData="M34,61.5 H74 a3,3 0 0,1 0,6 H34 a3,3 0 0,1 0,-6 Z" />
+</vector>

@@ -59,9 +59,11 @@ import {
 } from '../i18n/content';
 import { cardFace, showCombat } from './combatView';
 import { esc } from './dom';
+import { playSfx, type Sfx } from './sound';
 import { clearRun, saveGrimoire, saveRun } from './storage';
 import { baseText } from './text';
 import { ELEMENTS, EVENT_ICONS, ICONS, NODE_ICONS, RELIC_ICONS, WEATHERS } from './theme';
+import { setWeatherFx } from './weatherFx';
 
 const MAP_ROW = 64;
 
@@ -108,11 +110,14 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
 
   const render = () => {
     root.onclick = onClick;
+    if (screen.name === 'combat') return;
+    setWeatherFx(null);
+    // A new screen fades in; redrawing the same one doesn't.
+    const entering = scroll !== 'keep';
     if (screen.name === 'over') {
       root.innerHTML = renderOver(run);
       return;
     }
-    if (screen.name === 'combat') return;
     const body =
       screen.name === 'map'
         ? renderMap(run)
@@ -125,7 +130,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
               : renderShop(run, screen.removing);
     const scrollY = window.scrollY;
     root.innerHTML = `
-      <main class="screen run-screen">
+      <main class="screen run-screen ${entering ? 'enter' : ''}">
         ${renderHeader(run)}
         <p class="run-message" aria-live="polite">${esc(message)}</p>
         ${body}
@@ -151,8 +156,12 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
     showFight(state, node.type === 'boss' ? t('fight.boss') : t(elite ? 'fight.eliteFloor' : 'fight.floor', { floor }));
   };
 
+  /** Plays an action's sound, or the "can't do that" sound when it wasn't allowed. */
+  const sound = (result: { ok: boolean }, sfx: Sfx) => playSfx(result.ok ? sfx : 'deny');
+
   /** Follows an event choice: back to the map, on to a pick, or into a fight. */
   const afterEvent = (result: EventResult) => {
+    sound(result, 'tap');
     if (!result.ok) return go(screen, result.reason);
     if (result.next === 'map') return go({ name: 'map' }, result.message);
     if (result.next === 'pickCard' || result.next === 'pickSky') {
@@ -177,6 +186,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
     if (!el) return;
     const d = el.dataset;
 
+    if (d.action === 'deck' || d.action === 'sky' || d.action === 'close' || d.relic || d.potionInfo) playSfx('tap');
     if (d.action === 'deck') return ((showDeck = true), render());
     if (d.action === 'sky') return ((showSky = true), render());
     if (d.action === 'close') return ((showDeck = false), (showSky = false), render());
@@ -190,6 +200,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
     if (d.action === 'none' || showDeck || showSky) return;
 
     if (screen.name === 'map' && d.node) {
+      playSfx('tap');
       const node = enterNode(run, d.node);
       if (node.type === 'rest') return go({ name: 'rest', step: 'choose' });
       if (node.type === 'shop') return go({ name: 'shop', removing: false });
@@ -200,29 +211,38 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
 
     if (screen.name === 'reward') {
       if (d.reward) addCardToDeck(run, d.reward);
+      if (d.reward || d.action === 'skip') playSfx(d.reward ? 'card' : 'tap');
       if (d.reward || d.action === 'skip') go({ name: 'map' }, d.reward ? t('run.added', { name: cardName(getCard(d.reward)) }) : '');
       return;
     }
 
     if (screen.name === 'rest') {
-      if (d.action === 'rest') return go({ name: 'map' }, t('run.rested', { n: rest(run) }));
+      if (d.action === 'rest') {
+        playSfx('heal');
+        return go({ name: 'map' }, t('run.rested', { n: rest(run) }));
+      }
+      if (d.action) playSfx('tap');
       if (d.action === 'infuse') return go({ name: 'rest', step: 'pickCard' }, t('run.pickInfuse'));
       if (d.action === 'chart') return go({ name: 'rest', step: 'pickSky' }, t('run.pickChart'));
       if (d.skyIndex !== undefined && screen.step === 'pickSky') {
         const name = skyName(run.sky[Number(d.skyIndex)] ?? 'clear');
         const result = chartSky(run, Number(d.skyIndex));
+        sound(result, 'weather');
         return result.ok ? go({ name: 'map' }, t('run.skyGone', { name })) : go(screen, result.reason);
       }
       if (d.action === 'back') return go({ name: 'rest', step: 'choose' });
       if (d.deckIndex !== undefined && screen.step === 'pickCard') {
         const index = Number(d.deckIndex);
         const card = run.deck[index];
-        if (!card || !canInfuse(card)) return go(screen, t('err.alreadyInfused'));
+        const ok = !!card && canInfuse(card);
+        sound({ ok }, 'tap');
+        if (!ok) return go(screen, t('err.alreadyInfused'));
         return go({ name: 'rest', step: 'pickElement', deckIndex: index }, t('run.pickElement'));
       }
       if (d.element && screen.step === 'pickElement' && screen.deckIndex !== undefined) {
         const card = run.deck[screen.deckIndex];
         infuseCard(run, screen.deckIndex, d.element as ElementId);
+        playSfx('element');
         const name = card ? cardName(getCard(card.id)) : t('run.theCard');
         return go({ name: 'map' }, t('run.infused', { name, icon: ELEMENTS[d.element as ElementId].icon }));
       }
@@ -231,6 +251,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
 
     if (screen.name === 'event') {
       if (d.eventOption) return afterEvent(chooseEventOption(run, d.eventOption, grimoire));
+      if (d.action === 'back' || d.action === 'leave') playSfx('tap');
       if (d.action === 'back') {
         cancelEventPick(run);
         return go({ name: 'event', step: 'choose' });
@@ -246,28 +267,34 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
     }
 
     if (screen.name === 'shop') {
+      if (d.action) playSfx('tap');
       if (d.action === 'leave') return go({ name: 'map' });
       if (d.action === 'remove') return go({ name: 'shop', removing: true }, t('run.pickRemove'));
       if (d.action === 'back') return go({ name: 'shop', removing: false });
       if (d.buyCard !== undefined) {
         const result = buyCard(run, Number(d.buyCard));
+        sound(result, 'coin');
         return go(screen, result.ok ? t('run.bought') : result.reason);
       }
       if (d.buyRelic !== undefined) {
         const result = buyRelic(run, Number(d.buyRelic));
+        sound(result, 'coin');
         return go(screen, result.ok ? t('run.bought') : result.reason);
       }
       if (d.buyPotion !== undefined) {
         const result = buyPotion(run, Number(d.buyPotion));
+        sound(result, 'coin');
         return go(screen, result.ok ? t('run.bought') : result.reason);
       }
       if (d.buySky !== undefined) {
         const result = buySky(run, Number(d.buySky));
+        sound(result, 'coin');
         return go(screen, result.ok ? t('run.addedToSky') : result.reason);
       }
       if (d.deckIndex !== undefined && screen.removing) {
         const card = run.deck[Number(d.deckIndex)];
         const result = removeCard(run, Number(d.deckIndex));
+        sound(result, 'coin');
         const message = result.ok ? (card ? t('run.removed', { name: cardName(getCard(card.id)) }) : '') : result.reason;
         return go({ name: 'shop', removing: false }, message);
       }
@@ -275,6 +302,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
     }
 
     if (screen.name === 'over') {
+      if (d.action) playSfx('tap');
       if (d.action === 'new-run') {
         run = createRun(randomSeed());
         showDeck = false;
@@ -635,7 +663,7 @@ function renderOver(run: RunState): string {
   const node = currentNode(run);
   const floor = node ? node.floor + 1 : 1;
   return `
-    <main class="screen">
+    <main class="screen enter">
       <h2>${esc(t(won ? 'over.won' : 'over.lost'))}</h2>
       <p>${esc(
         won

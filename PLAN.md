@@ -372,6 +372,29 @@ you can't take says why (not enough gold or HP, a full potion belt…):
   Korean text wraps between words, not inside them.
 - Adding a language means adding its message file and content table.
 
+### 6.5 Feel: sound, vibration and motion (Milestone 9)
+- **Sound**: short effects made in code with the Web Audio API (no audio
+  files), in keeping with the minimal style: card plays, hits, Block, elements
+  dropping in, brewing, thunder, weather changes, coins, victory and defeat.
+  Phones only allow sound after the first touch, so audio starts then.
+- **Vibration** (Capacitor Haptics; the vibration API in browsers that have
+  one): taking damage (stronger for big hits or lightning), brewing, a card
+  you can't play, victory and defeat.
+- **Weather sky**: one canvas behind the page, tinted in the weather's color,
+  with rain streaks, slanted storm rain, snowflakes, rising embers or slow
+  motes. A new weather rolls in while the old one fades out, and lightning
+  flashes the sky.
+- **Motion**: screens fade in, drawn cards slide in from the draw pile, a
+  played card flies to its target, attacking enemies lunge, and elements pop
+  into the cauldron.
+- **Settings** can turn sound, vibration and weather effects off (effects off
+  also stops the livelier animations). Phones set to reduce motion get no
+  particles or animations.
+- **App icon and splash screen**: lightning from a storm cloud into a bubbling
+  cauldron, on the game's night blue. The art is plain shapes in
+  `resources/icon.svg`, and the Android icon and splash screen use the same
+  shapes as a vector, so they are sharp on every screen.
+
 ---
 
 ## 7. Technical Plan
@@ -442,7 +465,7 @@ Important choices:
 | 6 | **Discovery & potions** ✅ | Grimoire (persistent), Bottling, potions, auto-save and resume |
 | 7 | **Identity** (A–D done, see §11) | The features that make Stormbrew play differently from *Slay the Spire*: Exposure, enemy cauldrons, the Sky Deck, Distilling |
 | 8 | **MVP content & balance** ✅ | MVP content targets reached (§5), events, a balance pass with a computer player and `WEATHER_INTERVAL` tested (§12). Playtesting on real phones is still to do |
-| 9 | **Polish** (in progress) | Languages (English and Korean ✅), then animations, sound, vibration feedback, weather particles, app icon and splash screen. Done in rounds, with feedback from playing on a phone |
+| 9 | **Polish** (in progress) | Languages (English and Korean) ✅. Round 1 ✅: animations, sound, vibration feedback, weather particles, app icon and splash screen (§6.5). Next rounds follow feedback from playing on a phone |
 | 10 | **Expansion** | Acts 2–3, Fog/Gale/Eclipse, a second character, ascension levels, iOS/desktop builds |
 
 Milestones 1–3 prove the game's core idea. If combat with weather and brewing
@@ -470,6 +493,7 @@ is fun in a single fight on a phone, the rest is adding content.
 | Crowded hands | Cards keep their size and overlap instead of shrinking |
 | Scope | One character (the Stormbrewer) for the MVP |
 | Languages | English (default) and Korean, chosen in Settings (§6.4) |
+| Sound | Made in code (Web Audio), no audio files; sound, vibration and weather effects each have an on/off setting (§6.5) |
 
 ## 10. Open Questions
 

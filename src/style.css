@@ -17,11 +17,15 @@
   word-break: keep-all;
 }
 
+html {
+  background: var(--bg);
+}
+
+/* Transparent, so the weather sky behind the page (weatherFx.ts) shows through. */
 html,
 body {
   margin: 0;
   height: 100%;
-  background: var(--bg);
   color: var(--text);
   overscroll-behavior: none;
   user-select: none;
@@ -190,12 +194,6 @@ button {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: radial-gradient(
-    ellipse at top,
-    color-mix(in srgb, var(--weather-color, var(--bg-accent)) 45%, var(--bg)),
-    transparent 65%
-  );
-  transition: background 0.6s ease;
 }
 
 .top-bar {
@@ -1274,6 +1272,105 @@ button {
   }
 }
 
+/* ---------- Weather sky (weatherFx.ts) ---------- */
+
+/* Registered, so a new weather's color fades in instead of snapping. */
+@property --sky-color {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #2a3350;
+}
+
+.weather-fx {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: radial-gradient(ellipse at top, color-mix(in srgb, var(--sky-color) 45%, var(--bg)), transparent 65%);
+  opacity: 0;
+  transition:
+    opacity 0.5s ease,
+    --sky-color 1.2s ease;
+}
+
+.weather-fx.active {
+  opacity: 1;
+}
+
+/* ---------- Motion ---------- */
+
+/* A new screen fades in. */
+.enter {
+  animation: enter 0.28s ease-out;
+}
+
+/* Drawn cards slide in from the draw pile, one after another. */
+.hand .card.drawn {
+  animation: draw-in 0.3s ease-out backwards;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+/* An attacking enemy lunges at you. */
+.enemy-body.lunge {
+  animation: lunge 0.36s ease-in-out;
+}
+
+/* An element drops into the cauldron. */
+.slot.pop {
+  animation: pop 0.32s ease-out;
+}
+
+/* A played card's copy, flying to its target (see flyGhost). */
+.card-ghost {
+  position: fixed;
+  z-index: 20;
+  margin: 0;
+  pointer-events: none;
+}
+
+/* Weather effects off in Settings: the screen stays still apart from the hit feedback. */
+html.calm .enter,
+html.calm .hand .card.drawn,
+html.calm .enemy-body.lunge,
+html.calm .slot.pop {
+  animation: none;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+  }
+}
+
+@keyframes draw-in {
+  from {
+    opacity: 0;
+    translate: -70px 50px;
+    rotate: -12deg;
+    scale: 0.8;
+  }
+}
+
+@keyframes lunge {
+  40% {
+    translate: 0 22px;
+    scale: 1.15;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    scale: 0.2;
+  }
+  60% {
+    scale: 1.25;
+  }
+}
+
 /* ---------- Feedback animations ---------- */
 
 .float {
@@ -1343,6 +1440,7 @@ button {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
     transition-duration: 0.01ms !important;
   }
 }

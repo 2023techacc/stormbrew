@@ -29,6 +29,11 @@ export const en = {
   'grimoire.progress': '{known} of {total} recipes discovered. Brew new combinations in fights to fill it in.',
   'settings.title': 'Settings',
   'settings.language': 'Language',
+  'settings.sound': 'Sound',
+  'settings.vibration': 'Vibration',
+  'settings.effects': 'Weather effects',
+  'settings.on': 'On',
+  'settings.off': 'Off',
 
   // Weathers, elements and statuses
   'weather.clear': 'Clear',
