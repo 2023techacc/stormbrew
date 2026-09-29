@@ -1,6 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 18 72 72">
-  <!-- The app icon (resources/icon.svg) on a rounded square. -->
-  <rect x="18" y="18" width="72" height="72" rx="16" fill="#1B2233"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108">
+  <!-- Stormbrew's icon art: lightning from a storm cloud into a bubbling cauldron.
+       108x108 like an Android adaptive icon layer: the art stays inside the middle
+       66-unit circle, the part every launcher shape shows. Background: #1B2233.
+       android/app/src/main/res/drawable/ic_launcher_foreground.xml has the same paths. -->
   <path fill="#C7A4FF" d="M41,59 a4,4 0 1,1 8,0 a4,4 0 1,1 -8,0 Z M47.5,57 a5.5,5.5 0 1,1 11,0 a5.5,5.5 0 1,1 -11,0 Z M57.3,58.5 a4.2,4.2 0 1,1 8.4,0 a4.2,4.2 0 1,1 -8.4,0 Z M65.2,60.5 a2.8,2.8 0 1,1 5.6,0 a2.8,2.8 0 1,1 -5.6,0 Z M37,58.5 H71 a3,3 0 0,1 0,6 H37 a3,3 0 0,1 0,-6 Z"/>
   <path fill="#EADFFF" d="M49.6,55.2 a1.4,1.4 0 1,1 2.8,0 a1.4,1.4 0 1,1 -2.8,0 Z M59,56.8 a1,1 0 1,1 2,0 a1,1 0 1,1 -2,0 Z"/>
   <path fill="#F5D547" d="M58,40 L45,56 H53 L48.5,67 L63.5,50 H56 L61.5,40 Z"/>

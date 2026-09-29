@@ -28,6 +28,11 @@ export const ko: Record<MessageKey, string> = {
   'grimoire.progress': '레시피 {total}개 중 {known}개를 발견했습니다. 전투에서 새로운 조합을 양조해 채워 보세요.',
   'settings.title': '설정',
   'settings.language': '언어',
+  'settings.sound': '소리',
+  'settings.vibration': '진동',
+  'settings.effects': '날씨 효과',
+  'settings.on': '켜기',
+  'settings.off': '끄기',
 
   // 날씨, 원소, 상태
   'weather.clear': '맑음',

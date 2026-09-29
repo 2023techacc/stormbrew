@@ -112,10 +112,17 @@ describe('Korean content', () => {
 });
 
 describe('settings', () => {
-  it('default to English and keep a valid saved language', () => {
-    expect(parseSettings(null)).toEqual({ language: 'en' });
-    expect(parseSettings('not json')).toEqual({ language: 'en' });
-    expect(parseSettings(JSON.stringify({ language: 'xx' }))).toEqual({ language: 'en' });
-    expect(parseSettings(JSON.stringify({ language: 'ko' }))).toEqual({ language: 'ko' });
+  it('default to English with sound, vibration and effects on', () => {
+    const defaults = { language: 'en', sound: true, vibration: true, effects: true };
+    expect(parseSettings(null)).toEqual(defaults);
+    expect(parseSettings('not json')).toEqual(defaults);
+    expect(parseSettings(JSON.stringify({ language: 'xx', sound: 'loud' }))).toEqual(defaults);
+  });
+
+  it('keep what was saved', () => {
+    const saved = { language: 'ko', sound: false, vibration: true, effects: false };
+    expect(parseSettings(JSON.stringify(saved))).toEqual(saved);
+    // Settings saved before the on/off options existed keep their language.
+    expect(parseSettings(JSON.stringify({ language: 'ko' }))).toEqual({ ...saved, sound: true, effects: true });
   });
 });

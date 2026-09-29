@@ -56,7 +56,11 @@ import {
   weatherName,
 } from '../i18n/content';
 import { esc } from './dom';
+import { combatFeedback } from './feedback';
+import { buzz } from './haptics';
+import { playSfx } from './sound';
 import { CARD_KIND_COLORS, cardIcon, ELEMENTS, ENEMY_LOOKS, ICONS, RELIC_ICONS, WEATHERS } from './theme';
+import { flashSky, motionAllowed, setWeatherFx } from './weatherFx';
 
 export interface CombatViewOptions {
   state: CombatState;
@@ -86,8 +90,18 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
   let hint = t(options.sandbox ? 'combat.hintSandbox' : 'combat.hintStart');
   let overlay: Overlay = 'none';
   const known = (recipeId: string) => !grimoire || isKnown(grimoire, recipeId);
+  /** Cards in hand at the last render (and its turn), so newly drawn ones can slide in. */
+  let shownHand = new Set<number>();
+  let shownTurn = 0;
+  let entering = true;
+  let wasPlaying = state.status === 'playing';
 
   const render = () => {
+    // A new turn's hand is all new, even a card that was in the last hand.
+    const fresh = state.hand.map((c) => c.uid).filter((uid) => state.turn !== shownTurn || !shownHand.has(uid));
+    shownHand = new Set(state.hand.map((c) => c.uid));
+    shownTurn = state.turn;
+    setWeatherFx(state.weather.current);
     root.innerHTML = renderCombat(state, {
       selectedUid,
       selectedPotion,
@@ -96,10 +110,13 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       label: options.label,
       sandbox: !!options.sandbox,
       known,
+      fresh,
+      entering,
     });
+    entering = false;
   };
 
-  /** After anything happens: learn brewed recipes, describe it, redraw, animate, save. */
+  /** After anything happens: learn brewed recipes, describe it, redraw, animate, play sounds, save. */
   const after = (events: CombatEvent[]) => {
     const found = grimoire ? discoverFrom(grimoire, events) : [];
     hint = describeEvents(state, events);
@@ -108,23 +125,36 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
     }
     render();
     animate(root, events);
+    combatFeedback(events, state, wasPlaying);
+    wasPlaying = state.status === 'playing';
     options.onChange?.(state);
   };
 
   const tryPlay = (uid: number, targetIndex?: number) => {
+    const card = state.hand.find((c) => c.uid === uid);
+    const ghost = captureCard(root, uid);
+    const intoCauldron =
+      card !== undefined &&
+      cardEffects(card, state.weather.current).some((e) => e.type === 'addElement' || e.type === 'brew' || e.type === 'catchWeather');
     const result = playCard(state, uid, targetIndex);
     if (!result.ok) {
+      playSfx('deny');
       hint = result.reason;
       render();
       return;
     }
     selectedUid = null;
+    playSfx('card');
     after(result.events);
+    const target =
+      targetIndex !== undefined ? `[data-unit="enemy-${targetIndex}"]` : intoCauldron ? '.cauldron' : '[data-unit="player"]';
+    if (ghost) flyGhost(ghost, root.querySelector(target));
   };
 
   const tryPotion = (index: number, targetIndex?: number) => {
     const result = usePotion(state, index, targetIndex);
     if (!result.ok) {
+      playSfx('deny');
       hint = result.reason;
       render();
       return;
@@ -144,6 +174,7 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       if (living.length === 1) return tryPotion(index, living[0]);
     }
     selectedPotion = index;
+    playSfx('select');
     const text = plainText(recipeItem(id), state.weather.current, !!state.player.statuses.weak);
     const how = needsTarget ? (living.length === 1 ? 'combat.tapEnemyOrPotion' : 'combat.tapEnemy') : 'combat.tapPotionAgain';
     hint = `${ICONS.potion} ${t('combat.potionHint', { name: recipeName(id), text })} ${t(how)}`;
@@ -159,6 +190,8 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       hint = blocked;
       render();
       shake(root.querySelector(`[data-uid="${uid}"]`));
+      playSfx('deny');
+      buzz('light');
       return;
     }
 
@@ -171,6 +204,7 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
     }
     selectedUid = uid;
     selectedPotion = null;
+    playSfx('select');
     const effects = cardEffects(card, state.weather.current);
     const brew = previewCardBrew(state, { effects });
     const addsElement = effects.some(
@@ -204,6 +238,7 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
   const onEndTurn = () => {
     selectedUid = null;
     selectedPotion = null;
+    playSfx('endTurn');
     after(endTurn(state));
   };
 
@@ -218,6 +253,7 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       }
       return;
     }
+    if ((el.dataset.action && el.dataset.action !== 'end-turn') || el.dataset.addCard !== undefined) playSfx('tap');
     if (el.dataset.uid !== undefined) onCardTap(Number(el.dataset.uid));
     else if (el.dataset.potion !== undefined) onPotionTap(Number(el.dataset.potion));
     else if (el.dataset.enemy !== undefined) onEnemyTap(Number(el.dataset.enemy));
@@ -270,6 +306,10 @@ interface CombatUi {
   label: string | undefined;
   sandbox: boolean;
   known: (recipeId: string) => boolean;
+  /** Cards drawn since the last render (they slide in). */
+  fresh: readonly number[];
+  /** The fight's first render (the screen fades in). */
+  entering: boolean;
 }
 
 function renderCombat(state: CombatState, ui: CombatUi): string {
@@ -281,7 +321,7 @@ function renderCombat(state: CombatState, ui: CombatUi): string {
   const { player } = state;
 
   return `
-    <main class="combat" style="--weather-color: ${WEATHERS[state.weather.current].color}">
+    <main class="combat ${ui.entering ? 'enter' : ''}" style="--weather-color: ${WEATHERS[state.weather.current].color}">
       <header class="top-bar">
         <span>${ui.label ? `${esc(ui.label)} · ` : ''}${esc(t('combat.turn', { turn: state.turn }))}</span>
         ${ui.sandbox ? renderSandboxTools() : ''}
@@ -310,7 +350,7 @@ function renderCombat(state: CombatState, ui: CombatUi): string {
       </section>
 
       <section class="hand" aria-label="${esc(t('combat.hand'))}" style="--n: ${state.hand.length}">
-        ${state.hand.map((c) => renderCard(state, c, c.uid === selectedUid)).join('')}
+        ${state.hand.map((c) => renderCard(state, c, c.uid === selectedUid, ui.fresh.indexOf(c.uid))).join('')}
       </section>
 
       <footer class="controls">
@@ -432,12 +472,14 @@ function renderHpBar(unit: Combatant): string {
   `;
 }
 
-function renderCard(state: CombatState, card: CardInstance, selected: boolean): string {
+/** A card in hand. `drawOrder` ≥ 0 for a card just drawn: it slides in, one after another. */
+function renderCard(state: CombatState, card: CardInstance, selected: boolean, drawOrder: number): string {
   const def = getCard(card.defId);
   const playable = cannotPlayReason(state, card) === null;
   return cardFace(def, state.weather.current, {
-    className: `${selected ? 'selected' : ''} ${playable ? '' : 'unplayable'}`,
+    className: `${selected ? 'selected' : ''} ${playable ? '' : 'unplayable'} ${drawOrder >= 0 ? 'drawn' : ''}`,
     attrs: `data-uid="${card.uid}"`,
+    style: drawOrder >= 0 ? `--i: ${drawOrder}` : undefined,
     weak: !!state.player.statuses.weak,
     infusion: card.infusion,
     attuned: isAttuned(def.id, state.weather.current),
@@ -476,6 +518,8 @@ export function cardFace(
     note?: string;
     /** The card's Attuned bonus is active (it glows in the weather's color). */
     attuned?: boolean;
+    /** Extra inline style, e.g. CSS variables for animations. */
+    style?: string | undefined;
   } = {},
 ): string {
   const added = def.effects.find((e) => e.type === 'addElement');
@@ -488,7 +532,7 @@ export function cardFace(
   const aria = t('card.aria', { name, cost: def.cost, text: plainText(item, weather, options.weak) + infusionText });
   return `
     <button class="card ${infusion ? 'infused' : ''} ${options.attuned ? 'attuned' : ''} ${options.className ?? ''}" ${options.attrs ?? ''}
-      style="--card-color: ${CARD_KIND_COLORS[def.kind]}${attunedTo ? `; --attuned-color: ${WEATHERS[attunedTo].color}` : ''}"
+      style="--card-color: ${CARD_KIND_COLORS[def.kind]}${attunedTo ? `; --attuned-color: ${WEATHERS[attunedTo].color}` : ''}${options.style ? `; ${options.style}` : ''}"
       aria-label="${esc(aria)}${options.attuned ? ` ${esc(t('card.attunedNow'))}` : ''}">
       <span class="card-cost">${def.cost}</span>
       ${element ? `<span class="card-element" style="--chip-color: ${ELEMENTS[element].color}">${ELEMENTS[element].icon}</span>` : ''}
@@ -815,6 +859,20 @@ function unitSelector(ref: UnitRef): string {
 
 /** Floating numbers and hit flashes for what just happened. */
 function animate(root: HTMLElement, events: CombatEvent[]): void {
+  // Attacking enemies lunge at you, one after another.
+  let lunges = 0;
+  for (const event of events) {
+    if (event.type !== 'enemyMove' || !event.move.damage) continue;
+    const body = root.querySelector<HTMLElement>(`[data-unit="enemy-${event.index}"] .enemy-body`);
+    if (!body) continue;
+    body.style.animationDelay = `${lunges++ * 160}ms`;
+    flash(body, 'lunge');
+  }
+  // New elements pop into the cauldron's last slots.
+  const added = events.filter((e) => e.type === 'element').length;
+  const filled = [...root.querySelectorAll<HTMLElement>('.cauldron .slot.filled')];
+  for (const slot of filled.slice(Math.max(0, filled.length - added))) flash(slot, 'pop');
+
   for (const event of events) {
     if (event.type === 'weather') {
       flash(root.querySelector('.forecast'), 'weather-changed');
@@ -852,7 +910,10 @@ function animate(root: HTMLElement, events: CombatEvent[]): void {
       const icon = event.source === 'burn' ? ` ${ICONS.burn}` : event.source === 'lightning' ? ` ${ICONS.lightning}` : '';
       float.textContent = event.amount > 0 ? `-${event.amount}${icon}` : t('combat.blocked');
       if (event.amount > 0) flash(unit);
-      if (event.source === 'lightning') flash(root.querySelector('.combat'), 'lightning-flash');
+      if (event.source === 'lightning') {
+        flash(root.querySelector('.combat'), 'lightning-flash');
+        flashSky();
+      }
     } else {
       float.className = 'float block';
       float.textContent = `+${event.amount} ${ICONS.block}`;
@@ -860,6 +921,38 @@ function animate(root: HTMLElement, events: CombatEvent[]): void {
     unit.appendChild(float);
     float.addEventListener('animationend', () => float.remove());
   }
+}
+
+/** A copy of a card in hand and where it is, so it can fly off after being played. */
+function captureCard(root: HTMLElement, uid: number): { el: HTMLElement; rect: DOMRect } | null {
+  const card = root.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
+  if (!card || !motionAllowed()) return null;
+  return { el: card.cloneNode(true) as HTMLElement, rect: card.getBoundingClientRect() };
+}
+
+/** Flies a played card's copy to its target (an enemy, the cauldron or you) and fades it. */
+function flyGhost(ghost: { el: HTMLElement; rect: DOMRect }, target: Element | null): void {
+  const { el, rect } = ghost;
+  el.removeAttribute('data-uid');
+  el.classList.remove('selected', 'drawn');
+  el.classList.add('card-ghost');
+  el.setAttribute('aria-hidden', 'true');
+  Object.assign(el.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
+  el.style.setProperty('--card-width', `${rect.width}px`);
+  document.body.appendChild(el);
+  const to = target?.getBoundingClientRect();
+  const dx = to ? to.left + to.width / 2 - (rect.left + rect.width / 2) : 0;
+  const dy = to ? to.top + to.height / 2 - (rect.top + rect.height / 2) : -120;
+  const flight = el.animate(
+    [
+      { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+      { transform: `translate(${dx * 0.5}px, ${dy * 0.5 - 30}px) scale(0.75)`, opacity: 0.9, offset: 0.55 },
+      { transform: `translate(${dx}px, ${dy}px) scale(0.3)`, opacity: 0 },
+    ],
+    { duration: 380, easing: 'ease-in' },
+  );
+  flight.onfinish = () => el.remove();
+  flight.oncancel = () => el.remove();
 }
 
 function floatText(parent: HTMLElement, text: string, className: string): void {

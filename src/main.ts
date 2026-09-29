@@ -2,9 +2,13 @@ import './style.css';
 import { SANDBOX_ENEMIES, createSandbox } from './core/sandbox';
 import { setLanguage, type Lang } from './i18n';
 import { showCombat } from './ui/combatView';
+import { setVibrationEnabled } from './ui/haptics';
 import { showRun } from './ui/runView';
+import type { Settings } from './ui/settings';
+import { setSoundEnabled, unlockAudio } from './ui/sound';
 import { loadGrimoire, loadRun, loadSettings, saveSettings } from './ui/storage';
 import { showGrimoire, showSettings, showTitle } from './ui/titleView';
+import { setEffectsEnabled } from './ui/weatherFx';
 
 const app = document.querySelector<HTMLDivElement>('#app');
 if (!app) throw new Error('#app element not found');
@@ -14,7 +18,18 @@ const root: HTMLElement = app;
 const grimoire = loadGrimoire();
 
 const settings = loadSettings();
-applyLanguage(settings.language);
+applySettings(settings);
+
+// Phones only allow sound after the player first touches the screen.
+document.addEventListener('pointerdown', unlockAudio);
+
+function applySettings(s: Settings): void {
+  applyLanguage(s.language);
+  setSoundEnabled(s.sound);
+  setVibrationEnabled(s.vibration);
+  setEffectsEnabled(s.effects);
+  document.documentElement.classList.toggle('calm', !s.effects);
+}
 
 function applyLanguage(lang: Lang): void {
   setLanguage(lang);
@@ -31,10 +46,16 @@ function goToTitle(): void {
     onGrimoire: () => showGrimoire(root, grimoire, goToTitle),
     onSettings: () =>
       showSettings(root, {
+        settings,
         onLanguage: (lang) => {
           settings.language = lang;
           saveSettings(settings);
           applyLanguage(lang);
+        },
+        onToggle: (key, on) => {
+          settings[key] = on;
+          saveSettings(settings);
+          applySettings(settings);
         },
         onBack: goToTitle,
       }),
