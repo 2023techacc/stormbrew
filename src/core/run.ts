@@ -5,6 +5,7 @@ import { EVENT_IDS } from '../data/events';
 import { RECIPES } from '../data/recipes';
 import { RELIC_POOL, STARTING_RELICS, getRelic } from '../data/relics';
 import { SKY_POOL, STARTING_SKY, getSkyCard } from '../data/sky';
+import { t } from '../i18n';
 import { MAX_POTIONS, createCombat } from './combat';
 import { generateMap, reachableNodes, type MapNode, type MapState } from './map';
 import { Rng } from './rng';
@@ -323,15 +324,15 @@ function createShop(run: RunState): ShopState {
 export type ShopResult = { ok: true } | { ok: false; reason: string };
 
 function pay(run: RunState, price: number): ShopResult {
-  if (!run.shop) return { ok: false, reason: 'You are not in a shop.' };
-  if (run.gold < price) return { ok: false, reason: 'Not enough gold.' };
+  if (!run.shop) return { ok: false, reason: t('err.notInShop') };
+  if (run.gold < price) return { ok: false, reason: t('err.noGold') };
   run.gold -= price;
   return { ok: true };
 }
 
 export function buyCard(run: RunState, index: number): ShopResult {
   const item = run.shop?.cards[index];
-  if (!item || item.sold) return { ok: false, reason: 'Sold out.' };
+  if (!item || item.sold) return { ok: false, reason: t('err.soldOut') };
   const paid = pay(run, item.price);
   if (!paid.ok) return paid;
   item.sold = true;
@@ -341,7 +342,7 @@ export function buyCard(run: RunState, index: number): ShopResult {
 
 export function buyRelic(run: RunState, index: number): ShopResult {
   const item = run.shop?.relics[index];
-  if (!item || item.sold) return { ok: false, reason: 'Sold out.' };
+  if (!item || item.sold) return { ok: false, reason: t('err.soldOut') };
   const paid = pay(run, item.price);
   if (!paid.ok) return paid;
   item.sold = true;
@@ -351,8 +352,8 @@ export function buyRelic(run: RunState, index: number): ShopResult {
 
 export function buyPotion(run: RunState, index: number): ShopResult {
   const item = run.shop?.potions[index];
-  if (!item || item.sold) return { ok: false, reason: 'Sold out.' };
-  if (run.potions.length >= MAX_POTIONS) return { ok: false, reason: 'Your potion belt is full.' };
+  if (!item || item.sold) return { ok: false, reason: t('err.soldOut') };
+  if (run.potions.length >= MAX_POTIONS) return { ok: false, reason: t('err.beltFull') };
   const paid = pay(run, item.price);
   if (!paid.ok) return paid;
   item.sold = true;
@@ -363,7 +364,7 @@ export function buyPotion(run: RunState, index: number): ShopResult {
 /** Buys a weather card for the sky deck. */
 export function buySky(run: RunState, index: number): ShopResult {
   const item = run.shop?.sky[index];
-  if (!item || item.sold) return { ok: false, reason: 'Sold out.' };
+  if (!item || item.sold) return { ok: false, reason: t('err.soldOut') };
   const paid = pay(run, item.price);
   if (!paid.ok) return paid;
   item.sold = true;
@@ -373,17 +374,17 @@ export function buySky(run: RunState, index: number): ShopResult {
 
 /** Rest site option: take a weather card out of the sky deck. */
 export function chartSky(run: RunState, index: number): ShopResult {
-  if (run.sky.length <= MIN_SKY) return { ok: false, reason: `Your sky needs at least ${MIN_SKY} weathers.` };
-  if (run.sky[index] === undefined) return { ok: false, reason: 'No such weather.' };
+  if (run.sky.length <= MIN_SKY) return { ok: false, reason: t('err.minSky', { n: MIN_SKY }) };
+  if (run.sky[index] === undefined) return { ok: false, reason: t('err.noWeather') };
   run.sky.splice(index, 1);
   return { ok: true };
 }
 
 /** Removes a card from the deck, once per shop visit. */
 export function removeCard(run: RunState, deckIndex: number): ShopResult {
-  if (!run.shop || run.shop.removalUsed) return { ok: false, reason: 'Card removal is used up.' };
-  if (!run.deck[deckIndex]) return { ok: false, reason: 'No such card.' };
-  if (run.deck.length <= 1) return { ok: false, reason: 'Your deck needs at least one card.' };
+  if (!run.shop || run.shop.removalUsed) return { ok: false, reason: t('err.removalUsed') };
+  if (!run.deck[deckIndex]) return { ok: false, reason: t('err.noCard') };
+  if (run.deck.length <= 1) return { ok: false, reason: t('err.deckMin') };
   const paid = pay(run, run.shop.removalPrice);
   if (!paid.ok) return paid;
   run.shop.removalUsed = true;

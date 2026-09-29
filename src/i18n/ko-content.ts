@@ -1,0 +1,235 @@
+/**
+ * 게임 콘텐츠의 한국어 이름과 설명. 영어 원문은 src/data에 있고, 여기에 없는
+ * 항목은 영어로 나옵니다(테스트가 빠진 항목이 없는지 확인합니다).
+ * `{damage}`는 카드를 그릴 때 날씨와 약화를 반영한 피해로 바뀌고,
+ * 날씨 카드의 `{turns}`는 지속 턴 수로 바뀝니다.
+ */
+export interface NameText {
+  name: string;
+  text: string;
+}
+
+export const KO_CARDS: Record<string, NameText> = {
+  strike: { name: '타격', text: '피해를 {damage} 줍니다.' },
+  defend: { name: '수비', text: '방어도를 5 얻습니다.' },
+  emberBolt: { name: '불씨 화살', text: '화염 피해를 {damage} 줍니다.' },
+  gatherEmber: { name: '불씨 모으기', text: '화염 피해 {damage}. 🔥 추가.' },
+  gatherDew: { name: '이슬 모으기', text: '방어도 3. 💧 추가.' },
+  gatherStone: { name: '돌 모으기', text: '방어도 4. 🪨 추가.' },
+  gatherGust: { name: '돌풍 모으기', text: '1장 뽑기. 🌬️ 추가.' },
+  stir: { name: '휘젓기', text: '가마솥을 양조합니다.' },
+  summonRain: { name: '비 부르기', text: '날씨: 비. 1장 뽑기.' },
+  clearSkies: { name: '맑은 하늘', text: '날씨: 맑음. 방어도 6.' },
+  kindle: { name: '불 지피기', text: '날씨: 폭염. 🔥 추가.' },
+  callLightning: { name: '번개 부르기', text: '날씨: 폭풍. 피해 {damage}.' },
+  firstFrost: { name: '첫서리', text: '날씨: 눈. 방어도 7.' },
+  barometricShift: { name: '바람 바꾸기', text: '지금 날씨와 다음 날씨를 맞바꿉니다.' },
+  holdTheSky: { name: '하늘 붙잡기', text: '날씨 타이머 초기화. 방어도 4.' },
+  doubleBoil: { name: '이중 양조', text: '양조하고, 한 번 더 양조합니다.' },
+  twinEmbers: { name: '쌍불씨', text: '🔥🔥 추가.' },
+  deluge: { name: '폭우', text: '💧💧 추가.' },
+  thunderclap: { name: '천둥', text: '피해 {damage}. 약화 1 부여.' },
+  bottleIt: { name: '병에 담기', text: '다음 양조를 포션으로 만듭니다. 1장 뽑기.' },
+  scatterClouds: { name: '구름 흩기', text: '다음 날씨를 바꿉니다.' },
+  pilfer: { name: '슬쩍하기', text: '피해 {damage}. 적의 가마솥에서 원소를 훔칩니다.' },
+  curdle: { name: '변질', text: '적의 다음 양조가 실패합니다. 1장 뽑기.' },
+  brace: { name: '버티기', text: '방어도를 8 얻습니다.' },
+  frostbite: { name: '동상', text: '피해 {damage}. 눈일 때: 약화 2 부여.' },
+  sunstrike: { name: '태양 일격', text: '피해 {damage}. 폭염일 때: 화상 3 부여.' },
+  staticShock: { name: '정전기', text: '피해 {damage}. 폭풍일 때: 에너지 1.' },
+  undertow: { name: '역류', text: '피해 {damage}. 비일 때: 2장 뽑기.' },
+  clarity: { name: '맑은 정신', text: '1장 뽑기. 맑음일 때: 2장 더 뽑기.' },
+  riptide: { name: '급류', text: '피해 {damage}. 💧 추가.' },
+  galeForce: { name: '강풍', text: '모든 적에게 피해 {damage}. 🌬️ 추가.' },
+  earthenWall: { name: '흙벽', text: '방어도 12. 🪨 추가.' },
+  staticCharge: { name: '충전', text: '⚡ 추가. 1장 뽑기.' },
+  rime: { name: '서릿발', text: '방어도 4. ❄️ 추가.' },
+  catchTheSky: { name: '하늘 받기', text: '날씨의 원소 추가. 1장 뽑기.' },
+  simmer: { name: '졸이기', text: '방어도 5. 양조.' },
+  catalyst: { name: '촉매', text: '다음 양조가 두 번 작동합니다.' },
+  boilOver: { name: '끓어 넘침', text: '가마솥을 비우고 원소마다 피해 4.' },
+  weatherFront: { name: '기상 전선', text: '다음 날씨가 바로 옵니다. 1장 뽑기.' },
+  cloudburst: { name: '집중호우', text: '날씨: 비. 모든 적에게 피해 {damage}.' },
+};
+
+/** 레시피. 카드와 포션에도 같은 설명을 씁니다. */
+export const KO_RECIPES: Record<string, NameText> = {
+  fireball: { name: '화염구', text: '화염 피해를 {damage} 줍니다.' },
+  tonic: { name: '강장제', text: '체력 2 회복. 방어도 7.' },
+  stoneskin: { name: '돌 피부', text: '방어도를 12 얻습니다.' },
+  tailwind: { name: '순풍', text: '2장 뽑기. 에너지 1.' },
+  steam: { name: '증기', text: '모든 적에게 약화 2 부여.' },
+  magma: { name: '마그마', text: '화염 피해 {damage}. 화상 3 부여.' },
+  wildfire: { name: '들불', text: '모든 적에게 화염 피해 {damage}.' },
+  mud: { name: '진흙', text: '방어도 7. 약화 1 부여.' },
+  rainCloud: { name: '비구름', text: '날씨: 비. 방어도 4.' },
+  sandstorm: { name: '모래폭풍', text: '모든 적에게 피해 {damage}. 방어도 4.' },
+  plasmaBolt: { name: '플라스마탄', text: '전기 피해를 {damage} 줍니다.' },
+  conduction: { name: '전도', text: '모든 적에게 전기 피해 {damage}.' },
+  lodestone: { name: '자철석', text: '방어도 10. 1장 뽑기.' },
+  ballLightning: { name: '구상 번개', text: '전기 피해 {damage}. 1장 뽑기.' },
+  thaw: { name: '해빙', text: '체력 3 회복. 1장 뽑기.' },
+  iceLance: { name: '얼음 창', text: '서리 피해 {damage}. 약화 2 부여.' },
+  permafrost: { name: '영구 동토', text: '방어도를 15 얻습니다.' },
+  blizzard: { name: '눈보라', text: '날씨: 눈. 방어도 6.' },
+  heatHaze: { name: '아지랑이', text: '날씨: 폭염. 모든 적에게 화염 피해 {damage}.' },
+  thunderhead: { name: '적란운', text: '날씨: 폭풍. 전기 피해 {damage}.' },
+  downpour: { name: '장대비', text: '날씨: 비. 체력 3 회복. 방어도 7.' },
+  sludge: { name: '찌꺼기', text: '방어도를 2 얻습니다.' },
+};
+
+export const KO_ENEMIES: Record<string, string> = {
+  cinderImp: '잿불 임프',
+  stormCaller: '폭풍술사',
+  drizzleSlime: '이슬비 슬라임',
+  frostGolem: '서리 골렘',
+  mireWitch: '늪 마녀',
+  skyHawk: '하늘 매',
+  bogToad: '늪 두꺼비',
+  sparkWisp: '전기 도깨비불',
+  rainmaker: '기우사',
+  snowWolf: '눈늑대',
+  stormRoc: '폭풍 로크',
+  cauldronCrone: '가마솥 노파',
+  cinderDrake: '잿불 드레이크',
+  eyeOfTheStorm: '폭풍의 눈',
+  trainingDummy: '훈련용 허수아비',
+};
+
+/** 적의 행동 이름(영어 이름으로 찾습니다). */
+export const KO_MOVES: Record<string, string> = {
+  Claw: '할퀴기',
+  Smolder: '그을리기',
+  Flare: '불꽃 폭발',
+  'Call the Storm': '폭풍 부르기',
+  Zap: '감전',
+  'Gather Clouds': '구름 모으기',
+  Spit: '침 뱉기',
+  Wobble: '출렁이기',
+  Splash: '물벼락',
+  'Frost Armor': '서리 갑옷',
+  Slam: '내려치기',
+  Hex: '저주',
+  Ward: '보호막',
+  Circle: '선회',
+  Dive: '급강하',
+  Talon: '발톱',
+  Croak: '개굴개굴',
+  Tongue: '혀 채찍',
+  'Belly Flop': '배치기',
+  Flicker: '깜빡임',
+  Hover: '떠다니기',
+  'Seed the Clouds': '구름 씨뿌리기',
+  Soak: '흠뻑 적시기',
+  Deluge: '폭우',
+  Stalk: '잠행',
+  Pounce: '덮치기',
+  Bite: '물어뜯기',
+  'Thunder Wings': '천둥 날개',
+  Gale: '돌풍',
+  Snatch: '낚아채기',
+  'Stir the Pot': '솥 휘젓기',
+  'Kindle the Sky': '하늘 달구기',
+  'Fire Breath': '화염 숨결',
+  'Tail Swipe': '꼬리 휘두르기',
+  Thunderhead: '적란운',
+  Scorch: '불태우기',
+  Whiteout: '백색 폭풍',
+  Siphon: '빨아내기',
+  Drain: '흡수',
+  Wait: '대기',
+};
+
+export const KO_RELICS: Record<string, NameText> = {
+  copperCauldron: { name: '구리 가마솥', text: '전투를 시작할 때 가마솥에 무작위 기본 원소가 하나 들어 있습니다.' },
+  barometer: { name: '기압계', text: '예보에 다음 날씨가 두 개까지 보입니다.' },
+  weathervane: { name: '풍향계', text: '날씨가 바뀔 때마다 방어도를 3 얻습니다.' },
+  ironCauldron: { name: '무쇠 가마솥', text: '가마솥이 4칸이 됩니다.' },
+  rainBarrel: { name: '빗물통', text: '비가 오면 매 턴 에너지를 1 더 얻습니다.' },
+  snowGlobe: { name: '스노우볼', text: '눈이 오면 턴을 시작할 때 방어도를 3 얻습니다.' },
+  lightningRod: { name: '피뢰침', text: '폭풍의 번개가 당신에게 떨어지지 않습니다.' },
+  sunStone: { name: '태양석', text: '폭염으로 화상을 입지 않습니다.' },
+  healingHerb: { name: '약초', text: '전투에서 이길 때마다 체력을 6 회복합니다.' },
+  luckyCoin: { name: '행운의 동전', text: '전투마다 골드를 10 더 얻습니다.' },
+  alembic: { name: '증류기', text: '찌꺼기가 기본 원소 두 개짜리 무작위 양조물이 됩니다.' },
+  umbrella: { name: '우산', text: '엄폐 중이면 턴을 시작할 때 방어도를 4 얻습니다.' },
+  windChime: { name: '풍경', text: '날씨가 바뀔 때마다 카드를 1장 뽑습니다.' },
+  dewcatcher: { name: '이슬받이', text: '날씨가 가마솥에 원소를 떨어뜨릴 때마다 방어도를 2 얻습니다.' },
+  cloudSeed: { name: '구름 씨앗', text: '전투가 맑음 대신 하늘 덱의 날씨로 시작합니다.' },
+};
+
+export const KO_SKY: Record<string, NameText> = {
+  clear: { name: '맑음', text: '{turns}턴 동안 맑음.' },
+  rain: { name: '비', text: '{turns}턴 동안 비.' },
+  storm: { name: '폭풍', text: '{turns}턴 동안 폭풍.' },
+  heatwave: { name: '폭염', text: '{turns}턴 동안 폭염.' },
+  snow: { name: '눈', text: '{turns}턴 동안 눈.' },
+  monsoon: { name: '장마', text: '{turns}턴 동안 비.' },
+  squall: { name: '스콜', text: '짧은 폭풍: {turns}턴.' },
+  heatDome: { name: '열돔', text: '{turns}턴 동안 폭염.' },
+  deepFreeze: { name: '혹한', text: '{turns}턴 동안 눈.' },
+  calm: { name: '고요', text: '{turns}턴 동안 맑음.' },
+};
+
+export interface EventText {
+  name: string;
+  text: string;
+  options: Record<string, { label: string; text: string }>;
+}
+
+export const KO_EVENTS: Record<string, EventText> = {
+  abandonedCauldron: {
+    name: '버려진 가마솥',
+    text: '꺼져 가는 모닥불 위에서 가마솥이 아직 끓고 있습니다. 주인은 돌아오지 않을 것 같습니다.',
+    options: {
+      drink: { label: '마신다', text: '체력을 15 회복합니다.' },
+      study: { label: '찌꺼기를 연구한다', text: '아직 모르는 레시피 2개를 배웁니다.' },
+      bottle: { label: '병에 담는다', text: '무작위 포션을 얻습니다.' },
+    },
+  },
+  struckOak: {
+    name: '벼락 맞은 참나무',
+    text: '번개에 두 쪽으로 갈라진 늙은 참나무에서 아직도 전기가 튑니다.',
+    options: {
+      carve: { label: '부적을 깎는다', text: '카드 하나에 ⚡를 주입합니다. 사용하면 전기도 추가됩니다.' },
+      heartwood: { label: '심재를 챙긴다', text: '최대 체력이 5 늘어납니다.' },
+      leave: { label: '떠난다', text: '아무 일도 일어나지 않습니다.' },
+    },
+  },
+  weatherShrine: {
+    name: '날씨 신전',
+    text: '이끼 낀 하늘의 신전 위로 풍경 소리가 울립니다. 제단에는 온갖 공물이 놓여 있습니다.',
+    options: {
+      calm: { label: '고요를 빈다', text: '하늘 덱에서 날씨 카드 하나를 뺍니다.' },
+      offer: { label: '공물을 바친다 (25 골드)', text: '날씨 카드 3장 중 1장을 골라 하늘 덱에 넣습니다.' },
+      leave: { label: '떠난다', text: '아무 일도 일어나지 않습니다.' },
+    },
+  },
+  stormChaser: {
+    name: '폭풍 추적자',
+    text: '낡은 기압계를 든 폭풍 추적자가 손짓합니다. "큰 게 오고 있어. 같이 갈래?"',
+    options: {
+      chase: { label: '폭풍을 쫓는다', text: '엘리트와 싸웁니다. 이기면 유물을 얻습니다.' },
+      buy: { label: '장비를 산다 (80 골드)', text: '무작위 유물을 얻습니다.' },
+      leave: { label: '떠난다', text: '아무 일도 일어나지 않습니다.' },
+    },
+  },
+  frozenTraveler: {
+    name: '얼어붙은 여행자',
+    text: '한 여행자가 얼음덩어리 속에 꽁꽁 얼어 있습니다. 배낭은 아직 등에 메고 있습니다.',
+    options: {
+      thaw: { label: '녹여 준다 (체력 8 잃음)', text: '여행자가 유물로 보답합니다.' },
+      loot: { label: '배낭을 챙긴다', text: '골드를 45 얻습니다.' },
+      leave: { label: '떠난다', text: '그냥 지나갑니다.' },
+    },
+  },
+  wanderingAlchemist: {
+    name: '떠돌이 연금술사',
+    text: '달그락거리는 병을 가득 실은 수레를 끄는 연금술사가 거래를 제안합니다.',
+    options: {
+      swap: { label: '카드를 교환한다', text: '덱에서 카드 하나를 빼고, 무작위 카드를 대신 받습니다.' },
+      lesson: { label: '수업을 듣는다 (30 골드)', text: '아직 모르는 레시피 3개를 배웁니다.' },
+      leave: { label: '떠난다', text: '아무 일도 일어나지 않습니다.' },
+    },
+  },
+};

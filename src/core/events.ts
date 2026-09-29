@@ -1,8 +1,9 @@
 import { REWARD_POOL, getCard } from '../data/cards';
 import { getEvent, type EventDef, type EventOption, type EventOutcome } from '../data/events';
-import { RECIPES, getRecipe } from '../data/recipes';
-import { getRelic } from '../data/relics';
-import { SKY_POOL, getSkyCard } from '../data/sky';
+import { RECIPES } from '../data/recipes';
+import { SKY_POOL } from '../data/sky';
+import { listOf, t } from '../i18n';
+import { cardName, elementName, recipeName, relicName, skyName } from '../i18n/content';
 import { MAX_POTIONS } from './combat';
 import { isKnown, type Grimoire } from './grimoire';
 import {
@@ -16,7 +17,6 @@ import {
   withRng,
   type RunState,
 } from './run';
-import type { ElementId } from './types';
 
 /** Where an event goes after a choice: back to the map, to a pick, or into a fight. */
 export type EventResult =
@@ -24,15 +24,6 @@ export type EventResult =
   | { ok: false; reason: string };
 
 type Pick = Extract<EventOutcome, { type: 'infuse' | 'swapCard' | 'removeSky' | 'chooseSky' }>;
-
-const ELEMENT_NAMES: Record<ElementId, string> = {
-  fire: 'Fire',
-  water: 'Water',
-  earth: 'Earth',
-  air: 'Air',
-  spark: 'Spark',
-  frost: 'Frost',
-};
 
 export function currentEvent(run: RunState): EventDef | undefined {
   return run.event ? getEvent(run.event.id) : undefined;
@@ -49,14 +40,14 @@ function unknownRecipes(grimoire: Grimoire): string[] {
 /** Why an option can't be chosen right now, or null if it can. */
 export function eventOptionBlocked(run: RunState, option: EventOption, grimoire: Grimoire): string | null {
   for (const o of option.outcomes) {
-    if (o.type === 'gold' && o.amount < 0 && run.gold < -o.amount) return 'Not enough gold.';
-    if (o.type === 'loseHp' && run.hp <= o.amount) return 'Too dangerous with your HP.';
-    if (o.type === 'potion' && run.potions.length >= MAX_POTIONS) return 'Your potion belt is full.';
-    if (o.type === 'relic' && relicsLeft(run).length === 0) return 'You have every relic.';
-    if (o.type === 'learn' && unknownRecipes(grimoire).length === 0) return 'You know every recipe.';
-    if (o.type === 'infuse' && !run.deck.some(canInfuse)) return 'Every card is infused.';
-    if (o.type === 'swapCard' && run.deck.length <= 1) return 'Your deck is too small.';
-    if (o.type === 'removeSky' && run.sky.length <= MIN_SKY) return `Your sky needs at least ${MIN_SKY} weathers.`;
+    if (o.type === 'gold' && o.amount < 0 && run.gold < -o.amount) return t('err.noGold');
+    if (o.type === 'loseHp' && run.hp <= o.amount) return t('err.tooDangerous');
+    if (o.type === 'potion' && run.potions.length >= MAX_POTIONS) return t('err.beltFull');
+    if (o.type === 'relic' && relicsLeft(run).length === 0) return t('err.allRelics');
+    if (o.type === 'learn' && unknownRecipes(grimoire).length === 0) return t('err.allRecipes');
+    if (o.type === 'infuse' && !run.deck.some(canInfuse)) return t('err.allInfused');
+    if (o.type === 'swapCard' && run.deck.length <= 1) return t('err.deckSmall');
+    if (o.type === 'removeSky' && run.sky.length <= MIN_SKY) return t('err.minSky', { n: MIN_SKY });
   }
   return null;
 }
@@ -68,7 +59,7 @@ export function eventOptionBlocked(run: RunState, option: EventOption, grimoire:
  */
 export function chooseEventOption(run: RunState, optionId: string, grimoire: Grimoire): EventResult {
   const option = currentEvent(run)?.options.find((o) => o.id === optionId);
-  if (!run.event || !option) return { ok: false, reason: 'That choice is gone.' };
+  if (!run.event || !option) return { ok: false, reason: t('err.choiceGone') };
   const blocked = eventOptionBlocked(run, option, grimoire);
   if (blocked) return { ok: false, reason: blocked };
 
@@ -81,12 +72,12 @@ export function chooseEventOption(run: RunState, optionId: string, grimoire: Gri
     }
     const prompt =
       pick.type === 'infuse'
-        ? `Pick a card to infuse with ${ELEMENT_NAMES[pick.element]}.`
+        ? t('event.pickInfuse', { element: elementName(pick.element) })
         : pick.type === 'swapCard'
-          ? 'Pick a card to trade away.'
+          ? t('event.pickTrade')
           : pick.type === 'removeSky'
-            ? 'Pick a weather card to remove from your sky.'
-            : 'Pick a weather card to add to your sky.';
+            ? t('event.pickRemoveSky')
+            : t('event.pickAddSky');
     return { ok: true, next: pick.type === 'infuse' || pick.type === 'swapCard' ? 'pickCard' : 'pickSky', message: prompt };
   }
   if (option.outcomes.some((o) => o.type === 'eliteFight')) {
@@ -129,18 +120,18 @@ export function canPickEventCard(run: RunState, deckIndex: number): boolean {
 export function pickEventCard(run: RunState, deckIndex: number, grimoire: Grimoire): EventResult {
   const pick = pendingPick(run);
   const card = run.deck[deckIndex];
-  if (!pick || !card || (pick.type !== 'infuse' && pick.type !== 'swapCard')) return { ok: false, reason: 'Nothing to pick.' };
-  if (!canPickEventCard(run, deckIndex)) return { ok: false, reason: 'That card is already infused.' };
+  if (!pick || !card || (pick.type !== 'infuse' && pick.type !== 'swapCard')) return { ok: false, reason: t('err.nothingToPick') };
+  if (!canPickEventCard(run, deckIndex)) return { ok: false, reason: t('err.alreadyInfused') };
   const paid = payForPending(run, grimoire);
-  const name = getCard(card.id).name;
+  const name = cardName(getCard(card.id));
   let message: string;
   if (pick.type === 'infuse') {
     infuseCard(run, deckIndex, pick.element, [pick.element]);
-    message = `${name} is infused with ${ELEMENT_NAMES[pick.element]}.`;
+    message = t('event.infused', { card: name, element: elementName(pick.element) });
   } else {
     const replacement = withRng(run, (rng) => rng.pick(REWARD_POOL.filter((id) => id !== card.id)));
     run.deck[deckIndex] = { id: replacement };
-    message = `${name} became ${getCard(replacement).name}.`;
+    message = t('event.traded', { card: name, newCard: cardName(getCard(replacement)) });
   }
   delete run.event;
   return { ok: true, next: 'map', message: join(paid, message) };
@@ -150,16 +141,16 @@ export function pickEventCard(run: RunState, deckIndex: number, grimoire: Grimoi
 export function pickEventSky(run: RunState, index: number, grimoire: Grimoire): EventResult {
   const pick = pendingPick(run);
   const id = eventSkyOptions(run)[index];
-  if (!pick || id === undefined) return { ok: false, reason: 'Nothing to pick.' };
+  if (!pick || id === undefined) return { ok: false, reason: t('err.nothingToPick') };
   const paid = payForPending(run, grimoire);
-  const name = getSkyCard(id).name;
+  const name = skyName(id);
   if (pick.type === 'removeSky') run.sky.splice(index, 1);
   else run.sky.push(id);
   delete run.event;
   return {
     ok: true,
     next: 'map',
-    message: join(paid, pick.type === 'removeSky' ? `${name} is gone from your sky.` : `${name} joins your sky.`),
+    message: join(paid, t(pick.type === 'removeSky' ? 'event.skyGone' : 'event.skyJoins', { name })),
   };
 }
 
@@ -174,28 +165,28 @@ function applyOutcomes(run: RunState, outcomes: readonly EventOutcome[], grimoir
   for (const o of outcomes) {
     switch (o.type) {
       case 'heal':
-        messages.push(`Healed ${heal(run, o.amount)} HP.`);
+        messages.push(t('event.healed', { n: heal(run, o.amount) }));
         break;
       case 'maxHp':
         run.maxHp += o.amount;
         run.hp += o.amount;
-        messages.push(`Max HP +${o.amount}.`);
+        messages.push(t('event.maxHp', { n: o.amount }));
         break;
       case 'gold':
         run.gold = Math.max(0, run.gold + o.amount);
-        messages.push(o.amount >= 0 ? `Gained ${o.amount} gold.` : `Paid ${-o.amount} gold.`);
+        messages.push(o.amount >= 0 ? t('event.gainedGold', { n: o.amount }) : t('event.paidGold', { n: -o.amount }));
         break;
       case 'loseHp': {
         const lost = Math.min(o.amount, run.hp - 1);
         run.hp -= lost;
-        messages.push(`Lost ${lost} HP.`);
+        messages.push(t('event.lostHp', { n: lost }));
         break;
       }
       case 'relic': {
         const relic = randomRelic(run);
         if (relic) {
           run.relics.push(relic);
-          messages.push(`Found the ${getRelic(relic).name}!`);
+          messages.push(t('event.foundRelic', { name: relicName(relic) }));
         }
         break;
       }
@@ -203,13 +194,13 @@ function applyOutcomes(run: RunState, outcomes: readonly EventOutcome[], grimoir
         if (run.potions.length >= MAX_POTIONS) break;
         const potion = withRng(run, (rng) => rng.pick(POTION_POOL));
         run.potions.push(potion);
-        messages.push(`Bottled a ${getRecipe(potion).name} potion.`);
+        messages.push(t('event.bottled', { name: recipeName(potion) }));
         break;
       }
       case 'learn': {
         const learned = withRng(run, (rng) => rng.shuffle(unknownRecipes(grimoire)).slice(0, o.count));
         grimoire.discovered.push(...learned);
-        if (learned.length) messages.push(`Learned ${learned.map((id) => getRecipe(id).name).join(' and ')}!`);
+        if (learned.length) messages.push(t('event.learned', { names: listOf(learned.map(recipeName)) }));
         break;
       }
       default:

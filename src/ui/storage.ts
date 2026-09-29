@@ -1,5 +1,6 @@
 import { createGrimoire, type Grimoire } from '../core/grimoire';
 import { parseGrimoire, parseRunSave, type RunSave } from '../core/save';
+import { parseSettings, type Settings } from './settings';
 
 /**
  * Device storage for saves. localStorage persists inside the Android app's
@@ -8,6 +9,7 @@ import { parseGrimoire, parseRunSave, type RunSave } from '../core/save';
  */
 const RUN_KEY = 'stormbrew.run';
 const GRIMOIRE_KEY = 'stormbrew.grimoire';
+const SETTINGS_KEY = 'stormbrew.settings';
 
 function read(key: string): string | null {
   try {
@@ -44,4 +46,12 @@ export function loadGrimoire(): Grimoire {
 
 export function saveGrimoire(grimoire: Grimoire): void {
   write(GRIMOIRE_KEY, JSON.stringify(grimoire));
+}
+
+export function loadSettings(): Settings {
+  return parseSettings(read(SETTINGS_KEY));
+}
+
+export function saveSettings(settings: Settings): void {
+  write(SETTINGS_KEY, JSON.stringify(settings));
 }

@@ -1,49 +1,49 @@
-import type { ElementId } from '../core/types';
+import type { ElementId, WeatherId } from '../core/types';
 
 /**
  * Minimal art: every visual identity (color + icon) lives here so real art can
  * replace it later without touching game code.
  */
 
+/** An icon and a color. Names come from the language files (src/i18n). */
 export interface Look {
-  name: string;
   icon: string;
   color: string;
 }
 
 export const ELEMENTS: Record<ElementId, Look> = {
-  fire: { name: 'Fire', icon: '🔥', color: '#f07b3f' },
-  water: { name: 'Water', icon: '💧', color: '#4aa3df' },
-  earth: { name: 'Earth', icon: '🪨', color: '#a0845c' },
-  air: { name: 'Air', icon: '🌬️', color: '#9fd8cb' },
-  spark: { name: 'Spark', icon: '⚡', color: '#f5d547' },
-  frost: { name: 'Frost', icon: '❄️', color: '#bfe3f5' },
+  fire: { icon: '🔥', color: '#f07b3f' },
+  water: { icon: '💧', color: '#4aa3df' },
+  earth: { icon: '🪨', color: '#a0845c' },
+  air: { icon: '🌬️', color: '#9fd8cb' },
+  spark: { icon: '⚡', color: '#f5d547' },
+  frost: { icon: '❄️', color: '#bfe3f5' },
 };
 
-export const WEATHERS = {
-  clear: { name: 'Clear', icon: '🌤️', color: '#6fa8dc' },
-  rain: { name: 'Rain', icon: '🌧️', color: '#3d5a80' },
-  storm: { name: 'Storm', icon: '⛈️', color: '#4b3f72' },
-  heatwave: { name: 'Heatwave', icon: '☀️', color: '#e07a2f' },
-  snow: { name: 'Snow', icon: '🌨️', color: '#a9c6d9' },
-} satisfies Record<string, Look>;
+export const WEATHERS: Record<WeatherId, Look> = {
+  clear: { icon: '🌤️', color: '#6fa8dc' },
+  rain: { icon: '🌧️', color: '#3d5a80' },
+  storm: { icon: '⛈️', color: '#4b3f72' },
+  heatwave: { icon: '☀️', color: '#e07a2f' },
+  snow: { icon: '🌨️', color: '#a9c6d9' },
+};
 
 export const ENEMY_LOOKS: Record<string, Look> = {
-  cinderImp: { name: 'Cinder Imp', icon: '👿', color: '#e0603a' },
-  stormCaller: { name: 'Storm Caller', icon: '🧙', color: '#7b68c8' },
-  drizzleSlime: { name: 'Drizzle Slime', icon: '🫧', color: '#4aa3df' },
-  frostGolem: { name: 'Frost Golem', icon: '🗿', color: '#a9c6d9' },
-  trainingDummy: { name: 'Training Dummy', icon: '🎯', color: '#9aa3b8' },
-  eyeOfTheStorm: { name: 'Eye of the Storm', icon: '👁️', color: '#5b6bbf' },
-  mireWitch: { name: 'Mire Witch', icon: '🧌', color: '#6b8e4e' },
-  skyHawk: { name: 'Sky Hawk', icon: '🐦', color: '#8fb3d9' },
-  bogToad: { name: 'Bog Toad', icon: '🐸', color: '#7a9a3a' },
-  sparkWisp: { name: 'Spark Wisp', icon: '💫', color: '#f5d547' },
-  rainmaker: { name: 'Rainmaker', icon: '☔', color: '#4a78b5' },
-  snowWolf: { name: 'Snow Wolf', icon: '🐺', color: '#c9d6e3' },
-  stormRoc: { name: 'Storm Roc', icon: '🦅', color: '#5a4f8a' },
-  cauldronCrone: { name: 'Cauldron Crone', icon: '🧙‍♀️', color: '#8e5ea2' },
-  cinderDrake: { name: 'Cinder Drake', icon: '🐉', color: '#d9542b' },
+  cinderImp: { icon: '👿', color: '#e0603a' },
+  stormCaller: { icon: '🧙', color: '#7b68c8' },
+  drizzleSlime: { icon: '🫧', color: '#4aa3df' },
+  frostGolem: { icon: '🗿', color: '#a9c6d9' },
+  trainingDummy: { icon: '🎯', color: '#9aa3b8' },
+  eyeOfTheStorm: { icon: '👁️', color: '#5b6bbf' },
+  mireWitch: { icon: '🧌', color: '#6b8e4e' },
+  skyHawk: { icon: '🐦', color: '#8fb3d9' },
+  bogToad: { icon: '🐸', color: '#7a9a3a' },
+  sparkWisp: { icon: '💫', color: '#f5d547' },
+  rainmaker: { icon: '☔', color: '#4a78b5' },
+  snowWolf: { icon: '🐺', color: '#c9d6e3' },
+  stormRoc: { icon: '🦅', color: '#5a4f8a' },
+  cauldronCrone: { icon: '🧙‍♀️', color: '#8e5ea2' },
+  cinderDrake: { icon: '🐉', color: '#d9542b' },
 };
 
 export const RELIC_ICONS: Record<string, string> = {
@@ -71,15 +71,6 @@ export const NODE_ICONS = {
   shop: '🛒',
   event: '❓',
   boss: '👁️',
-} as const;
-
-export const NODE_NAMES = {
-  fight: 'Fight',
-  elite: 'Elite',
-  rest: 'Rest site',
-  shop: 'Shop',
-  event: 'Event',
-  boss: 'Boss',
 } as const;
 
 export const EVENT_ICONS: Record<string, string> = {
@@ -167,6 +158,7 @@ export const ICONS = {
   grimoire: '📕',
   deck: '🂠',
   hunter: '🎯',
+  settings: '⚙️',
   steal: '🫳',
   double: '✴️',
 } as const;
