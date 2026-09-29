@@ -60,6 +60,10 @@ function* combinations(n: number, size: number, start = 0, prefix: number[] = []
 /** Whether these effects need the player to choose an enemy. */
 export function effectsNeedTarget(effects: readonly Effect[]): boolean {
   return effects.some(
-    (e) => ((e.type === 'damage' || e.type === 'applyStatus') && !e.all) || e.type === 'steal' || e.type === 'spoil',
+    (e) =>
+      ((e.type === 'damage' || e.type === 'applyStatus') && !e.all) ||
+      e.type === 'steal' ||
+      e.type === 'spoil' ||
+      e.type === 'boilOver',
   );
 }

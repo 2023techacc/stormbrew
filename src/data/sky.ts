@@ -13,19 +13,30 @@ export interface SkyCardDef {
   text: string;
 }
 
-const STANDARD_TURNS = 3;
+/** How long a basic weather lasts (the game's weather interval, see core/weather.ts). */
+export const STANDARD_TURNS = 3;
+const LONG_TURNS = STANDARD_TURNS + 2;
+const SHORT_TURNS = STANDARD_TURNS - 1;
+
+const basic = (id: WeatherId, name: string, what: string): SkyCardDef => ({
+  id,
+  name,
+  weather: id,
+  turns: STANDARD_TURNS,
+  text: `${what} for ${STANDARD_TURNS} turns.`,
+});
 
 export const SKY_CARDS: Record<string, SkyCardDef> = {
-  clear: { id: 'clear', name: 'Clear', weather: 'clear', turns: STANDARD_TURNS, text: 'Clear skies for 3 turns.' },
-  rain: { id: 'rain', name: 'Rain', weather: 'rain', turns: STANDARD_TURNS, text: 'Rain for 3 turns.' },
-  storm: { id: 'storm', name: 'Storm', weather: 'storm', turns: STANDARD_TURNS, text: 'Storm for 3 turns.' },
-  heatwave: { id: 'heatwave', name: 'Heatwave', weather: 'heatwave', turns: STANDARD_TURNS, text: 'Heatwave for 3 turns.' },
-  snow: { id: 'snow', name: 'Snow', weather: 'snow', turns: STANDARD_TURNS, text: 'Snow for 3 turns.' },
-  monsoon: { id: 'monsoon', name: 'Monsoon', weather: 'rain', turns: 5, text: 'Rain for 5 turns.' },
-  squall: { id: 'squall', name: 'Squall', weather: 'storm', turns: 2, text: 'A short Storm: 2 turns.' },
-  heatDome: { id: 'heatDome', name: 'Heat Dome', weather: 'heatwave', turns: 5, text: 'Heatwave for 5 turns.' },
-  deepFreeze: { id: 'deepFreeze', name: 'Deep Freeze', weather: 'snow', turns: 5, text: 'Snow for 5 turns.' },
-  calm: { id: 'calm', name: 'Calm', weather: 'clear', turns: 5, text: 'Clear skies for 5 turns.' },
+  clear: basic('clear', 'Clear', 'Clear skies'),
+  rain: basic('rain', 'Rain', 'Rain'),
+  storm: basic('storm', 'Storm', 'Storm'),
+  heatwave: basic('heatwave', 'Heatwave', 'Heatwave'),
+  snow: basic('snow', 'Snow', 'Snow'),
+  monsoon: { id: 'monsoon', name: 'Monsoon', weather: 'rain', turns: LONG_TURNS, text: `Rain for ${LONG_TURNS} turns.` },
+  squall: { id: 'squall', name: 'Squall', weather: 'storm', turns: SHORT_TURNS, text: `A short Storm: ${SHORT_TURNS} turns.` },
+  heatDome: { id: 'heatDome', name: 'Heat Dome', weather: 'heatwave', turns: LONG_TURNS, text: `Heatwave for ${LONG_TURNS} turns.` },
+  deepFreeze: { id: 'deepFreeze', name: 'Deep Freeze', weather: 'snow', turns: LONG_TURNS, text: `Snow for ${LONG_TURNS} turns.` },
+  calm: { id: 'calm', name: 'Calm', weather: 'clear', turns: LONG_TURNS, text: `Clear skies for ${LONG_TURNS} turns.` },
 };
 
 /** Every run's sky starts with one of each basic weather. */

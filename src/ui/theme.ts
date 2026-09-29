@@ -36,6 +36,14 @@ export const ENEMY_LOOKS: Record<string, Look> = {
   trainingDummy: { name: 'Training Dummy', icon: '🎯', color: '#9aa3b8' },
   eyeOfTheStorm: { name: 'Eye of the Storm', icon: '👁️', color: '#5b6bbf' },
   mireWitch: { name: 'Mire Witch', icon: '🧌', color: '#6b8e4e' },
+  skyHawk: { name: 'Sky Hawk', icon: '🐦', color: '#8fb3d9' },
+  bogToad: { name: 'Bog Toad', icon: '🐸', color: '#7a9a3a' },
+  sparkWisp: { name: 'Spark Wisp', icon: '💫', color: '#f5d547' },
+  rainmaker: { name: 'Rainmaker', icon: '☔', color: '#4a78b5' },
+  snowWolf: { name: 'Snow Wolf', icon: '🐺', color: '#c9d6e3' },
+  stormRoc: { name: 'Storm Roc', icon: '🦅', color: '#5a4f8a' },
+  cauldronCrone: { name: 'Cauldron Crone', icon: '🧙‍♀️', color: '#8e5ea2' },
+  cinderDrake: { name: 'Cinder Drake', icon: '🐉', color: '#d9542b' },
 };
 
 export const RELIC_ICONS: Record<string, string> = {
@@ -49,6 +57,11 @@ export const RELIC_ICONS: Record<string, string> = {
   sunStone: '🌞',
   healingHerb: '🌿',
   luckyCoin: '🪙',
+  alembic: '🏺',
+  umbrella: '🌂',
+  windChime: '🎐',
+  dewcatcher: '🕸️',
+  cloudSeed: '🌱',
 };
 
 export const NODE_ICONS = {
@@ -56,6 +69,7 @@ export const NODE_ICONS = {
   elite: '💀',
   rest: '🏕️',
   shop: '🛒',
+  event: '❓',
   boss: '👁️',
 } as const;
 
@@ -64,8 +78,18 @@ export const NODE_NAMES = {
   elite: 'Elite',
   rest: 'Rest site',
   shop: 'Shop',
+  event: 'Event',
   boss: 'Boss',
 } as const;
+
+export const EVENT_ICONS: Record<string, string> = {
+  abandonedCauldron: '🧪',
+  struckOak: '🌳',
+  weatherShrine: '⛩️',
+  stormChaser: '🌪️',
+  frozenTraveler: '🧊',
+  wanderingAlchemist: '🧑‍🔬',
+};
 
 /** Card art for now is a single icon; cards without one use their kind's icon. */
 export const CARD_ICONS: Record<string, string> = {
@@ -91,6 +115,22 @@ export const CARD_ICONS: Record<string, string> = {
   pilfer: '🫳',
   curdle: '🤢',
   scatterClouds: '🌬️',
+  frostbite: '🥶',
+  sunstrike: '🔆',
+  staticShock: '🌩️',
+  undertow: '💦',
+  clarity: '🔭',
+  riptide: '🐚',
+  galeForce: '🍃',
+  earthenWall: '⛰️',
+  staticCharge: '🔋',
+  rime: '🧊',
+  catchTheSky: '🥅',
+  simmer: '🍲',
+  catalyst: '✴️',
+  boilOver: '🫕',
+  weatherFront: '⏩',
+  cloudburst: '☔',
 };
 
 /** A card's icon: its own, a flask or essence for distilled cards, or its kind's icon. */
@@ -126,4 +166,7 @@ export const ICONS = {
   spoiled: '🤢',
   grimoire: '📕',
   deck: '🂠',
+  hunter: '🎯',
+  steal: '🫳',
+  double: '✴️',
 } as const;

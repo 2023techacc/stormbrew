@@ -12,6 +12,10 @@ import {
 import type { CombatState, ElementId } from '../src/core/types';
 import { getCard } from '../src/data/cards';
 import { RECIPES } from '../src/data/recipes';
+import { enemyHp, enemyMove } from './helpers/data';
+
+const IMP_HP = enemyHp('cinderImp');
+const CLAW = enemyMove('cinderImp', 'Claw');
 
 const BASE: ElementId[] = ['fire', 'water', 'earth', 'air'];
 
@@ -130,7 +134,7 @@ describe('brewing in combat', () => {
     expect(s.cauldron).toEqual([]);
     expect(s.weather.current).toBe('heatwave');
     // 4 + 4 from the Gathers, then Heat Haze's 6 fire damage boosted by its own Heatwave to 7.
-    expect(imp(s).hp).toBe(42 - 4 - 4 - 7);
+    expect(imp(s).hp).toBe(IMP_HP - 4 - 4 - 7);
   });
 
   it('adding to a full cauldron brews it first, then adds the new element', () => {
@@ -170,8 +174,8 @@ describe('brewing in combat', () => {
     expect(imp(s).statuses.weak).toBe(2);
     expect(s.player.block).toBe(3); // from Gather Dew
     const hp = s.player.hp;
-    endTurn(s); // Claw: 7 × 0.75 = 5, minus 3 Block
-    expect(hp - s.player.hp).toBe(2);
+    endTurn(s); // Claw, 25% weaker, minus 3 Block
+    expect(hp - s.player.hp).toBe(Math.floor(CLAW.damage * 0.75) - 3);
     expect(imp(s).statuses.weak).toBe(1);
   });
 
@@ -180,10 +184,10 @@ describe('brewing in combat', () => {
     play(s, 'gatherEmber', 0);
     play(s, 'gatherStone');
     play(s, 'stir', 0);
-    expect(imp(s).hp).toBe(42 - 4 - 7);
+    expect(imp(s).hp).toBe(IMP_HP - 4 - 7);
     expect(imp(s).statuses.burn).toBe(3);
     endTurn(s);
-    expect(imp(s).hp).toBe(42 - 4 - 7 - 3);
+    expect(imp(s).hp).toBe(IMP_HP - 4 - 7 - 3);
     expect(imp(s).statuses.burn).toBe(2);
   });
 
@@ -197,7 +201,7 @@ describe('brewing in combat', () => {
   });
 
   it('healing never goes above max HP', () => {
-    const s = newCombat(['gatherDew', 'gatherDew', 'stir', 'defend', 'defend'], { playerHp: 73 });
+    const s = newCombat(['gatherDew', 'gatherDew', 'stir', 'defend', 'defend'], { playerHp: 74 });
     play(s, 'gatherDew');
     play(s, 'gatherDew');
     play(s, 'stir');
@@ -226,6 +230,6 @@ describe('brew previews and targeting', () => {
     expect(cardNeedsTarget(s, stir)).toBe(true); // Fireball
     expect(playCard(s, stir.uid).ok).toBe(false);
     expect(playCard(s, stir.uid, 0).ok).toBe(true);
-    expect(imp(s).hp).toBe(42 - 12);
+    expect(imp(s).hp).toBe(IMP_HP - 12);
   });
 });

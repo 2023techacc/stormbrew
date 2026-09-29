@@ -11,6 +11,11 @@ import {
 } from '../src/core/combat';
 import type { CombatState } from '../src/core/types';
 import { STARTER_DECK } from '../src/data/cards';
+import { enemyHp, enemyMove } from './helpers/data';
+
+const IMP_HP = enemyHp('cinderImp');
+const CLAW = enemyMove('cinderImp', 'Claw');
+const SMOLDER = enemyMove('cinderImp', 'Smolder');
 
 const setup = (overrides: Partial<CombatSetup> = {}): CombatSetup => ({
   seed: 1,
@@ -40,7 +45,7 @@ describe('combat setup', () => {
     expect(s.drawPile).toHaveLength(STARTER_DECK.length - HAND_SIZE);
     expect(s.player.energy).toBe(PLAYER_MAX_ENERGY);
     expect(s.status).toBe('playing');
-    expect(s.enemies[0]?.hp).toBe(42);
+    expect(s.enemies[0]?.hp).toBe(IMP_HP);
   });
 
   it('is deterministic for the same seed', () => {
@@ -58,7 +63,7 @@ describe('playing cards', () => {
     const s = newCombat({ deck: ['strike', 'strike', 'strike', 'strike', 'strike'] });
     const result = playCard(s, cardIn(s, 'strike').uid, 0);
     expect(result.ok).toBe(true);
-    expect(s.enemies[0]?.hp).toBe(42 - 6);
+    expect(s.enemies[0]?.hp).toBe(IMP_HP - 6);
     expect(s.player.energy).toBe(PLAYER_MAX_ENERGY - 1);
     expect(s.hand).toHaveLength(HAND_SIZE - 1);
     expect(s.discardPile).toHaveLength(1);
@@ -119,21 +124,21 @@ describe('ending the turn', () => {
 
   it('enemy attacks are reduced by Block, and Block resets next turn', () => {
     const s = newCombat({ deck: ['defend', 'defend', 'defend', 'defend', 'defend'] });
-    playCard(s, cardIn(s, 'defend').uid); // 5 Block vs Claw (7)
+    playCard(s, cardIn(s, 'defend').uid); // 5 Block vs Claw
     endTurn(s);
-    expect(s.player.hp).toBe(75 - 2);
+    expect(s.player.hp).toBe(75 - (CLAW.damage - 5));
     expect(s.player.block).toBe(0);
   });
 
   it('enemy Block absorbs damage and wears off on its next turn', () => {
     const s = newCombat({ deck: ['strike', 'strike', 'strike', 'strike', 'strike'] });
     endTurn(s); // Claw
-    endTurn(s); // Smolder: imp gains 6 Block
+    endTurn(s); // Smolder: imp gains Block
     const imp = s.enemies[0];
-    expect(imp?.block).toBe(6);
-    playCard(s, cardIn(s, 'strike').uid, 0);
-    expect(imp?.block).toBe(0);
-    expect(imp?.hp).toBe(42);
+    expect(imp?.block).toBe(SMOLDER.block);
+    playCard(s, cardIn(s, 'strike').uid, 0); // 6 damage, all into the Block
+    expect(imp?.block).toBe(SMOLDER.block - 6);
+    expect(imp?.hp).toBe(IMP_HP);
     endTurn(s); // Flare: imp's Block is reset first
     expect(imp?.block).toBe(0);
   });

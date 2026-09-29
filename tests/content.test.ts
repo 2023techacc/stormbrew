@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createCombat, endTurn, playCard, playerAttackDamage, type CombatSetup } from '../src/core/combat';
+import { createCombat, endTurn, playCard, playerAttackDamage, toggleExposure, type CombatSetup } from '../src/core/combat';
 import { SANDBOX_ENEMIES, createSandbox, sandboxAddCard, sandboxRefillEnergy, sandboxSetWeather } from '../src/core/sandbox';
 import type { CombatState } from '../src/core/types';
 import { CARDS, REWARD_POOL, STARTER_DECK } from '../src/data/cards';
 import { ENCOUNTERS, ENEMIES } from '../src/data/enemies';
+import { enemyHp, enemyMove } from './helpers/data';
 
 const newCombat = (deck: string[], overrides: Partial<CombatSetup> = {}): CombatState =>
   createCombat({ seed: 1, deck, enemies: ['cinderImp'], playerHp: 75, playerMaxHp: 75, ...overrides }).state;
@@ -30,29 +31,32 @@ describe('content', () => {
 describe('new enemies', () => {
   it("the Drizzle Slime's Spit makes the player Weak, which lowers their attacks and wears off", () => {
     const s = newCombat(['strike', 'strike', 'strike', 'strike', 'strike'], { enemies: ['drizzleSlime'] });
-    endTurn(s); // Spit: 4 damage + 1 Weak
-    expect(s.player.hp).toBe(75 - 4);
+    endTurn(s); // Spit: damage + 1 Weak
+    expect(s.player.hp).toBe(75 - enemyMove('drizzleSlime', 'Spit').damage);
     expect(s.player.statuses.weak).toBe(1);
     expect(playerAttackDamage(s, 6, undefined)).toBe(4);
     play(s, 'strike', 0);
-    expect(s.enemies[0]?.hp).toBe(26 - 4);
+    expect(s.enemies[0]?.hp).toBe(enemyHp('drizzleSlime') - 4);
     endTurn(s); // Weak wears off at the end of the player's turn
     expect(s.player.statuses.weak).toBe(0);
     expect(playerAttackDamage(s, 6, undefined)).toBe(6);
   });
 
-  it('the Frost Golem summons Snow and brews Permafrost, so its Block builds up', () => {
+  it('the Frost Golem brews Permafrost for itself, then Ice Lance at you', () => {
     const s = newCombat(['defend', 'defend', 'defend', 'defend', 'defend'], {
       enemies: ['frostGolem'],
       playerHp: 500,
       playerMaxHp: 500,
     });
-    endTurn(s); // Frost Breath: Snow + 8 Block
-    expect(s.weather.current).toBe('snow');
-    endTurn(s); // Slam, then its cauldron (Earth + Frost) brews Permafrost: +15, and Block stays in Snow
-    endTurn(s); // Slam
-    endTurn(s); // Frost Breath (+8) and Permafrost again (+15)
-    expect(s.enemies[0]?.block).toBe(8 + 15 + 8 + 15);
+    toggleExposure(s); // keep the weather out of it
+    endTurn(s); // Frost Armor, gathers Earth
+    const permafrost = endTurn(s); // Slam, gathers Frost, brews Permafrost (Block for itself)
+    expect(permafrost).toContainEqual({ type: 'enemyBrew', index: 0, recipeId: 'permafrost', used: ['earth', 'frost'] });
+    expect(s.enemies[0]?.block).toBe(15);
+    endTurn(s); // Slam, gathers Frost
+    const lance = endTurn(s); // Frost Armor, gathers Water, brews Ice Lance at you
+    expect(lance.some((e) => e.type === 'enemyBrew' && e.recipeId === 'iceLance')).toBe(true);
+    expect(s.player.statuses.weak).toBe(2);
   });
 });
 
@@ -80,7 +84,7 @@ describe('weather-control cards', () => {
     const s = newCombat(['callLightning', 'defend', 'defend', 'defend', 'defend']);
     play(s, 'callLightning', 0);
     expect(s.weather.current).toBe('storm');
-    expect(s.enemies[0]?.hp).toBe(42 - 5);
+    expect(s.enemies[0]?.hp).toBe(enemyHp('cinderImp') - 5);
   });
 
   it('Double Boil brews twice', () => {

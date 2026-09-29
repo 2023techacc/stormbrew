@@ -10,6 +10,14 @@ export const SANDBOX_ENEMIES = [
   'stormCaller',
   'frostGolem',
   'mireWitch',
+  'skyHawk',
+  'bogToad',
+  'sparkWisp',
+  'rainmaker',
+  'snowWolf',
+  'stormRoc',
+  'cauldronCrone',
+  'cinderDrake',
   'eyeOfTheStorm',
 ];
 

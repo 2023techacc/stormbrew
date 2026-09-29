@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createCombat, endTurn, toggleExposure, type CombatSetup } from '../src/core/combat';
 import type { CombatState, WeatherId } from '../src/core/types';
+import { enemyHp } from './helpers/data';
 
 const newCombat = (overrides: Partial<CombatSetup> = {}): CombatState =>
   createCombat({
@@ -104,6 +105,6 @@ describe('exposure', () => {
       lockWeather(s, 'storm');
       endTurn(s);
     }
-    expect(s.enemies[0]?.hp).toBe(26);
+    expect(s.enemies[0]?.hp).toBe(enemyHp('drizzleSlime'));
   });
 });

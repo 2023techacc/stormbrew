@@ -75,7 +75,7 @@ describe('map generation', () => {
     }
   });
 
-  it('never puts two rests, shops or elites in a row (below the last floor)', () => {
+  it('never puts two rests, shops, events or elites in a row (below the last floor)', () => {
     for (const map of maps) {
       for (const node of regular(map)) {
         if (node.type === 'fight') continue;
@@ -89,6 +89,6 @@ describe('map generation', () => {
 
   it('mixes in every kind of node across maps', () => {
     const types = new Set(maps.flatMap((m) => Object.values(m.nodes).map((n) => n.type)));
-    expect([...types].sort()).toEqual(['boss', 'elite', 'fight', 'rest', 'shop']);
+    expect([...types].sort()).toEqual(['boss', 'elite', 'event', 'fight', 'rest', 'shop']);
   });
 });

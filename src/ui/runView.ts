@@ -23,6 +23,18 @@ import {
   type RunScreen,
   type RunState,
 } from '../core/run';
+import {
+  canPickEventCard,
+  cancelEventPick,
+  chooseEventOption,
+  currentEvent,
+  eventOptionBlocked,
+  eventSkyOptions,
+  pendingPick,
+  pickEventCard,
+  pickEventSky,
+  type EventResult,
+} from '../core/events';
 import type { Grimoire } from '../core/grimoire';
 import { makeRunSave, type RunSave } from '../core/save';
 import type { CombatState, ElementId } from '../core/types';
@@ -35,7 +47,7 @@ import { cardFace, showCombat } from './combatView';
 import { esc } from './dom';
 import { clearRun, saveGrimoire, saveRun } from './storage';
 import { baseText } from './text';
-import { ELEMENTS, ICONS, NODE_ICONS, NODE_NAMES, RELIC_ICONS, WEATHERS } from './theme';
+import { ELEMENTS, EVENT_ICONS, ICONS, NODE_ICONS, NODE_NAMES, RELIC_ICONS, WEATHERS } from './theme';
 
 const MAP_ROW = 64;
 
@@ -94,7 +106,9 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
           ? renderReward(screen.rewards)
           : screen.name === 'rest'
             ? renderRest(run, screen.step, screen.deckIndex)
-            : renderShop(run, screen.removing);
+            : screen.name === 'event'
+              ? renderEvent(run, screen.step, grimoire)
+              : renderShop(run, screen.removing);
     const scrollY = window.scrollY;
     root.innerHTML = `
       <main class="screen run-screen">
@@ -118,7 +132,21 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
 
   const startNodeFight = (node: MapNode) => {
     const { state } = startFight(run);
-    showFight(state, node.type === 'boss' ? 'Boss' : `${node.type === 'elite' ? 'Elite · ' : ''}Floor ${node.floor + 1}`);
+    const elite = node.type === 'elite' || node.type === 'event';
+    showFight(state, node.type === 'boss' ? 'Boss' : `${elite ? 'Elite · ' : ''}Floor ${node.floor + 1}`);
+  };
+
+  /** Follows an event choice: back to the map, on to a pick, or into a fight. */
+  const afterEvent = (result: EventResult) => {
+    if (!result.ok) return go(screen, result.reason);
+    if (result.next === 'map') return go({ name: 'map' }, result.message);
+    if (result.next === 'pickCard' || result.next === 'pickSky') {
+      return go({ name: 'event', step: result.next }, result.message);
+    }
+    const node = currentNode(run);
+    if (!node) return go({ name: 'map' });
+    root.onclick = null;
+    startNodeFight(node);
   };
 
   const afterFight = (combat: CombatState) => {
@@ -129,7 +157,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
 
   const onClick = (event: MouseEvent) => {
     const el = (event.target as HTMLElement).closest<HTMLElement>(
-      '[data-action],[data-node],[data-relic],[data-potion-info],[data-reward],[data-deck-index],[data-element],[data-buy-card],[data-buy-relic],[data-buy-potion],[data-buy-sky],[data-sky-index]',
+      '[data-action],[data-node],[data-relic],[data-potion-info],[data-reward],[data-deck-index],[data-element],[data-buy-card],[data-buy-relic],[data-buy-potion],[data-buy-sky],[data-sky-index],[data-event-option]',
     );
     if (!el) return;
     const d = el.dataset;
@@ -151,6 +179,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
       const node = enterNode(run, d.node);
       if (node.type === 'rest') return go({ name: 'rest', step: 'choose' });
       if (node.type === 'shop') return go({ name: 'shop', removing: false });
+      if (node.type === 'event') return go({ name: 'event', step: 'choose' });
       root.onclick = null;
       return startNodeFight(node);
     }
@@ -182,6 +211,22 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
         infuseCard(run, screen.deckIndex, d.element as ElementId);
         return go({ name: 'map' }, `${card ? getCard(card.id).name : 'The card'} now also adds ${ELEMENTS[d.element as ElementId].icon}.`);
       }
+      return;
+    }
+
+    if (screen.name === 'event') {
+      if (d.eventOption) return afterEvent(chooseEventOption(run, d.eventOption, grimoire));
+      if (d.action === 'back') {
+        cancelEventPick(run);
+        return go({ name: 'event', step: 'choose' });
+      }
+      if (d.deckIndex !== undefined && screen.step === 'pickCard') {
+        return afterEvent(pickEventCard(run, Number(d.deckIndex), grimoire));
+      }
+      if (d.skyIndex !== undefined && screen.step === 'pickSky') {
+        return afterEvent(pickEventSky(run, Number(d.skyIndex), grimoire));
+      }
+      if (d.action === 'leave') return go({ name: 'map' });
       return;
     }
 
@@ -296,7 +341,7 @@ function renderMap(run: RunState): string {
       ${buttons.join('')}
     </section>
     <p class="map-legend muted small">
-      ${(['fight', 'elite', 'rest', 'shop', 'boss'] as const).map((t) => `${NODE_ICONS[t]} ${NODE_NAMES[t]}`).join(' · ')}
+      ${(['fight', 'elite', 'event', 'rest', 'shop', 'boss'] as const).map((t) => `${NODE_ICONS[t]} ${NODE_NAMES[t]}`).join(' · ')}
     </p>
   `;
 }
@@ -339,7 +384,7 @@ function renderRest(run: RunState, step: 'choose' | 'pickCard' | 'pickElement' |
     return `
       <h2>${ICONS.sky} Chart the sky</h2>
       <p class="muted small">Remove one weather card from your sky, so the others come more often.</p>
-      ${skyList(run, (i) => `data-sky-index="${i}"`)}
+      ${skyList(run.sky, (i) => `data-sky-index="${i}"`)}
       <button class="text-button" data-action="back">Back</button>
     `;
   }
@@ -379,6 +424,42 @@ function renderRest(run: RunState, step: 'choose' | 'pickCard' | 'pickElement' |
         ${ICONS.sky} Chart the sky
       </button>
     </span>
+  `;
+}
+
+function renderEvent(run: RunState, step: 'choose' | 'pickCard' | 'pickSky', grimoire: Grimoire): string {
+  const event = currentEvent(run);
+  if (!event) return '<p>Nothing is left here.</p><button class="primary-button" data-action="leave">Continue</button>';
+  const title = `<h2>${EVENT_ICONS[event.id] ?? NODE_ICONS.event} ${esc(event.name)}</h2>`;
+  const pick = pendingPick(run);
+  if (step === 'pickCard' && pick) {
+    return `
+      ${title}
+      ${deckGrid(run, (i) => (canPickEventCard(run, i) ? '' : 'unplayable'))}
+      <button class="text-button" data-action="back">Back</button>
+    `;
+  }
+  if (step === 'pickSky' && pick) {
+    return `
+      ${title}
+      ${skyList(eventSkyOptions(run), (i) => `data-sky-index="${i}"`)}
+      <button class="text-button" data-action="back">Back</button>
+    `;
+  }
+  return `
+    ${title}
+    <p class="event-text">${esc(event.text)}</p>
+    <section class="event-options">
+      ${event.options
+        .map((option) => {
+          const blocked = eventOptionBlocked(run, option, grimoire);
+          return `<button class="event-option" data-event-option="${esc(option.id)}" ${blocked ? 'disabled' : ''}>
+            <strong>${esc(option.label)}</strong>
+            <span>${esc(blocked ?? option.text)}</span>
+          </button>`;
+        })
+        .join('')}
+    </section>
   `;
 }
 
@@ -487,11 +568,11 @@ function renderDeck(run: RunState): string {
   `;
 }
 
-/** The sky deck as rows; `attrs(i)` makes them tappable. */
-function skyList(run: RunState, attrs: (index: number) => string): string {
+/** Weather cards as rows; `attrs(i)` makes them tappable. */
+function skyList(sky: readonly string[], attrs: (index: number) => string): string {
   return `
     <section class="shop-relics">
-      ${run.sky
+      ${sky
         .map((id, i) => {
           const card = getSkyCard(id);
           return `<button class="shop-relic" ${attrs(i)}>
@@ -516,7 +597,7 @@ function renderSky(run: RunState): string {
           Each fight's forecast is drawn from these weather cards. Buy more in shops;
           chart the sky at rest sites to remove one. Some enemies add their own weather.
         </span>
-        <span class="deck-scroll">${skyList(run, () => 'data-action="none"')}</span>
+        <span class="deck-scroll">${skyList(run.sky, () => 'data-action="none"')}</span>
       </span>
     </span>
   `;

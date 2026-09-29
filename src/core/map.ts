@@ -1,6 +1,6 @@
 import type { Rng } from './rng';
 
-export type NodeType = 'fight' | 'elite' | 'rest' | 'shop' | 'boss';
+export type NodeType = 'fight' | 'elite' | 'rest' | 'shop' | 'event' | 'boss';
 
 export interface MapNode {
   id: string;
@@ -24,15 +24,17 @@ export const MAP_LANES = 4;
 const PATHS = 4;
 export const BOSS_ID = 'boss';
 
-/** Weights for random node types; elites and rests only from floor ELITE_FROM on. */
+/** Weights for random node types; each non-fight type has a first floor (below). */
 const TYPE_WEIGHTS: [NodeType, number][] = [
   ['fight', 5],
   ['elite', 1.5],
   ['rest', 1.5],
   ['shop', 1.5],
+  ['event', 2.5],
 ];
 const ELITE_FROM = 3;
 const SHOP_FROM = 2;
+const EVENT_FROM = 1;
 
 const nodeId = (floor: number, lane: number) => `${floor}-${lane}`;
 
@@ -87,7 +89,7 @@ export function generateMap(rng: Rng): MapState {
 
 /**
  * First floor: fights. Last floor before the boss: rest sites. Elsewhere random,
- * without two rests, shops or elites in a row on the same path.
+ * without two rests, shops, events or elites in a row on the same path.
  */
 function assignTypes(nodes: Record<string, MapNode>, rng: Rng): void {
   const parents = new Map<string, MapNode[]>();
@@ -105,6 +107,7 @@ function assignTypes(nodes: Record<string, MapNode>, rng: Rng): void {
         if (type === 'fight') return true;
         if (parentTypes.has(type)) return false;
         if (type === 'shop') return node.floor >= SHOP_FROM;
+        if (type === 'event') return node.floor >= EVENT_FROM;
         return node.floor >= ELITE_FROM;
       });
       node.type = weightedPick(rng, allowed);

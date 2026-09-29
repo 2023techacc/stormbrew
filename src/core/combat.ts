@@ -1,6 +1,6 @@
 import { getCard } from '../data/cards';
 import { getEnemy } from '../data/enemies';
-import { SLUDGE, getRecipe } from '../data/recipes';
+import { RECIPES, SLUDGE, getRecipe } from '../data/recipes';
 import { CAULDRON_SLOTS, WEATHER_ELEMENTS, effectsNeedTarget, findBrew, type BrewResult } from './brewing';
 import { dealDamage, gainBlock } from './effects';
 import { Rng } from './rng';
@@ -42,6 +42,12 @@ export const BASE_ELEMENTS: readonly ElementId[] = ['fire', 'water', 'earth', 'a
 export const WEATHERVANE_BLOCK = 3;
 export const MAX_POTIONS = 3;
 export const SNOW_GLOBE_BLOCK = 3;
+export const UMBRELLA_BLOCK = 4;
+export const DEWCATCHER_BLOCK = 2;
+/** What the Alembic can turn Sludge into: the recipes made of two base elements. */
+export const BASIC_RECIPES = RECIPES.filter(
+  (r) => r.elements.length === 2 && r.elements.every((e) => BASE_ELEMENTS.includes(e)),
+).map((r) => r.id);
 
 export interface CombatSetup {
   seed: number;
@@ -63,10 +69,17 @@ export function hasRelic(state: CombatState, relic: string): boolean {
   return state.relics.includes(relic);
 }
 
-/** A card's effects, plus its infusion's element. */
-export function cardEffects(card: CardInstance): Effect[] {
-  const effects = getCard(card.defId).effects;
-  return card.infusion ? [...effects, { type: 'addElement', element: card.infusion }] : effects;
+/** Whether a card's Attuned bonus is active in this weather. */
+export function isAttuned(defId: string, weather: WeatherId): boolean {
+  return getCard(defId).attuned?.weather === weather;
+}
+
+/** A card's effects in this weather: its own, its Attuned bonus, then its infusion's element. */
+export function cardEffects(card: CardInstance, weather: WeatherId): Effect[] {
+  const def = getCard(card.defId);
+  const attuned = def.attuned?.weather === weather ? def.attuned.effects : [];
+  const infusion: Effect[] = card.infusion ? [{ type: 'addElement', element: card.infusion }] : [];
+  return [...def.effects, ...attuned, ...infusion];
 }
 
 /** Creates a fight and starts the player's first turn. */
@@ -78,6 +91,8 @@ export function createCombat(setup: CombatSetup): { state: CombatState; events: 
     return infusion ? { uid, defId: id, infusion } : { uid, defId: id };
   });
   const cauldron: ElementId[] = relics.includes('copperCauldron') ? [rng.pick(BASE_ELEMENTS)] : [];
+  // Cloud Seed: the fight starts in a weather from the sky instead of Clear.
+  const start = setup.startWeather ?? (relics.includes('cloudSeed') ? 'sky' : 'clear');
   const state: CombatState = {
     player: {
       hp: setup.playerHp,
@@ -107,12 +122,13 @@ export function createCombat(setup: CombatSetup): { state: CombatState; events: 
     hand: [],
     discardPile: [],
     turn: 0,
-    weather: createWeather(rng, setup.startWeather, setup.sky),
+    weather: createWeather(rng, start, setup.sky),
     cauldron,
     cauldronSlots: CAULDRON_SLOTS + (relics.includes('ironCauldron') ? 1 : 0),
     relics: [...relics],
     potions: [...(setup.potions ?? [])],
     bottleNext: 0,
+    doubleNext: 0,
     brewed: [],
     status: 'playing',
     rngState: rng.getState(),
@@ -146,16 +162,15 @@ export function isWeathered(enemy: EnemyState, weather: WeatherId): boolean {
 export function cannotPlayReason(state: CombatState, card: CardInstance): string | null {
   if (state.status !== 'playing') return 'The fight is over.';
   if (!state.hand.some((c) => c.uid === card.uid)) return 'That card is not in your hand.';
-  const effects = cardEffects(card);
+  const effects = cardEffects(card, state.weather.current);
   if (getCard(card.defId).cost > state.player.energy) return 'Not enough energy.';
-  if (brewsFromCauldronOnly(effects) && state.cauldron.length === 0) return 'The cauldron is empty.';
+  if (usesCauldronOnly(effects) && state.cauldron.length === 0) return 'The cauldron is empty.';
   return null;
 }
 
-/** A card like Stir that brews without adding anything first. */
-function brewsFromCauldronOnly(effects: readonly Effect[]): boolean {
-  const firstCauldronEffect = effects.find((e) => e.type === 'brew' || e.type === 'addElement');
-  return firstCauldronEffect?.type === 'brew';
+/** A card like Stir or Boil Over that does nothing but use what is in the cauldron. */
+function usesCauldronOnly(effects: readonly Effect[]): boolean {
+  return effects.every((e) => e.type === 'brew' || e.type === 'boilOver');
 }
 
 /**
@@ -166,12 +181,14 @@ function brewsFromCauldronOnly(effects: readonly Effect[]): boolean {
 export function previewCardBrew(state: CombatState, card: { effects: readonly Effect[] }): BrewResult | null {
   const cauldron = [...state.cauldron];
   for (const effect of card.effects) {
-    if (effect.type === 'addElement') {
+    const element = effect.type === 'catchWeather' ? WEATHER_ELEMENTS[state.weather.current] : undefined;
+    if (effect.type === 'addElement' || element) {
       // A full cauldron brews first to make room.
       if (cauldron.length >= state.cauldronSlots) return findBrew(cauldron);
-      cauldron.push(effect.element);
+      cauldron.push(effect.type === 'addElement' ? effect.element : (element as ElementId));
     }
     if (effect.type === 'brew') return cauldron.length > 0 ? findBrew(cauldron) : null;
+    if (effect.type === 'boilOver') cauldron.length = 0;
   }
   return null;
 }
@@ -179,7 +196,7 @@ export function previewCardBrew(state: CombatState, card: { effects: readonly Ef
 /** Whether playing this card needs an enemy chosen (for itself or the brew it triggers). */
 export function cardNeedsTarget(state: CombatState, card: CardInstance): boolean {
   if (getCard(card.defId).target === 'enemy') return true;
-  const brew = previewCardBrew(state, { effects: cardEffects(card) });
+  const brew = previewCardBrew(state, { effects: cardEffects(card, state.weather.current) });
   return brew !== null && effectsNeedTarget(brew.recipe.effects);
 }
 
@@ -199,9 +216,11 @@ export function playCard(state: CombatState, uid: number, targetIndex?: number):
     target = targetIndex;
   }
 
+  // Attuned bonuses count the weather the card is played in.
+  const effects = cardEffects(card, state.weather.current);
   state.player.energy -= def.cost;
   state.hand = state.hand.filter((c) => c.uid !== uid);
-  const events = applyEffects(state, cardEffects(card), target);
+  const events = applyEffects(state, effects, target);
   // Discard after resolving, so a card that draws can't draw itself.
   state.discardPile.push(card);
   updateStatus(state);
@@ -234,12 +253,13 @@ export function endTurn(state: CombatState): CombatEvent[] {
       withRng(state, (rng) => addToSky(state.weather, rng, cards));
       events.push({ type: 'skyAdded', index, cards });
     }
-    if (move.block) {
-      gainBlock(enemy, move.block);
-      events.push({ type: 'block', target: { side: 'enemy', index }, amount: move.block });
+    const block = enemyMoveBlock(move, state.weather.current);
+    if (block) {
+      gainBlock(enemy, block);
+      events.push({ type: 'block', target: { side: 'enemy', index }, amount: block });
     }
     if (move.damage) {
-      const amount = enemyAttackDamage(enemy, move, state.weather.current);
+      const amount = enemyAttackDamage(enemy, move, state.weather.current, state.player.exposed);
       const { blocked, hpLost } = dealDamage(state.player, amount);
       events.push({ type: 'damage', target: { side: 'player' }, amount: hpLost, blocked });
     }
@@ -282,10 +302,20 @@ export function playerAttackDamage(
   return state.player.statuses.weak ? Math.floor(modified * WEAK_MULTIPLIER) : modified;
 }
 
-/** How much an enemy's attack will hit for: weather first, then Weak. */
-export function enemyAttackDamage(enemy: EnemyState, move: EnemyMove, weather: WeatherId): number {
-  const amount = modifyDamage(move.damage ?? 0, move.element, weather);
+/**
+ * How much an enemy's attack will hit for: its bonuses (Attuned, and against
+ * a player out in the open), then weather, then Weak.
+ */
+export function enemyAttackDamage(enemy: EnemyState, move: EnemyMove, weather: WeatherId, playerExposed = false): number {
+  const attuned = move.attuned?.weather === weather ? (move.attuned.damage ?? 0) : 0;
+  const hunting = playerExposed ? (move.exposedBonus ?? 0) : 0;
+  const amount = modifyDamage((move.damage ?? 0) + attuned + hunting, move.element, weather);
   return enemy.statuses.weak ? Math.floor(amount * WEAK_MULTIPLIER) : amount;
+}
+
+/** How much Block an enemy's move gives it in this weather. */
+export function enemyMoveBlock(move: EnemyMove, weather: WeatherId): number {
+  return (move.block ?? 0) + (move.attuned?.weather === weather ? (move.attuned.block ?? 0) : 0);
 }
 
 /**
@@ -303,17 +333,24 @@ export function setWeather(
   const firstTurn = cause === 'enemy' ? state.turn + 1 : state.turn;
   withRng(state, (rng) => overrideWeather(state.weather, rng, weather, firstTurn));
   const events: CombatEvent[] = [{ type: 'weather', from, to: weather, cause }];
-  if (from !== weather) events.push(...weathervane(state));
+  if (from !== weather) events.push(...weatherChanged(state));
   return events;
 }
 
-function weathervane(state: CombatState): CombatEvent[] {
-  if (!hasRelic(state, 'weathervane')) return [];
-  gainBlock(state.player, WEATHERVANE_BLOCK);
-  return [
-    { type: 'relic', relic: 'weathervane' },
-    { type: 'block', target: { side: 'player' }, amount: WEATHERVANE_BLOCK },
-  ];
+/** Relics that react to the weather changing: Weathervane (Block) and Wind Chime (a card). */
+function weatherChanged(state: CombatState): CombatEvent[] {
+  const events: CombatEvent[] = [];
+  if (hasRelic(state, 'weathervane')) {
+    gainBlock(state.player, WEATHERVANE_BLOCK);
+    events.push(
+      { type: 'relic', relic: 'weathervane' },
+      { type: 'block', target: { side: 'player' }, amount: WEATHERVANE_BLOCK },
+    );
+  }
+  if (hasRelic(state, 'windChime') && state.status === 'playing') {
+    events.push({ type: 'relic', relic: 'windChime' }, ...drawCards(state, 1));
+  }
+  return events;
 }
 
 function startPlayerTurn(state: CombatState): CombatEvent[] {
@@ -330,7 +367,11 @@ function startPlayerTurn(state: CombatState): CombatEvent[] {
 
   if (!blockPersists(state.weather.current)) state.player.block = 0;
   // After Block resets, so a scheduled change's Weathervane Block lasts this turn.
-  if (changed) events.push(...weathervane(state));
+  if (changed) events.push(...weatherChanged(state));
+  if (!state.player.exposed && hasRelic(state, 'umbrella')) {
+    gainBlock(state.player, UMBRELLA_BLOCK);
+    events.push({ type: 'relic', relic: 'umbrella' }, { type: 'block', target: { side: 'player' }, amount: UMBRELLA_BLOCK });
+  }
 
   const weather = state.weather.current;
   if (weather === 'heatwave') {
@@ -366,7 +407,12 @@ function catchWeather(state: CombatState): CombatEvent[] {
   if (!element || !state.player.exposed) return [];
   if (state.cauldron.length >= state.cauldronSlots) return [{ type: 'spill', element }];
   state.cauldron.push(element);
-  return [{ type: 'element', element, fromWeather: true }];
+  const events: CombatEvent[] = [{ type: 'element', element, fromWeather: true }];
+  if (hasRelic(state, 'dewcatcher')) {
+    gainBlock(state.player, DEWCATCHER_BLOCK);
+    events.push({ type: 'relic', relic: 'dewcatcher' }, { type: 'block', target: { side: 'player' }, amount: DEWCATCHER_BLOCK });
+  }
+  return events;
 }
 
 /**
@@ -456,22 +502,44 @@ function applyEffects(state: CombatState, effects: readonly Effect[], target?: n
         withRng(state, (rng) => scatterForecast(state.weather, rng));
         events.push({ type: 'forecast' });
         break;
+      case 'advanceWeather': {
+        const from = state.weather.current;
+        const to = withRng(state, (rng) => advanceWeather(state.weather, rng, state.turn));
+        events.push({ type: 'weather', from, to, cause: 'player' });
+        if (from !== to) events.push(...weatherChanged(state));
+        break;
+      }
       case 'holdWeather':
         events.push(...setWeather(state, state.weather.current, 'player'));
         break;
       case 'addElement':
-        // Adding to a full cauldron brews it first; a brew always uses at least one slot.
-        if (state.cauldron.length >= state.cauldronSlots) events.push(...brew(state, target));
-        if (state.status !== 'playing') break;
-        state.cauldron.push(effect.element);
-        events.push({ type: 'element', element: effect.element });
+        events.push(...addElement(state, effect.element, target));
         break;
+      case 'catchWeather': {
+        const element = WEATHER_ELEMENTS[state.weather.current];
+        if (element) events.push(...addElement(state, element, target));
+        break;
+      }
       case 'brew':
         events.push(...brew(state, target));
         break;
       case 'bottle':
         state.bottleNext += 1;
         break;
+      case 'doubleBrew':
+        state.doubleNext += 1;
+        break;
+      case 'boilOver': {
+        const count = state.cauldron.length;
+        state.cauldron = [];
+        const [index] = targets(false);
+        const enemy = index === undefined ? undefined : state.enemies[index];
+        if (!enemy || index === undefined || count === 0) break;
+        const { blocked, hpLost } = dealDamage(enemy, playerAttackDamage(state, effect.amount * count, undefined));
+        events.push({ type: 'damage', target: { side: 'enemy', index }, amount: hpLost, blocked });
+        updateStatus(state);
+        break;
+      }
       case 'steal':
         for (const index of targets(false)) {
           const enemy = state.enemies[index] as EnemyState;
@@ -494,22 +562,46 @@ function applyEffects(state: CombatState, effects: readonly Effect[], target?: n
   return events;
 }
 
+/** Adds an element to the cauldron. Adding to a full cauldron brews it first; a brew always uses at least one slot. */
+function addElement(state: CombatState, element: ElementId, target?: number): CombatEvent[] {
+  const events: CombatEvent[] = [];
+  if (state.cauldron.length >= state.cauldronSlots) events.push(...brew(state, target));
+  if (state.status !== 'playing') return events;
+  state.cauldron.push(element);
+  events.push({ type: 'element', element });
+  return events;
+}
+
 /** Brews the cauldron: see findBrew for which recipe is made. Unused elements stay. */
 function brew(state: CombatState, target?: number): CombatEvent[] {
   if (state.cauldron.length === 0 || state.status !== 'playing') return [];
   const result = findBrew(state.cauldron);
   const used = result.usedSlots.map((i) => state.cauldron[i] as ElementId);
   state.cauldron = state.cauldron.filter((_, i) => !result.usedSlots.includes(i));
-  const event: CombatEvent = { type: 'brew', recipeId: result.recipe.id, used };
-  recordBrewed(state, result.recipe.id);
-  // Bottling keeps a real recipe for later; Sludge and full potion belts are used as normal.
-  if (state.bottleNext > 0 && result.recipe.id !== SLUDGE.id && state.potions.length < MAX_POTIONS) {
-    state.bottleNext -= 1;
-    state.potions.push(result.recipe.id);
-    event.bottled = true;
-    return [event];
+  const events: CombatEvent[] = [];
+  let recipe = result.recipe;
+  // The Alembic turns a failed brew into a random basic one.
+  if (recipe.id === SLUDGE.id && hasRelic(state, 'alembic')) {
+    recipe = getRecipe(withRng(state, (rng) => rng.pick(BASIC_RECIPES)));
+    events.push({ type: 'relic', relic: 'alembic' });
   }
-  return [event, ...applyEffects(state, result.recipe.effects, target)];
+  const event: CombatEvent = { type: 'brew', recipeId: recipe.id, used };
+  events.unshift(event);
+  recordBrewed(state, recipe.id);
+  // Bottling keeps a real recipe for later; Sludge and full potion belts are used as normal.
+  if (state.bottleNext > 0 && recipe.id !== SLUDGE.id && state.potions.length < MAX_POTIONS) {
+    state.bottleNext -= 1;
+    state.potions.push(recipe.id);
+    event.bottled = true;
+    return events;
+  }
+  events.push(...applyEffects(state, recipe.effects, target));
+  // Catalyst: the brew works a second time.
+  if (state.doubleNext > 0 && recipe.id !== SLUDGE.id) {
+    state.doubleNext -= 1;
+    events.push(...applyEffects(state, recipe.effects, target));
+  }
+  return events;
 }
 
 /**

@@ -92,10 +92,17 @@ stays the same; if it showed the weather that was just summoned, it skips ahead
 so the next change always changes something.
 
 ### 3.3 Weather-related keywords
-- **Attuned (X)**: this card has a bonus effect while the weather is X.
+- **Attuned (X)**: a bonus while the weather is X. An Attuned card shows its
+  weather in a corner and glows while that weather is here (*Frostbite*: in
+  Snow, also apply 2 Weak). Enemy moves can be Attuned too (the Snow Wolf
+  pounces harder in Snow).
 - **Forecast**: look at or change an upcoming weather slot.
 - **Weathered (X)**: this enemy ignores the harmful effects of weather X
   (it can't be hit by Storm lightning, or doesn't gain Heatwave Burn).
+- **Sheltered**: this enemy is always under cover, so the weather never
+  reaches it (the Drizzle Slime).
+- **Hunter** 🎯: this enemy hits harder when you're out in the open (the Sky
+  Hawk and the Storm Roc). Its intent shows the higher number while you're Out.
 - **Burn**: at the end of your turn, lose HP equal to your Burn (ignoring
   Block), then Burn goes down by 1.
 
@@ -116,13 +123,14 @@ so the next change always changes something.
   right away. The cauldron really holds 3 elements, so you choose when to brew;
   adding an element to a **full** cauldron brews it first to make room (the
   preview warns you), so a Gather card never wastes its element. When brewing:
-  1. The weather's free element joins the brew (it doesn't take a slot) and is
-     tried first.
-  2. The **largest** matching recipe is brewed; among recipes of the same size,
+  1. The **largest** matching recipe is brewed; among recipes of the same size,
      the **oldest** elements are used first.
-  3. Elements the recipe didn't use **stay** for later.
+  2. Elements the recipe didn't use **stay** for later.
+- The weather adds elements through **Exposure** (§11): out in the open, its
+  element falls into the cauldron at the start of your turn. (An early version
+  added the weather's element to every brew for free instead.)
 - The cauldron always previews what brewing now would make, and a recipe book
-  lists every recipe. (Once the Grimoire exists, unknown recipes will be hidden.)
+  lists every recipe (unknown ones show as ???, see §4.4).
 - Order does **not** matter: recipes are matched as unordered sets, so Fire +
   Water and Water + Fire both make Steam. (A small number of rare, clearly
   marked exceptions could be added much later, but only if the base system
@@ -197,61 +205,124 @@ How elements improve your deck between fights:
 ## 5. Content Plan
 
 ### 5.1 Starting character: the Stormbrewer
-- 75 HP. Starter deck (12 cards): 3× Strike, 3× Defend, *Gather Ember*,
-  *Gather Dew*, *Gather Stone*, *Gather Gust*, *Stir* (Brew) and *Summon Rain*.
+- 75 HP. Starter deck (12 cards): 2× Strike, *Pilfer*, 3× Defend, *Gather
+  Ember*, *Gather Dew*, *Gather Stone*, *Gather Gust*, *Stir* (Brew) and
+  *Summon Rain*.
 - Starting relic: **Copper Cauldron**: start each fight with a random base
   element in the cauldron. (Originally "first brew free", but Stir already
   costs 0.)
 - *Later characters:* the **Tempest Witch** (focused on weather control) and the
   **Rootkeeper** (Earth and Mist, poison-style damage over time).
 
-### 5.2 Example cards
-- *Gather Ember* (1): Add Fire. Deal 3 damage.
-- *Stir* (0): Brew.
-- *Summon Rain* (1): Set weather to Rain. Draw 1.
-- *Lightning Rod* (Power, 2): When Storm bolts would hit you, they hit a random enemy instead.
-- *Barometric Shift* (0): Swap the current weather with the next forecast slot.
-- *Double Boil* (2): Brew, then brew again with the same contents.
-- *Bottle It* (1): The next brew this turn is saved as a Potion instead of being used.
-- *Hold the Sky* (2, Exhaust): Skip the next scheduled weather change.
-- *Frostbite* (1, Attuned Snow): Deal 6. In Snow: apply 2 Frozen.
+### 5.2 Cards
 
-### 5.3 Enemies (Act 1 examples)
+40 cards are made by hand (`src/data/cards.ts`), and every recipe adds two
+distilled cards (a Flask and an Essence, §11), 82 in all:
+- **Basics**: Strike, Defend, Brace, Ember Bolt, Thunderclap.
+- **Elements**: *Gather Ember / Dew / Stone / Gust*, *Twin Embers*, *Deluge*,
+  *Riptide* (deal 5, add 💧), *Gale Force* (3 to ALL, add 🌬️), *Earthen Wall*
+  (12 Block, add 🪨), *Static Charge* (add ⚡, draw 1), *Rime* (4 Block, add ❄️),
+  *Catch the Sky* (add the weather's element, draw 1).
+- **Brewing**: *Stir*, *Double Boil*, *Simmer* (5 Block, brew), *Catalyst*
+  (the next brew works twice), *Boil Over* (empty the cauldron: 4 damage per
+  element), *Bottle It*.
+- **Weather**: *Summon Rain*, *Clear Skies*, *Kindle*, *Call Lightning*,
+  *First Frost*, *Cloudburst* (Rain, 7 to ALL), *Shift Winds*, *Hold the Sky*,
+  *Scatter Clouds*, *Weather Front* (the next weather comes now).
+- **Attuned** (§3.3): *Frostbite* (Snow: 2 Weak), *Sunstrike* (Heatwave:
+  3 Burn), *Static Shock* (Storm: +1 energy), *Undertow* (Rain: draw 2),
+  *Clarity* (Clear: draw 2 more).
+- **Against enemy cauldrons**: *Pilfer*, *Curdle*.
 
-In the game now (simpler versions of the ideas below):
-- **Cinder Imp** (42 HP): fire attacks, Weathered against Heatwave.
-- **Storm Caller** (40 HP): summons Storm, Weathered against Storm.
-- **Drizzle Slime** (26 HP): its Spit makes you Weak (you deal 25% less).
-- **Frost Golem** (55 HP): summons Snow, so its Block builds up.
-- Encounters: one easy enemy for the first 2 fights, then harder ones
-  (the Golem, or two enemies at once).
+### 5.3 Enemies
 
-Original ideas, for later:
-- **Drizzle Slime**: in Rain, splits into two when damaged.
-- **Storm Caller** (Elite): alternates attacking with calling Storm.
-- **Cinder Imp**: gains Strength in Heatwave.
-- **Frost Golem**: gains 6 Block each turn in Snow, and its Block keeps.
-- **Boss: The Eye of the Storm**: changes weather **every** round in a fixed,
-  telegraphed cycle. In phase 2 it steals the top element of your cauldron.
+Each enemy uses the weather, the cauldron or your stance in its own way. The
+numbers come from the balance pass (§12).
+
+| Enemy | HP | What it does |
+|-------|----|--------------|
+| **Cinder Imp** | 46 | Fire attacks; Weathered (Heatwave) |
+| **Storm Caller** | 44 | Calls Storm, shuffles two Storms into your sky; Weathered (Storm) |
+| **Drizzle Slime** | 30 | Spit makes you Weak; Sheltered. Often the second enemy in a fight |
+| **Mire Witch** | 40 | Brews Fireball, then Tonic, in its own cauldron |
+| **Sky Hawk** | 34 | Hunter: its Dive hits 7 harder while you're Out |
+| **Bog Toad** | 44 | Calls Rain, steals your newest element, brews Mud; belly-flops harder in Rain |
+| **Rainmaker** | 40 | Shuffles a Monsoon into your sky; shields itself in Rain |
+| **Frost Golem** | 64 | Heavy Slams; brews Permafrost for itself, then Ice Lance at you |
+| **Snow Wolf** | 50 | Attuned: pounces 6 harder in Snow |
+| **Spark Wisp** | 24 | Comes in pairs; brews Ball Lightning; Weathered (Storm) |
+
+The first three floors use one easy enemy (or two slimes); later floors use the
+Golem, the Wolf, or a pair.
+
+**Elites** each test one part of the game, and give a relic:
+- **Storm Roc** (110 HP), *exposure*: calls Storm, dives for 28 at a player out
+  in the open (18 under cover), and adds two Squalls to your sky.
+- **Cauldron Crone** (95 HP), *brewing*: a three-slot cauldron that brews Heat
+  Haze (Heatwave, fire at you) and Downpour (Rain, heals itself), and a Snatch
+  that steals from your cauldron. *Pilfer* and *Curdle* are made for her.
+- **Cinder Drake** (100 HP), *the sky*: calls a Heatwave, adds a Heat Dome to
+  your sky, and breathes fire that is strongest in a Heatwave.
+
+**Boss: the Eye of the Storm** (170 HP): changes the weather every round in a
+fixed cycle (Rain, Storm, Heatwave, Snow). Below half HP its moves hit harder
+and two of them steal your newest element into its own cauldron, which it
+brews against you.
+
+Ideas for later: a Drizzle Slime that splits in Rain, enemies that gain
+Strength over a fight.
 
 ### 5.4 Relics
 
-In the game now (found at elites and in shops):
+15 relics (found at elites, events and shops):
+- **Copper Cauldron** (starting relic): start each fight with a random base element.
 - **Barometer**: the forecast shows the next two weathers.
 - **Weathervane**: whenever the weather changes, gain 3 Block.
+- **Wind Chime**: whenever the weather changes, draw a card.
 - **Iron Cauldron**: the cauldron has 4 slots.
 - **Rain Barrel**: in Rain, gain 1 extra energy each turn.
 - **Snow Globe**: in Snow, gain 3 Block at the start of your turn.
 - **Lightning Rod**: Storm lightning never hits you.
 - **Sun Stone**: Heatwave never gives you Burn.
+- **Umbrella**: under cover, gain 4 Block at the start of your turn.
+- **Dewcatcher**: whenever the weather drops an element into your cauldron, gain 2 Block.
+- **Cloud Seed**: fights start in a weather from your sky instead of Clear.
+- **Alembic**: Sludge becomes a random brew of two base elements.
 - **Healing Herb**: heal 6 HP after each fight you win.
 - **Lucky Coin**: gain 10 extra gold from each fight.
 
-Later: **Alembic** (Sludge becomes a random known recipe) once the Grimoire exists.
+### 5.5 Events
 
-### MVP content targets
-~40 cards, 5 weathers, 4 base elements plus Spark and Frost, ~20 recipes,
-~10 normal enemies, 3 elites, 1 boss, ~15 relics, 6 events, Act 1 only.
+Event spots (❓) appear on the map from floor 2. Each run shows the events
+in a random order without repeats. Every event has 2–3 choices, and a choice
+you can't take says why (not enough gold or HP, a full potion belt…):
+- **Abandoned Cauldron**: drink it (heal 15), study the residue (learn 2
+  recipes for your Grimoire), or bottle it (a random potion).
+- **Lightning-Struck Oak**: carve a charm (infuse a card with ⚡ Spark, which
+  rest sites can't do) or take the heartwood (+5 max HP).
+- **Weather Shrine**: pray for calm (remove a weather card from your sky) or
+  leave an offering (25 gold: choose 1 of 3 weather cards to add).
+- **Storm Chaser**: chase the storm (fight an elite for its relic) or buy
+  their gear (80 gold: a random relic).
+- **Frozen Traveler**: thaw them (lose 8 HP, gain a relic) or take the pack
+  (45 gold).
+- **Wandering Alchemist**: trade a card (it becomes a random card) or buy a
+  lesson (30 gold: learn 3 recipes).
+
+### MVP content targets (reached in Milestone 8)
+
+| | Target | In the game |
+|---|---|---|
+| Cards | ~40 | 40, plus 42 distilled |
+| Weathers | 5 | 5 |
+| Elements | 4 base, plus Spark and Frost | ✅ |
+| Recipes | ~20 | 21 |
+| Normal enemies | ~10 | 10 |
+| Elites | 3 | 3 |
+| Boss | 1 | 1 |
+| Relics | ~15 | 15 |
+| Events | 6 | 6 |
+| Acts | 1 | 1 |
 
 ---
 
@@ -357,7 +428,7 @@ Important choices:
 | 5 | **Run structure** ✅ | Branching Act 1 map, rest sites (including Infuse), shop, gold, relics, the Act 1 boss |
 | 6 | **Discovery & potions** ✅ | Grimoire (persistent), Bottling, potions, auto-save and resume |
 | 7 | **Identity** (A–D done, see §11) | The features that make Stormbrew play differently from *Slay the Spire*: Exposure, enemy cauldrons, the Sky Deck, Distilling |
-| 8 | **MVP content & balance** | Reach the MVP content targets, playtest on real phones, tune `WEATHER_INTERVAL` |
+| 8 | **MVP content & balance** ✅ | MVP content targets reached (§5), events, a balance pass with a computer player and `WEATHER_INTERVAL` tested (§12). Playtesting on real phones is still to do |
 | 9 | **Polish** | Animations, sound, vibration feedback, weather particles, app icon and splash screen |
 | 10 | **Expansion** | Acts 2–3, Fog/Gale/Eclipse, a second character, ascension levels, iOS/desktop builds |
 
@@ -374,12 +445,13 @@ is fun in a single fight on a phone, the rest is adding content.
 | Engine | TypeScript + Vite, wrapped with Capacitor for mobile |
 | Art | Minimal for now (shapes, icons, color) |
 | Recipe order | Does not matter |
-| Weather timing | Each weather lasts a fixed N turns (starting at 3), never random; any weather change restarts the countdown |
+| Weather timing | Each weather lasts a fixed 3 turns (weather cards can last 2 or 5), never random; any weather change restarts the countdown. 2 and 4 were tested too (§12) |
 | Brewing location | Only inside fights; potions come from Bottling, rewards, and shops |
 | Weather ↔ brewing | Exposure: out in the open, the weather drops its element (Rain → Water, Storm → Spark, Heatwave → Fire, Snow → Frost) into your cauldron each turn |
 | Identity | Built A (Exposure), B (enemy cauldrons), C (Sky Deck), D (Distilling: up to 2 of 3 rewards, repeats at 25%) |
 | Sludge | Friendly: a failed brew gives 2 Block |
-| Act 1 structure | 10-floor branching map (4 lanes, paths never cross): fights, elites, rest sites, shops, then the boss. HP carries over (no free heal); rest sites heal 30% or Infuse |
+| Act 1 structure | 10-floor branching map (4 lanes, paths never cross): fights, elites, events, rest sites, shops, then the boss. HP carries over (no free heal); rest sites heal 30%, Infuse or chart the sky |
+| Difficulty | A strong computer player wins about 60% of runs and random play never wins (§12). Healing brews are small (Tonic heals 2, Thaw 3, Downpour 3) so fights can't be dragged out to heal |
 | Rewards | Fights: 12–18 gold + pick 1 of 3 cards; elites: 28–35 gold + a relic + a card. Start with 50 gold |
 | Shops | 3 cards (40–55 gold), 2 relics (110–140), one card removal (60) per visit |
 | Crowded hands | Cards keep their size and overlap instead of shrinking |
@@ -387,13 +459,17 @@ is fun in a single fight on a phone, the rest is adding content.
 
 ## 10. Open Questions
 
-1. **Weather interval**: is 3 rounds right? This will be tested in milestone 2
-   and tuned in milestone 7.
+1. **Difficulty for people**: the numbers were tuned with a computer player
+   (§12). Playtesting on phones will show whether the game is too hard or too
+   easy for people, and whether 3 turns of weather feels right.
 2. **Store release**: sideloaded APK only, or eventually Google Play? (Google
    Play needs a one-time $25 developer account and a signed release build.)
 3. **Stir cost**: Stir costs 0, and the Copper Cauldron became "start with an
    element" instead of "first brew free". Revisit during balancing.
 4. **Identity**: which of the §11 features to build, and in what order.
+5. **Snow** is the strongest weather for the player, because Block stacks up
+   for as long as it lasts. Letting only half the Block wear off made little
+   difference in the balance runs, so the simple rule stays; watch it in playtests.
 
 ---
 
@@ -502,7 +578,10 @@ it is (cost).
     distilling, distinct cards per card added went from 0.87 to 0.97, the
     similarity between two runs' decks from 0.14 to 0.06, and the number of
     different cards seen across runs from 22 to 61. A test fails if distilling
-    ever makes decks less varied than random rewards alone.
+    ever makes decks less varied than random rewards alone. (After Milestone
+    8's tougher enemies the random player dies sooner and adds fewer cards;
+    the same measure now gives 0.98 → 0.99, 0.034 → 0.034 and 38 → 55
+    different cards, and the test still passes.)
 - Not built yet: **E (storm front)**, **F (elements as energy)**.
 
 ### 11.4 Recommendation
@@ -514,3 +593,85 @@ with the enemies and the run. Then decide on **D (Distilling)** to replace
 card rewards. Keep **E** for when the map needs more depth, and treat **F** as
 a later experiment. Balancing (the old Milestone 7) should wait until these
 are in, since they change the numbers.
+
+---
+
+## 12. Balance (Milestone 8)
+
+### 12.1 How it was measured
+
+Balancing by hand needs many runs, so the game plays itself:
+- A **computer player** (`tests/helpers/smartplay.ts`) tries every card it can
+  play, plays out the rest of the round on a copy of the fight, and picks what
+  leaves it best off (its HP, the enemies' HP, Burn, Weak, what is in the
+  cauldron…). It chooses Out or Cover the same way, rests when hurt, takes
+  elites when healthy, and picks the best-looking card reward. It doesn't know
+  where lightning will strike. It plays about as well as a strong player.
+- **`npm run balance`** plays 200 runs with it and prints a report: win rate,
+  where runs end, HP lost in each kind of fight, and how the weather behaved.
+  It also plays 200 runs of random cards and random rewards, as a floor.
+- A test (`tests/balance.test.ts`) plays 20 runs of each and fails if the
+  computer player wins less than 30% or more than 90%, or random play wins
+  more than 10%, so later changes can't break the balance by accident.
+
+### 12.2 Targets and results
+
+Before the balance pass the computer player won **100%** of runs, losing about
+3 HP a fight: enemies hit too softly for a player who blocks well, and healing
+brews let slow fights end with *more* HP than they started. The targets: a
+strong player wins about 60%, random play never wins, easy fights cost a
+few HP, hard fights about 10, elites about 20–30 and the boss about 35.
+
+| | Before | After |
+|---|---|---|
+| Computer player wins | 100% | **59%** |
+| Random play wins | – | **0%** |
+| HP lost per fight | 2.5 | 12.4 |
+| Easy fights (floors 1–3) | 0–2 HP | 1–9 HP |
+| Hard fights | 0–5 HP | 4–14 HP |
+| Elites | 2–10 HP | 20–28 HP |
+| Boss | 6 HP, always won | 36 HP, won 72% of the time |
+
+About half of the lost runs end at the boss, and most of the rest on floors 5–9.
+
+What changed:
+- Enemies hit harder (about 1.2–1.6×) and have a little more HP; elites and
+  the boss more than the rest (see §5.3 for the numbers).
+- Healing brews heal less: Tonic 5 → 2 (Block 5 → 7), Thaw 6 → 3, Downpour
+  4 → 3 (Block 6 → 7).
+- The **Frost Golem** no longer calls Snow: Snow kept the *player's* Block too,
+  so the Golem could never hurt anyone. It now brews Ice Lance at you as well
+  as Permafrost for itself.
+- The **Snow Wolf** doesn't call Snow either; it hunts better in Snow when the
+  sky brings it.
+- Two-enemy fights pair a strong enemy with a weak one (a Drizzle Slime or a
+  Spark Wisp), because two strong enemies together were much harder than
+  anything else on the same floor.
+
+### 12.3 The weather interval
+
+The same 200 runs with every basic weather lasting 2, 3 or 4 turns:
+
+| Interval | Won | Weathers seen per fight | Changes on schedule per fight |
+|---|---|---|---|
+| 2 turns | 59% | 3.4 | 1.9 |
+| **3 turns** | 62% | 2.5 | 0.8 |
+| 4 turns | 61% | 2.3 | 0.4 |
+
+(Weathers are counted in fights before the boss, which changes the weather
+every round anyway. These runs came before the last few enemy changes, so
+their win rates are a little higher than the final 59%.)
+
+Difficulty barely moves, so the interval is about feel. **3 turns stays**: the
+sky changes in most fights and you see two or three weathers, but each one
+lasts long enough to plan around and to play Attuned cards in it. At 2 the
+weather flips almost every other turn; at 4 the schedule hardly matters,
+because cards and enemies change the weather first.
+
+### 12.4 What the numbers can't tell
+
+A computer player can't say whether something is fun, readable or fair, and
+people play differently (they'll lose more HP but may spot tricks it misses).
+The next step is playtesting on real phones. If the game feels too hard, the
+easiest levers are enemy damage in `src/data/enemies.ts`, the rest-site heal
+(`REST_HEAL`) and gold rewards.
