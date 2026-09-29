@@ -9,7 +9,9 @@ import {
   endTurn,
   enemyAttackDamage,
   enemyBrewPreview,
+  enemyMoveBlock,
   isAlive,
+  isAttuned,
   isSheltered,
   isWeathered,
   playCard,
@@ -157,14 +159,19 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
     }
     selectedUid = uid;
     selectedPotion = null;
-    const effects = cardEffects(card);
+    const effects = cardEffects(card, state.weather.current);
     const brew = previewCardBrew(state, { effects });
-    const overflow = state.cauldron.length >= state.cauldronSlots && effects.some((e) => e.type === 'addElement');
+    const addsElement = effects.some(
+      (e) => e.type === 'addElement' || (e.type === 'catchWeather' && WEATHER_ELEMENTS[state.weather.current]),
+    );
+    const overflow = state.cauldron.length >= state.cauldronSlots && addsElement;
     const what = !brew
       ? ''
-      : known(brew.recipe.id)
-        ? `${brew.recipe.name}: ${plainText(brew.recipe, state.weather.current, !!state.player.statuses.weak)}`
-        : 'an unknown recipe!';
+      : alembicGamble(state, brew.recipe)
+        ? 'Sludge, which the Alembic turns into a random basic brew!'
+        : known(brew.recipe.id)
+          ? `${brew.recipe.name}: ${plainText(brew.recipe, state.weather.current, !!state.player.statuses.weak)}`
+          : 'an unknown recipe!';
     const brewNote = brew ? `${overflow ? 'Cauldron full! First brews' : 'Brews'} ${what} ` : '';
     hint =
       brewNote +
@@ -275,7 +282,7 @@ function renderCombat(state: CombatState, ui: CombatUi): string {
       ${renderForecast(state)}
 
       <section class="enemies">
-        ${state.enemies.map((e, i) => renderEnemy(e, i, targeting, state.weather.current, ui.known)).join('')}
+        ${state.enemies.map((e, i) => renderEnemy(e, i, targeting, state, ui.known)).join('')}
       </section>
 
       ${renderCauldron(state, ui.known)}
@@ -320,9 +327,11 @@ function renderEnemy(
   enemy: EnemyState,
   index: number,
   targeting: boolean,
-  weather: WeatherId,
+  state: CombatState,
   known: (recipeId: string) => boolean,
 ): string {
+  const weather = state.weather.current;
+  const exposed = state.player.exposed;
   const look = ENEMY_LOOKS[enemy.defId] ?? { name: enemy.name, icon: '👾', color: '#888' };
   if (!isAlive(enemy)) {
     return `<span class="enemy unit defeated" data-unit="enemy-${index}">
@@ -333,13 +342,17 @@ function renderEnemy(
   const move = currentIntent(enemy);
   // An enemy's own weather move happens before its attack, so preview damage in that weather.
   const attackWeather = move.weather ?? weather;
+  const block = enemyMoveBlock(move, attackWeather);
+  // A hunter's dive shows its bonus while you're out in the open.
+  const hunting = exposed && move.exposedBonus ? ICONS.hunter : '';
   const intentParts = [
     move.weather ? WEATHERS[move.weather].icon : '',
     move.damage
-      ? `${ICONS.attack} ${enemyAttackDamage(enemy, move, attackWeather)}${move.element === 'fire' ? ICONS.burn : ''}`
+      ? `${ICONS.attack} ${enemyAttackDamage(enemy, move, attackWeather, exposed)}${move.element === 'fire' ? ICONS.burn : ''}${hunting}`
       : '',
-    move.block ? `${ICONS.block} ${move.block}` : '',
+    block ? `${ICONS.block} ${block}` : '',
     move.status ? `${ICONS[move.status.status]} ${move.status.amount}` : '',
+    move.stealElement ? ICONS.steal : '',
   ].filter(Boolean);
   // A brew fills up at the end of this turn: show its damage in the intent too.
   const brewing = enemyBrewPreview(enemy);
@@ -349,6 +362,8 @@ function renderEnemy(
     intentParts.push(`${ICONS.cauldron} ${amount}`);
   } else if (brewing) intentParts.push(ICONS.cauldron);
   const weathered = WEATHER_IDS.filter((w) => isWeathered(enemy, w));
+  const def = getEnemy(enemy.defId);
+  const hunter = [...def.moves, ...(def.phase2?.moves ?? [])].some((m) => m.exposedBonus);
   return `
     <button class="enemy unit ${targeting ? 'targetable' : ''}" data-enemy="${index}" data-unit="enemy-${index}"
       aria-label="${esc(enemy.name)}, ${enemy.hp} HP">
@@ -362,6 +377,7 @@ function renderEnemy(
             : ''
         }
         ${isSheltered(enemy) ? `<span class="weathered" title="Sheltered: the weather never reaches it">${ICONS.cover}</span>` : ''}
+        ${hunter ? `<span class="weathered" title="Hunter: hits harder when you're out in the open">${ICONS.hunter}</span>` : ''}
       </span>
       ${renderEnemyCauldron(enemy, brewing, known)}
       ${renderHpBar(enemy)}
@@ -413,27 +429,48 @@ function renderCard(state: CombatState, card: CardInstance, selected: boolean): 
     attrs: `data-uid="${card.uid}"`,
     weak: !!state.player.statuses.weak,
     infusion: card.infusion,
+    attuned: isAttuned(def.id, state.weather.current),
   });
+}
+
+/**
+ * Roughly how wide a name's longest word is in bold text, in em. Card names
+ * shrink to fit it (see .card-name) instead of breaking inside the word.
+ */
+function longestWordEm(name: string): number {
+  const width = (ch: string) =>
+    /[iljI.,'!]/.test(ch) ? 0.32 : /[ftr]/.test(ch) ? 0.45 : /[mwMW]/.test(ch) ? 0.95 : /[A-Z]/.test(ch) ? 0.72 : 0.62;
+  return Math.max(...name.split(/\s+/).map((word) => [...word].reduce((sum, ch) => sum + width(ch), 0) * 1.2));
 }
 
 /** A card as a button. Also used on the map screens (rewards, shop, deck). */
 export function cardFace(
   def: CardDef,
   weather: WeatherId,
-  options: { className?: string; attrs?: string; weak?: boolean; infusion?: ElementId | undefined; note?: string } = {},
+  options: {
+    className?: string;
+    attrs?: string;
+    weak?: boolean;
+    infusion?: ElementId | undefined;
+    note?: string;
+    /** The card's Attuned bonus is active (it glows in the weather's color). */
+    attuned?: boolean;
+  } = {},
 ): string {
   const added = def.effects.find((e) => e.type === 'addElement');
   const element = added?.type === 'addElement' ? added.element : undefined;
   const { infusion } = options;
   const infusionText = infusion ? ` Add ${ELEMENTS[infusion].icon}.` : '';
+  const attunedTo = def.attuned ? WEATHERS[def.attuned.weather] : undefined;
   return `
-    <button class="card ${infusion ? 'infused' : ''} ${options.className ?? ''}" ${options.attrs ?? ''}
-      style="--card-color: ${CARD_KIND_COLORS[def.kind]}"
-      aria-label="${esc(def.name)}, costs ${def.cost}. ${esc(plainText(def, weather, options.weak) + infusionText)}">
+    <button class="card ${infusion ? 'infused' : ''} ${options.attuned ? 'attuned' : ''} ${options.className ?? ''}" ${options.attrs ?? ''}
+      style="--card-color: ${CARD_KIND_COLORS[def.kind]}${attunedTo ? `; --attuned-color: ${attunedTo.color}` : ''}"
+      aria-label="${esc(def.name)}, costs ${def.cost}. ${esc(plainText(def, weather, options.weak) + infusionText)}${options.attuned ? ' Attuned now.' : ''}">
       <span class="card-cost">${def.cost}</span>
       ${element ? `<span class="card-element" style="--chip-color: ${ELEMENTS[element].color}">${ELEMENTS[element].icon}</span>` : ''}
+      ${attunedTo && !element ? `<span class="card-element card-attuned" style="--chip-color: ${attunedTo.color}" title="Attuned to ${esc(attunedTo.name)}">${attunedTo.icon}</span>` : ''}
       ${infusion ? `<span class="card-infusion" style="--chip-color: ${ELEMENTS[infusion].color}" title="Infused">${ELEMENTS[infusion].icon}</span>` : ''}
-      <span class="card-name">${esc(def.name)}</span>
+      <span class="card-name" style="--name-em: ${longestWordEm(def.name).toFixed(2)}">${esc(def.name)}</span>
       <span class="card-icon">${cardIcon(def)}</span>
       <span class="card-text">${richText(def, weather, options.weak)}${infusionText}</span>
       ${options.note ? `<span class="card-note">${esc(options.note)}</span>` : ''}
@@ -491,6 +528,11 @@ function renderPotions(state: CombatState, selected: number | null): string {
   `;
 }
 
+/** Whether this brew is Sludge that the Alembic will turn into a random brew. */
+function alembicGamble(state: CombatState, recipe: RecipeDef): boolean {
+  return recipe.id === SLUDGE.id && hasRelic(state, 'alembic');
+}
+
 /** The cauldron's slots and what brewing now would make. */
 function renderCauldron(state: CombatState, known: (recipeId: string) => boolean): string {
   const weather = state.weather.current;
@@ -501,11 +543,14 @@ function renderCauldron(state: CombatState, known: (recipeId: string) => boolean
   let preview = 'Gather elements, then Stir to brew. Tap for recipes.';
   if (state.cauldron.length > 0) {
     const brew = findBrew(state.cauldron);
-    preview = known(brew.recipe.id)
-      ? `Stir now: <strong>${esc(brew.recipe.name)}</strong> · ${richText(brew.recipe, weather, !!state.player.statuses.weak)}`
-      : 'Stir now: <strong>???</strong> · an unknown recipe. Brew it to learn it!';
+    preview = alembicGamble(state, brew.recipe)
+      ? `Stir now: <strong>${RELIC_ICONS.alembic} a random basic brew</strong> · the Alembic turns Sludge into one.`
+      : known(brew.recipe.id)
+        ? `Stir now: <strong>${esc(brew.recipe.name)}</strong> · ${richText(brew.recipe, weather, !!state.player.statuses.weak)}`
+        : 'Stir now: <strong>???</strong> · an unknown recipe. Brew it to learn it!';
   }
   if (state.bottleNext > 0) preview += ` <strong>${ICONS.potion} The next brew will be bottled.</strong>`;
+  if (state.doubleNext > 0) preview += ` <strong>${ICONS.double} The next brew works twice.</strong>`;
   return `
     <button class="cauldron" data-action="recipes" aria-label="Cauldron. Tap to see recipes.">
       <span class="cauldron-row">

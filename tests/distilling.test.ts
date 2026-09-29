@@ -16,6 +16,7 @@ import { CARDS, REWARD_POOL, STARTER_DECK, getCard } from '../src/data/cards';
 import { DISTILLED_CARDS, distilledRecipe, essenceId, flaskId } from '../src/data/distilled';
 import { RECIPES } from '../src/data/recipes';
 import { autoplayRun } from './helpers/autoplay';
+import { enemyHp } from './helpers/data';
 
 const placeAt = (run: RunState, type: MapNode['type']): MapNode => {
   if (run.nodeId === null) enterNode(run, availableNodes(run)[0]?.id ?? '');
@@ -49,7 +50,7 @@ describe('distilled cards', () => {
     const card = s.hand[0];
     if (!card) throw new Error('empty hand');
     expect(playCard(s, card.uid, 0).ok).toBe(true);
-    expect(s.enemies[0]?.hp).toBe(42 - 12);
+    expect(s.enemies[0]?.hp).toBe(enemyHp('cinderImp') - 12);
   });
 
   it("an Essence adds its recipe's elements", () => {

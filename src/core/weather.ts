@@ -1,12 +1,13 @@
 import type { Rng } from './rng';
-import { STARTING_SKY, getSkyCard } from '../data/sky';
+import { STANDARD_TURNS, STARTING_SKY, getSkyCard } from '../data/sky';
 import type { ElementId, WeatherId, WeatherState } from './types';
 
 /**
  * Each weather lasts this many turns, then changes to the forecast. Changing the
- * weather with a card or enemy move restarts the countdown.
+ * weather with a card or enemy move restarts the countdown. It is the length of
+ * a basic weather card, set in data/sky.ts.
  */
-export const WEATHER_INTERVAL = 3;
+export const WEATHER_INTERVAL = STANDARD_TURNS;
 
 /** How many upcoming weathers are generated ahead of time. */
 export const FORECAST_LENGTH = 2;
@@ -49,16 +50,28 @@ export function skyWeather(cardId: string): WeatherId {
   return getSkyCard(cardId).weather;
 }
 
-/** The fight's first weather starts on turn 1; the forecast is drawn from the sky deck. */
-export function createWeather(rng: Rng, start: WeatherId = 'clear', sky: readonly string[] = STARTING_SKY): WeatherState {
+/**
+ * The fight's first weather starts on turn 1; the forecast is drawn from the
+ * sky deck. `start: 'sky'` draws the first weather from the sky too.
+ */
+export function createWeather(
+  rng: Rng,
+  start: WeatherId | 'sky' = 'clear',
+  sky: readonly string[] = STARTING_SKY,
+): WeatherState {
   const weather: WeatherState = {
-    current: start,
-    currentCard: start,
+    current: 'clear',
+    currentCard: 'clear',
     forecast: [],
     nextChangeTurn: 1 + WEATHER_INTERVAL,
     skyPile: rng.shuffle(sky),
     skyDeck: [...sky],
   };
+  if (start === 'sky') advanceWeather(weather, rng, 1);
+  else {
+    weather.current = start;
+    weather.currentCard = start;
+  }
   fillForecast(weather, rng);
   return weather;
 }

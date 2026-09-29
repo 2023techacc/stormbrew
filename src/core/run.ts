@@ -1,6 +1,7 @@
 import { REWARD_POOL, STARTER_DECK, getCard } from '../data/cards';
 import { distilledRecipe, essenceId, flaskId } from '../data/distilled';
 import { ENCOUNTERS } from '../data/enemies';
+import { EVENT_IDS } from '../data/events';
 import { RECIPES } from '../data/recipes';
 import { RELIC_POOL, STARTING_RELICS, getRelic } from '../data/relics';
 import { SKY_POOL, STARTING_SKY, getSkyCard } from '../data/sky';
@@ -42,6 +43,17 @@ export interface ShopItem {
   sold: boolean;
 }
 
+/** The event the player is at, and the choice it is waiting on. */
+export interface EventState {
+  id: string;
+  /** An option that needs a card or weather card picked before it happens. */
+  pending?: string;
+  /** The weather cards offered by the pending option, once rolled. */
+  skyChoices?: string[];
+  /** The event started a fight (with an elite's rewards). */
+  fight?: boolean;
+}
+
 export interface ShopState {
   cards: ShopItem[];
   relics: ShopItem[];
@@ -75,6 +87,10 @@ export interface RunState {
   status: RunStatus;
   /** The stock of the shop the player is in. */
   shop?: ShopState;
+  /** The event the player is at. */
+  event?: EventState;
+  /** Events seen this run; they don't repeat until every event has been seen. */
+  seenEvents: string[];
 }
 
 export interface FightRewards {
@@ -96,6 +112,7 @@ export type RunScreen =
   | { name: 'reward'; rewards: FightRewards }
   | { name: 'rest'; step: 'choose' | 'pickCard' | 'pickElement' | 'pickSky'; deckIndex?: number }
   | { name: 'shop'; removing: boolean }
+  | { name: 'event'; step: 'choose' | 'pickCard' | 'pickSky' }
   | { name: 'over' };
 
 export function createRun(seed: number): RunState {
@@ -115,6 +132,7 @@ export function createRun(seed: number): RunState {
     visited: [],
     fightsWon: 0,
     status: 'playing',
+    seenEvents: [],
   };
 }
 
@@ -126,27 +144,42 @@ export function availableNodes(run: RunState): MapNode[] {
   return run.status === 'playing' ? reachableNodes(run.map, run.nodeId) : [];
 }
 
-/** Moves to a reachable node. Entering a shop stocks it. */
+/** Moves to a reachable node. Entering a shop stocks it; entering an event picks one. */
 export function enterNode(run: RunState, id: string): MapNode {
   const node = availableNodes(run).find((n) => n.id === id);
   if (!node) throw new Error(`Node ${id} is not reachable`);
   run.nodeId = id;
   run.visited.push(id);
   delete run.shop;
+  delete run.event;
   if (node.type === 'shop') run.shop = createShop(run);
+  if (node.type === 'event') run.event = { id: pickEvent(run) };
   return node;
 }
 
-/** Starts the fight at the current node (fight, elite or boss). */
+/** A random event not seen this run (once all have been seen, any event). */
+function pickEvent(run: RunState): string {
+  const unseen = EVENT_IDS.filter((id) => !run.seenEvents.includes(id));
+  if (unseen.length === 0) run.seenEvents = [];
+  const id = withRng(run, (rng) => rng.pick(unseen.length ? unseen : EVENT_IDS));
+  run.seenEvents.push(id);
+  return id;
+}
+
+/** Whether the current fight gives an elite's rewards (an elite, or an event's elite fight). */
+function isEliteFight(run: RunState, node: MapNode | undefined): boolean {
+  return node?.type === 'elite' || (node?.type === 'event' && run.event?.fight === true);
+}
+
+/** Starts the fight at the current node (fight, elite, boss, or an event's fight). */
 export function startFight(run: RunState): { state: CombatState; events: CombatEvent[] } {
   const node = currentNode(run);
-  if (!node || (node.type !== 'fight' && node.type !== 'elite' && node.type !== 'boss')) {
-    throw new Error('Not at a fight');
-  }
+  const fightNode = node?.type === 'fight' || node?.type === 'elite' || node?.type === 'boss';
+  if (!node || (!fightNode && !isEliteFight(run, node))) throw new Error('Not at a fight');
   const tier =
     node.type === 'boss'
       ? ENCOUNTERS.boss
-      : node.type === 'elite'
+      : isEliteFight(run, node)
         ? ENCOUNTERS.elite
         : node.floor < EASY_FLOORS
           ? ENCOUNTERS.easy
@@ -190,8 +223,10 @@ export function finishFight(
     return none;
   }
 
+  const elite = isEliteFight(run, node);
+  delete run.event;
   const healed = run.relics.includes('healingHerb') ? heal(run, HEALING_HERB_HEAL) : 0;
-  const [min, max] = node?.type === 'elite' ? GOLD_REWARD.elite : GOLD_REWARD.fight;
+  const [min, max] = elite ? GOLD_REWARD.elite : GOLD_REWARD.fight;
   const gold =
     withRng(run, (rng) => rng.int(min, max)) + (run.relics.includes('luckyCoin') ? LUCKY_COIN_GOLD : 0);
   run.gold += gold;
@@ -203,7 +238,7 @@ export function finishFight(
     run.potions.push(potion);
     rewards.potion = potion;
   }
-  if (node?.type === 'elite') {
+  if (elite) {
     const relic = randomRelic(run);
     if (relic) {
       run.relics.push(relic);
@@ -253,10 +288,16 @@ export function canInfuse(card: DeckCard): boolean {
   return card.infusion === undefined;
 }
 
-export function infuseCard(run: RunState, deckIndex: number, element: ElementId): void {
+/** Infuses a card. Rest sites offer the base elements; events can offer others. */
+export function infuseCard(
+  run: RunState,
+  deckIndex: number,
+  element: ElementId,
+  allowed: readonly ElementId[] = INFUSE_ELEMENTS,
+): void {
   const card = run.deck[deckIndex];
   if (!card || !canInfuse(card)) throw new Error('That card cannot be infused');
-  if (!INFUSE_ELEMENTS.includes(element)) throw new Error(`Cannot infuse ${element}`);
+  if (!allowed.includes(element)) throw new Error(`Cannot infuse ${element}`);
   card.infusion = element;
 }
 
@@ -352,18 +393,25 @@ export function removeCard(run: RunState, deckIndex: number): ShopResult {
 
 // ---------- Helpers ----------
 
-function heal(run: RunState, amount: number): number {
+/** Heals up to max HP; returns how much was healed. */
+export function heal(run: RunState, amount: number): number {
   const healed = Math.min(amount, run.maxHp - run.hp);
   run.hp += healed;
   return healed;
 }
 
-function randomRelic(run: RunState): string | undefined {
-  const options = RELIC_POOL.filter((id) => !run.relics.includes(id));
+/** Relics the player doesn't have yet. */
+export function relicsLeft(run: RunState): string[] {
+  return RELIC_POOL.filter((id) => !run.relics.includes(id));
+}
+
+export function randomRelic(run: RunState): string | undefined {
+  const options = relicsLeft(run);
   return options.length ? withRng(run, (rng) => rng.pick(options)) : undefined;
 }
 
-function withRng<T>(run: RunState, fn: (rng: Rng) => T): T {
+/** Runs fn with the run's RNG and saves the RNG's new state. */
+export function withRng<T>(run: RunState, fn: (rng: Rng) => T): T {
   const rng = Rng.fromState(run.rngState);
   const result = fn(rng);
   run.rngState = rng.getState();

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   BASE_ELEMENTS,
+  BASIC_RECIPES,
+  DEWCATCHER_BLOCK,
+  UMBRELLA_BLOCK,
   cardNeedsTarget,
   createCombat,
   currentIntent,
@@ -100,6 +103,55 @@ describe('relics', () => {
     lockWeather(s, 'heatwave');
     endTurn(s);
     expect(s.player.statuses.burn).toBeUndefined();
+  });
+
+  it('Alembic turns Sludge into a random basic brew', () => {
+    const s = newCombat(['alembic'], { deck: ['stir', 'defend', 'defend', 'defend', 'defend'] });
+    s.cauldron = ['water']; // alone, it would be Sludge
+    const stir = s.hand.find((c) => c.defId === 'stir');
+    if (!stir) throw new Error('no stir');
+    const result = playCard(s, stir.uid, 0);
+    if (!result.ok) throw new Error(result.reason);
+    const brew = result.events.find((e) => e.type === 'brew');
+    expect(brew?.type === 'brew' && BASIC_RECIPES.includes(brew.recipeId)).toBe(true);
+    expect(result.events).toContainEqual({ type: 'relic', relic: 'alembic' });
+    expect(s.cauldron).toEqual([]);
+  });
+
+  it('Umbrella gives Block at the start of your turn, under cover only', () => {
+    const cover = newCombat(['umbrella']);
+    toggleExposure(cover);
+    endTurn(cover);
+    expect(cover.player.block).toBe(UMBRELLA_BLOCK);
+    const out = newCombat(['umbrella']);
+    endTurn(out);
+    expect(out.player.block).toBe(0);
+  });
+
+  it('Wind Chime draws a card whenever the weather changes', () => {
+    const s = newCombat(['windChime'], { deck: Array<string>(8).fill('defend') });
+    const hand = s.hand.length;
+    setWeather(s, 'rain', 'player');
+    expect(s.hand).toHaveLength(hand + 1);
+    setWeather(s, 'rain', 'player'); // not a change
+    expect(s.hand).toHaveLength(hand + 1);
+  });
+
+  it('Dewcatcher gives Block when the weather drops an element into your cauldron', () => {
+    const s = newCombat(['dewcatcher']);
+    lockWeather(s, 'rain');
+    endTurn(s);
+    expect(s.cauldron).toEqual(['water']);
+    expect(s.player.block).toBe(DEWCATCHER_BLOCK);
+  });
+
+  it('Cloud Seed starts fights in a weather from your sky', () => {
+    expect(newCombat(['cloudSeed'], { sky: ['rain'] }).weather.current).toBe('rain');
+    // With a mixed sky, it never starts Clear skies when another weather is there.
+    for (let seed = 0; seed < 10; seed++) {
+      expect(newCombat(['cloudSeed'], { seed }).weather.current).not.toBe('clear');
+    }
+    expect(newCombat([]).weather.current).toBe('clear');
   });
 });
 

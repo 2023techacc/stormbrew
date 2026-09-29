@@ -1,6 +1,6 @@
 {
   "name": "stormbrew",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "description": "A roguelike deck-builder built around weather and brewing.",
   "type": "module",
@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "balance": "vitest run --mode balance",
     "android:sync": "npm run build && cap sync android",
     "android:apk": "npm run android:sync && cd android && ./gradlew assembleDebug"
   },

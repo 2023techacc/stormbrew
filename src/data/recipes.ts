@@ -16,10 +16,10 @@ export const RECIPES: RecipeDef[] = [
     name: 'Tonic',
     elements: ['water', 'water'],
     effects: [
-      { type: 'heal', amount: 5 },
-      { type: 'block', amount: 5 },
+      { type: 'heal', amount: 2 },
+      { type: 'block', amount: 7 },
     ],
-    text: 'Heal 5. Gain 5 Block.',
+    text: 'Heal 2. Gain 7 Block.',
   },
   {
     id: 'stoneskin',
@@ -142,11 +142,11 @@ export const RECIPES: RecipeDef[] = [
     name: 'Thaw',
     elements: ['frost', 'fire'],
     effects: [
-      { type: 'heal', amount: 6 },
+      { type: 'heal', amount: 3 },
       { type: 'draw', amount: 1 },
     ],
-    text: 'Heal 6. Draw 1 card.',
-    cardText: 'Heal 6. Draw 1.',
+    text: 'Heal 3. Draw 1 card.',
+    cardText: 'Heal 3. Draw 1.',
   },
   {
     id: 'iceLance',
@@ -207,11 +207,11 @@ export const RECIPES: RecipeDef[] = [
     elements: ['water', 'water', 'air'],
     effects: [
       { type: 'setWeather', weather: 'rain' },
-      { type: 'heal', amount: 4 },
-      { type: 'block', amount: 6 },
+      { type: 'heal', amount: 3 },
+      { type: 'block', amount: 7 },
     ],
-    text: 'Set the weather to Rain. Heal 4. Gain 6 Block.',
-    cardText: 'Weather: Rain. Heal 4. Gain 6 Block.',
+    text: 'Set the weather to Rain. Heal 3. Gain 7 Block.',
+    cardText: 'Weather: Rain. Heal 3. Gain 7 Block.',
   },
 ];
 

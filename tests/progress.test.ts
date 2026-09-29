@@ -14,6 +14,7 @@ import {
 } from '../src/core/run';
 import { SAVE_VERSION, makeRunSave, parseGrimoire, parseRunSave } from '../src/core/save';
 import type { CombatEvent, CombatState } from '../src/core/types';
+import { enemyHp } from './helpers/data';
 
 const newCombat = (overrides: Partial<CombatSetup> = {}): CombatState =>
   createCombat({
@@ -105,7 +106,7 @@ describe('bottling and potions', () => {
     expect(potionNeedsTarget(s, 0)).toBe(true);
     expect(usePotion(s, 0)).toEqual({ ok: false, reason: 'Choose an enemy.' });
     expect(usePotion(s, 0, 0).ok).toBe(true);
-    expect(s.enemies[0]?.hp).toBe(42 - 12);
+    expect(s.enemies[0]?.hp).toBe(enemyHp('cinderImp') - 12);
     expect(usePotion(s, 0).ok).toBe(false);
   });
 });

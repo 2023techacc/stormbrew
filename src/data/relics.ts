@@ -20,6 +20,15 @@ export const RELICS: Record<string, RelicDef> = {
   sunStone: { id: 'sunStone', name: 'Sun Stone', text: 'Heatwave never gives you Burn.' },
   healingHerb: { id: 'healingHerb', name: 'Healing Herb', text: 'Heal 6 HP after each fight you win.' },
   luckyCoin: { id: 'luckyCoin', name: 'Lucky Coin', text: 'Gain 10 extra gold from each fight.' },
+  alembic: { id: 'alembic', name: 'Alembic', text: 'Sludge becomes a random brew of two base elements.' },
+  umbrella: { id: 'umbrella', name: 'Umbrella', text: 'Under cover, gain 4 Block at the start of your turn.' },
+  windChime: { id: 'windChime', name: 'Wind Chime', text: 'Whenever the weather changes, draw a card.' },
+  dewcatcher: {
+    id: 'dewcatcher',
+    name: 'Dewcatcher',
+    text: 'Whenever the weather drops an element into your cauldron, gain 2 Block.',
+  },
+  cloudSeed: { id: 'cloudSeed', name: 'Cloud Seed', text: 'Fights start in a weather from your sky instead of Clear.' },
 };
 
 export const STARTING_RELICS = ['copperCauldron'];

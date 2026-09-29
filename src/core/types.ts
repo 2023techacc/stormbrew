@@ -25,8 +25,16 @@ export type Effect =
   | { type: 'holdWeather' }
   /** Replace the next forecast weather with a new one from the sky. */
   | { type: 'scatter' }
+  /** The next forecast weather arrives now. */
+  | { type: 'advanceWeather' }
   | { type: 'addElement'; element: ElementId }
+  /** Add the current weather's element (nothing in Clear). */
+  | { type: 'catchWeather' }
   | { type: 'brew' }
+  /** The next brew this fight works twice. */
+  | { type: 'doubleBrew' }
+  /** Empty the cauldron and deal this much damage to the target for each element in it. */
+  | { type: 'boilOver'; amount: number }
   /** The next brew this fight is bottled as a potion instead of used. */
   | { type: 'bottle' }
   /** Take the newest element from the target enemy's cauldron into yours. */
@@ -46,6 +54,8 @@ export interface CardDef {
   kind: CardKind;
   target: CardTarget;
   effects: Effect[];
+  /** Attuned: extra effects when the card is played in this weather. */
+  attuned?: { weather: WeatherId; effects: Effect[] };
   /** Rules text. `{damage}` is replaced with the card's current damage. */
   text: string;
 }
@@ -88,6 +98,10 @@ export interface EnemyMove {
   stealElement?: boolean;
   /** Shuffles these sky cards into the player's sky for this fight. */
   addSky?: string[];
+  /** Extra damage when the player is out in the open (hunters strike from the sky). */
+  exposedBonus?: number;
+  /** Extra damage or Block when the move is made in this weather. */
+  attuned?: { weather: WeatherId; damage?: number; block?: number };
 }
 
 export interface EnemyDef {
@@ -170,6 +184,8 @@ export interface CombatState {
   potions: string[];
   /** How many upcoming brews will be bottled instead of used. */
   bottleNext: number;
+  /** How many upcoming brews will work twice. */
+  doubleNext: number;
   /** Recipes brewed this fight, by the player or enemies (no Sludge); they can be distilled afterwards. */
   brewed: string[];
   status: CombatStatus;

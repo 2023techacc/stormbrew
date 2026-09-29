@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createCombat, endTurn, enemyBrewPreview, playCard, toggleExposure, type CombatSetup } from '../src/core/combat';
 import { createGrimoire, discoverFrom } from '../src/core/grimoire';
 import type { CombatState, EnemyState } from '../src/core/types';
+import { getRecipe } from '../src/data/recipes';
+import { enemyMove } from './helpers/data';
 
 const newCombat = (overrides: Partial<CombatSetup> = {}): CombatState => {
   const s = createCombat({
@@ -58,9 +60,11 @@ describe('enemy cauldrons', () => {
     witch(s).gatherIndex = 2; // next: Water, Water
     witch(s).hp = 20;
     endTurn(s); // Hex, gather Water
-    endTurn(s); // Ward (7 Block), gather Water, brew Tonic (heal 5, 5 Block)
-    expect(witch(s).hp).toBe(25);
-    expect(witch(s).block).toBe(7 + 5);
+    endTurn(s); // Ward (Block), gather Water, brew Tonic (heal and Block)
+    const tonic = getRecipe('tonic').effects;
+    const amount = (type: 'heal' | 'block') => tonic.reduce((sum, e) => sum + (e.type === type ? e.amount : 0), 0);
+    expect(witch(s).hp).toBe(20 + amount('heal'));
+    expect(witch(s).block).toBe(enemyMove('mireWitch', 'Ward').block + amount('block'));
   });
 
   it('Pilfer steals the newest element into your cauldron', () => {
