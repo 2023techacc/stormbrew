@@ -359,6 +359,19 @@ you can't take says why (not enough gold or HP, a full potion belt…):
 - All visuals come from a single theme file, so real art can be swapped in
   later without changing game code.
 
+### 6.4 Languages
+- **English** (the default) and **Korean**, chosen on the title screen under
+  ⚙️ Settings and saved on the device.
+- Every text goes through `src/i18n`: `t()` for interface messages (the key
+  list is `src/i18n/en.ts`; the type checker makes sure every language has
+  every key), and helpers like `cardName()` for game content (English lives in
+  `src/data`, Korean in `src/i18n/ko-content.ts`, and a test checks nothing is
+  missing).
+- Korean particles (이/가, 을/를, 은/는, 과/와, 으로/로) are picked to fit the
+  word before them, so messages read naturally with any card or enemy name.
+  Korean text wraps between words, not inside them.
+- Adding a language means adding its message file and content table.
+
 ---
 
 ## 7. Technical Plan
@@ -429,7 +442,7 @@ Important choices:
 | 6 | **Discovery & potions** ✅ | Grimoire (persistent), Bottling, potions, auto-save and resume |
 | 7 | **Identity** (A–D done, see §11) | The features that make Stormbrew play differently from *Slay the Spire*: Exposure, enemy cauldrons, the Sky Deck, Distilling |
 | 8 | **MVP content & balance** ✅ | MVP content targets reached (§5), events, a balance pass with a computer player and `WEATHER_INTERVAL` tested (§12). Playtesting on real phones is still to do |
-| 9 | **Polish** | Animations, sound, vibration feedback, weather particles, app icon and splash screen |
+| 9 | **Polish** (in progress) | Languages (English and Korean ✅), then animations, sound, vibration feedback, weather particles, app icon and splash screen. Done in rounds, with feedback from playing on a phone |
 | 10 | **Expansion** | Acts 2–3, Fog/Gale/Eclipse, a second character, ascension levels, iOS/desktop builds |
 
 Milestones 1–3 prove the game's core idea. If combat with weather and brewing
@@ -456,6 +469,7 @@ is fun in a single fight on a phone, the rest is adding content.
 | Shops | 3 cards (40–55 gold), 2 relics (110–140), one card removal (60) per visit |
 | Crowded hands | Cards keep their size and overlap instead of shrinking |
 | Scope | One character (the Stormbrewer) for the MVP |
+| Languages | English (default) and Korean, chosen in Settings (§6.4) |
 
 ## 10. Open Questions
 

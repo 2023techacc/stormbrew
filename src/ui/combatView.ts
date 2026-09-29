@@ -35,13 +35,26 @@ import type {
   WeatherId,
 } from '../core/types';
 import { sandboxAddCard, sandboxRefillEnergy, sandboxSetWeather } from '../core/sandbox';
-import { WEATHER_IDS, WEATHER_INFO, modifyDamage, skyWeather, turnsUntilChange } from '../core/weather';
+import { WEATHER_IDS, modifyDamage, skyWeather, turnsUntilChange } from '../core/weather';
 import { CARDS, getCard } from '../data/cards';
 import { DISTILLED_CARDS } from '../data/distilled';
 import { getEnemy } from '../data/enemies';
 import { RECIPES, SLUDGE, getRecipe } from '../data/recipes';
-import { getRelic } from '../data/relics';
 import { getSkyCard } from '../data/sky';
+import { listOf, t } from '../i18n';
+import {
+  cardName,
+  cardText,
+  elementName,
+  enemyName,
+  moveName,
+  recipeName,
+  recipeText,
+  relicName,
+  skyName,
+  weatherEffect,
+  weatherName,
+} from '../i18n/content';
 import { esc } from './dom';
 import { CARD_KIND_COLORS, cardIcon, ELEMENTS, ENEMY_LOOKS, ICONS, RELIC_ICONS, WEATHERS } from './theme';
 
@@ -70,7 +83,7 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
   const { state, grimoire } = options;
   let selectedUid: number | null = null;
   let selectedPotion: number | null = null;
-  let hint = options.sandbox ? 'Sandbox: use the tools at the top to try anything.' : 'Tap a card to select it.';
+  let hint = t(options.sandbox ? 'combat.hintSandbox' : 'combat.hintStart');
   let overlay: Overlay = 'none';
   const known = (recipeId: string) => !grimoire || isKnown(grimoire, recipeId);
 
@@ -91,7 +104,7 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
     const found = grimoire ? discoverFrom(grimoire, events) : [];
     hint = describeEvents(state, events);
     if (found.length) {
-      hint += ` ${ICONS.grimoire} New recipe: ${found.map((id) => getRecipe(id).name).join(', ')}!`;
+      hint += ` ${ICONS.grimoire} ${t('combat.newRecipe', { names: listOf(found.map(recipeName)) })}`;
     }
     render();
     animate(root, events);
@@ -131,10 +144,9 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       if (living.length === 1) return tryPotion(index, living[0]);
     }
     selectedPotion = index;
-    const recipe = getRecipe(id);
-    hint = `${ICONS.potion} ${recipe.name}: ${plainText(recipe, state.weather.current, !!state.player.statuses.weak)} Free to drink. ${
-      needsTarget ? (living.length === 1 ? 'Tap the enemy, or the potion again.' : 'Tap an enemy.') : 'Tap it again to drink.'
-    }`;
+    const text = plainText(recipeItem(id), state.weather.current, !!state.player.statuses.weak);
+    const how = needsTarget ? (living.length === 1 ? 'combat.tapEnemyOrPotion' : 'combat.tapEnemy') : 'combat.tapPotionAgain';
+    hint = `${ICONS.potion} ${t('combat.potionHint', { name: recipeName(id), text })} ${t(how)}`;
     render();
   };
 
@@ -168,18 +180,14 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
     const what = !brew
       ? ''
       : alembicGamble(state, brew.recipe)
-        ? 'Sludge, which the Alembic turns into a random basic brew!'
+        ? t('combat.alembicBrew')
         : known(brew.recipe.id)
-          ? `${brew.recipe.name}: ${plainText(brew.recipe, state.weather.current, !!state.player.statuses.weak)}`
-          : 'an unknown recipe!';
-    const brewNote = brew ? `${overflow ? 'Cauldron full! First brews' : 'Brews'} ${what} ` : '';
+          ? `${recipeName(brew.recipe.id)}: ${plainText(recipeItem(brew.recipe.id), state.weather.current, !!state.player.statuses.weak)}`
+          : t('combat.unknownBrew');
+    const brewNote = brew ? `${t(overflow ? 'combat.overflowBrews' : 'combat.brews', { what })} ` : '';
     hint =
       brewNote +
-      (needsTarget
-        ? living.length === 1
-          ? 'Tap the enemy, or tap the card again.'
-          : 'Tap an enemy.'
-        : 'Tap the card again to play it.');
+      t(needsTarget ? (living.length === 1 ? 'combat.tapEnemyOrCard' : 'combat.tapEnemy') : 'combat.tapCardAgain');
     render();
   };
 
@@ -227,7 +235,9 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       overlay = 'none';
       render();
     } else if (el.dataset.addCard !== undefined) {
-      hint = sandboxAddCard(state, el.dataset.addCard) ? `Added ${getCard(el.dataset.addCard).name}.` : 'Your hand is full.';
+      hint = sandboxAddCard(state, el.dataset.addCard)
+        ? t('combat.addedCard', { name: cardName(getCard(el.dataset.addCard)) })
+        : t('combat.handFull');
       overlay = 'none';
       render();
     } else if (el.dataset.action === 'weather') {
@@ -235,7 +245,7 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       after(sandboxSetWeather(state, next));
     } else if (el.dataset.action === 'energy') {
       sandboxRefillEnergy(state);
-      hint = 'Energy refilled.';
+      hint = t('combat.energyRefilled');
       render();
     } else if (el.dataset.action === 'next-enemy') {
       root.onclick = null;
@@ -273,10 +283,10 @@ function renderCombat(state: CombatState, ui: CombatUi): string {
   return `
     <main class="combat" style="--weather-color: ${WEATHERS[state.weather.current].color}">
       <header class="top-bar">
-        <span>${ui.label ? `${esc(ui.label)} · ` : ''}Turn ${state.turn}</span>
+        <span>${ui.label ? `${esc(ui.label)} · ` : ''}${esc(t('combat.turn', { turn: state.turn }))}</span>
         ${ui.sandbox ? renderSandboxTools() : ''}
         ${renderPotions(state, ui.selectedPotion)}
-        <button class="text-button" data-action="exit">Quit</button>
+        <button class="text-button" data-action="exit">${esc(t('common.quit'))}</button>
       </header>
 
       ${renderForecast(state)}
@@ -290,30 +300,30 @@ function renderCombat(state: CombatState, ui: CombatUi): string {
       <p class="hint" aria-live="polite">${esc(hint)}</p>
 
       <section class="player unit" data-unit="player">
-        <span class="energy" title="Energy">
+        <span class="energy" title="${esc(t('combat.energy'))}">
           <span class="energy-value">${player.energy}/${player.maxEnergy}</span>
         </span>
         <span class="player-stats">
-          <span class="unit-name">You</span>
+          <span class="unit-name">${esc(t('combat.you'))}</span>
           ${renderHpBar(player)}
         </span>
       </section>
 
-      <section class="hand" aria-label="Hand" style="--n: ${state.hand.length}">
+      <section class="hand" aria-label="${esc(t('combat.hand'))}" style="--n: ${state.hand.length}">
         ${state.hand.map((c) => renderCard(state, c, c.uid === selectedUid)).join('')}
       </section>
 
       <footer class="controls">
-        <span class="pile" title="Draw pile">${ICONS.drawPile} ${state.drawPile.length}</span>
+        <span class="pile" title="${esc(t('combat.drawPile'))}">${ICONS.drawPile} ${state.drawPile.length}</span>
         <button class="stance ${player.exposed ? 'out' : 'cover'}" data-action="exposure"
-          aria-label="${player.exposed ? 'Out in the weather. Tap to take cover.' : 'Under cover. Tap to go out.'}">
+          aria-label="${esc(t(player.exposed ? 'combat.outAria' : 'combat.coverAria'))}">
           <span>${player.exposed ? WEATHERS[state.weather.current].icon : ICONS.cover}</span>
-          <small>${player.exposed ? 'Out' : 'Cover'}</small>
+          <small>${esc(t(player.exposed ? 'combat.out' : 'combat.cover'))}</small>
         </button>
         <button class="primary-button" data-action="end-turn" ${state.status === 'playing' ? '' : 'disabled'}>
-          End turn
+          ${esc(t('combat.endTurn'))}
         </button>
-        <span class="pile" title="Discard pile">${ICONS.discardPile} ${state.discardPile.length}</span>
+        <span class="pile" title="${esc(t('combat.discardPile'))}">${ICONS.discardPile} ${state.discardPile.length}</span>
       </footer>
 
       ${ui.overlay === 'recipes' ? renderRecipeBook(state, ui.known) : ''}
@@ -332,11 +342,12 @@ function renderEnemy(
 ): string {
   const weather = state.weather.current;
   const exposed = state.player.exposed;
-  const look = ENEMY_LOOKS[enemy.defId] ?? { name: enemy.name, icon: '👾', color: '#888' };
+  const look = ENEMY_LOOKS[enemy.defId] ?? { icon: '👾', color: '#888' };
+  const name = enemyName(enemy.defId);
   if (!isAlive(enemy)) {
     return `<span class="enemy unit defeated" data-unit="enemy-${index}">
       <span class="enemy-body" style="--unit-color: ${look.color}">💨</span>
-      <span class="unit-name">${esc(enemy.name)}</span>
+      <span class="unit-name">${esc(name)}</span>
     </span>`;
   }
   const move = currentIntent(enemy);
@@ -366,18 +377,18 @@ function renderEnemy(
   const hunter = [...def.moves, ...(def.phase2?.moves ?? [])].some((m) => m.exposedBonus);
   return `
     <button class="enemy unit ${targeting ? 'targetable' : ''}" data-enemy="${index}" data-unit="enemy-${index}"
-      aria-label="${esc(enemy.name)}, ${enemy.hp} HP">
-      <span class="intent ${intentParts.length ? '' : 'idle'}" title="Next: ${esc(move.name)}">${intentParts.join(' ') || esc(move.name)}</span>
+      aria-label="${esc(t('combat.enemyAria', { name, hp: enemy.hp }))}">
+      <span class="intent ${intentParts.length ? '' : 'idle'}" title="${esc(t('combat.nextMove', { move: moveName(move.name) }))}">${intentParts.join(' ') || esc(moveName(move.name))}</span>
       <span class="enemy-body" style="--unit-color: ${look.color}">${look.icon}</span>
       <span class="unit-name">
-        ${esc(enemy.name)}
+        ${esc(name)}
         ${
           weathered.length
-            ? `<span class="weathered" title="Weathered: ignores harmful effects of ${weathered.map((w) => WEATHER_INFO[w].name).join(', ')}">${weathered.map((w) => WEATHERS[w].icon).join('')}</span>`
+            ? `<span class="weathered" title="${esc(t('combat.weathered', { weathers: weathered.map(weatherName).join(', ') }))}">${weathered.map((w) => WEATHERS[w].icon).join('')}</span>`
             : ''
         }
-        ${isSheltered(enemy) ? `<span class="weathered" title="Sheltered: the weather never reaches it">${ICONS.cover}</span>` : ''}
-        ${hunter ? `<span class="weathered" title="Hunter: hits harder when you're out in the open">${ICONS.hunter}</span>` : ''}
+        ${isSheltered(enemy) ? `<span class="weathered" title="${esc(t('combat.sheltered'))}">${ICONS.cover}</span>` : ''}
+        ${hunter ? `<span class="weathered" title="${esc(t('combat.hunter'))}">${ICONS.hunter}</span>` : ''}
       </span>
       ${renderEnemyCauldron(enemy, brewing, known)}
       ${renderHpBar(enemy)}
@@ -396,11 +407,11 @@ function renderEnemyCauldron(enemy: EnemyState, brewing: RecipeDef | null, known
       : '<span class="mini-slot empty"></span>';
   }).join('');
   const note = enemy.spoiled
-    ? `${ICONS.spoiled} spoiled`
+    ? `${ICONS.spoiled} ${esc(t('combat.spoiled'))}`
     : brewing
-      ? `brews ${known(brewing.id) ? esc(brewing.name) : '???'}!`
+      ? esc(t('combat.enemyBrews', { name: known(brewing.id) ? recipeName(brewing.id) : '???' }))
       : '';
-  return `<span class="enemy-cauldron" title="Its cauldron">${ICONS.cauldron}${slots}<small>${note}</small></span>`;
+  return `<span class="enemy-cauldron" title="${esc(t('combat.enemyCauldron'))}">${ICONS.cauldron}${slots}<small>${note}</small></span>`;
 }
 
 function renderHpBar(unit: Combatant): string {
@@ -410,9 +421,9 @@ function renderHpBar(unit: Combatant): string {
   const weak = unit.statuses.weak ?? 0;
   return `
     <span class="hp-row">
-      ${block > 0 ? `<span class="block-badge" title="Block">${ICONS.block} ${block}</span>` : ''}
-      ${burn > 0 ? `<span class="burn-badge" title="Burn: lose ${burn} HP at end of turn">${ICONS.burn} ${burn}</span>` : ''}
-      ${weak > 0 ? `<span class="weak-badge" title="Weak: deals 25% less attack damage for ${weak} turn${weak === 1 ? '' : 's'}">${ICONS.weak} ${weak}</span>` : ''}
+      ${block > 0 ? `<span class="block-badge" title="${esc(t('combat.block'))}">${ICONS.block} ${block}</span>` : ''}
+      ${burn > 0 ? `<span class="burn-badge" title="${esc(t('combat.burnTitle', { n: burn }))}">${ICONS.burn} ${burn}</span>` : ''}
+      ${weak > 0 ? `<span class="weak-badge" title="${esc(weak === 1 ? t('combat.weakTitle1') : t('combat.weakTitle', { n: weak }))}">${ICONS.weak} ${weak}</span>` : ''}
       <span class="hp-bar ${block > 0 ? 'has-block' : ''}">
         <span class="hp-fill" style="width: ${pct}%"></span>
         <span class="hp-text">${hp}/${maxHp}</span>
@@ -439,7 +450,17 @@ function renderCard(state: CombatState, card: CardInstance, selected: boolean): 
  */
 function longestWordEm(name: string): number {
   const width = (ch: string) =>
-    /[iljI.,'!]/.test(ch) ? 0.32 : /[ftr]/.test(ch) ? 0.45 : /[mwMW]/.test(ch) ? 0.95 : /[A-Z]/.test(ch) ? 0.72 : 0.62;
+    /[\u3131-\uD7A3]/.test(ch)
+      ? 0.95
+      : /[iljI.,'!]/.test(ch)
+        ? 0.32
+        : /[ftr]/.test(ch)
+          ? 0.45
+          : /[mwMW]/.test(ch)
+            ? 0.95
+            : /[A-Z]/.test(ch)
+              ? 0.72
+              : 0.62;
   return Math.max(...name.split(/\s+/).map((word) => [...word].reduce((sum, ch) => sum + width(ch), 0) * 1.2));
 }
 
@@ -460,19 +481,22 @@ export function cardFace(
   const added = def.effects.find((e) => e.type === 'addElement');
   const element = added?.type === 'addElement' ? added.element : undefined;
   const { infusion } = options;
-  const infusionText = infusion ? ` Add ${ELEMENTS[infusion].icon}.` : '';
-  const attunedTo = def.attuned ? WEATHERS[def.attuned.weather] : undefined;
+  const infusionText = infusion ? ` ${t('card.addElement', { icon: ELEMENTS[infusion].icon })}` : '';
+  const attunedTo = def.attuned?.weather;
+  const name = cardName(def);
+  const item = cardItem(def);
+  const aria = t('card.aria', { name, cost: def.cost, text: plainText(item, weather, options.weak) + infusionText });
   return `
     <button class="card ${infusion ? 'infused' : ''} ${options.attuned ? 'attuned' : ''} ${options.className ?? ''}" ${options.attrs ?? ''}
-      style="--card-color: ${CARD_KIND_COLORS[def.kind]}${attunedTo ? `; --attuned-color: ${attunedTo.color}` : ''}"
-      aria-label="${esc(def.name)}, costs ${def.cost}. ${esc(plainText(def, weather, options.weak) + infusionText)}${options.attuned ? ' Attuned now.' : ''}">
+      style="--card-color: ${CARD_KIND_COLORS[def.kind]}${attunedTo ? `; --attuned-color: ${WEATHERS[attunedTo].color}` : ''}"
+      aria-label="${esc(aria)}${options.attuned ? ` ${esc(t('card.attunedNow'))}` : ''}">
       <span class="card-cost">${def.cost}</span>
       ${element ? `<span class="card-element" style="--chip-color: ${ELEMENTS[element].color}">${ELEMENTS[element].icon}</span>` : ''}
-      ${attunedTo && !element ? `<span class="card-element card-attuned" style="--chip-color: ${attunedTo.color}" title="Attuned to ${esc(attunedTo.name)}">${attunedTo.icon}</span>` : ''}
-      ${infusion ? `<span class="card-infusion" style="--chip-color: ${ELEMENTS[infusion].color}" title="Infused">${ELEMENTS[infusion].icon}</span>` : ''}
-      <span class="card-name" style="--name-em: ${longestWordEm(def.name).toFixed(2)}">${esc(def.name)}</span>
+      ${attunedTo && !element ? `<span class="card-element card-attuned" style="--chip-color: ${WEATHERS[attunedTo].color}" title="${esc(t('card.attunedTo', { weather: weatherName(attunedTo) }))}">${WEATHERS[attunedTo].icon}</span>` : ''}
+      ${infusion ? `<span class="card-infusion" style="--chip-color: ${ELEMENTS[infusion].color}" title="${esc(t('card.infused'))}">${ELEMENTS[infusion].icon}</span>` : ''}
+      <span class="card-name" style="--name-em: ${longestWordEm(name).toFixed(2)}">${esc(name)}</span>
       <span class="card-icon">${cardIcon(def)}</span>
-      <span class="card-text">${richText(def, weather, options.weak)}${infusionText}</span>
+      <span class="card-text">${richText(item, weather, options.weak)}${esc(infusionText)}</span>
       ${options.note ? `<span class="card-note">${esc(options.note)}</span>` : ''}
     </button>
   `;
@@ -481,10 +505,10 @@ export function cardFace(
 function renderSandboxTools(): string {
   return `
     <span class="sandbox-tools">
-      <button class="tool-button" data-action="cards" title="Add a card">＋🃏</button>
-      <button class="tool-button" data-action="weather" title="Next weather">🌦️</button>
-      <button class="tool-button" data-action="energy" title="Refill energy">${ICONS.energy}</button>
-      <button class="tool-button" data-action="next-enemy" title="Next enemy">👾</button>
+      <button class="tool-button" data-action="cards" title="${esc(t('sandbox.addCard'))}">＋🃏</button>
+      <button class="tool-button" data-action="weather" title="${esc(t('sandbox.nextWeather'))}">🌦️</button>
+      <button class="tool-button" data-action="energy" title="${esc(t('sandbox.refillEnergy'))}">${ICONS.energy}</button>
+      <button class="tool-button" data-action="next-enemy" title="${esc(t('sandbox.nextEnemy'))}">👾</button>
     </span>
   `;
 }
@@ -493,14 +517,14 @@ function renderCardPicker(): string {
   const row = (def: CardDef) => `
     <li><button class="picker-row" data-add-card="${esc(def.id)}">
       <span class="picker-icon">${cardIcon(def)}</span>
-      <span class="recipe-body"><strong>${esc(def.name)}</strong> (${def.cost}) ${richText(def, 'clear')}</span>
+      <span class="recipe-body"><strong>${esc(cardName(def))}</strong> (${def.cost}) ${richText(cardItem(def), 'clear')}</span>
     </button></li>`;
   return `
     <span class="overlay" data-action="close">
-      <span class="recipe-panel" role="dialog" aria-label="Add a card" data-action="none">
+      <span class="recipe-panel" role="dialog" aria-label="${esc(t('sandbox.addCard'))}" data-action="none">
         <span class="recipe-header">
-          <h2>Add a card</h2>
-          <button class="text-button" data-action="close">Close</button>
+          <h2>${esc(t('sandbox.addCard'))}</h2>
+          <button class="text-button" data-action="close">${esc(t('common.close'))}</button>
         </span>
         <ul class="recipe-list">${[...Object.values(CARDS), ...Object.values(DISTILLED_CARDS)].map(row).join('')}</ul>
       </span>
@@ -510,17 +534,17 @@ function renderCardPicker(): string {
 
 function elementChip(element: ElementId): string {
   const look = ELEMENTS[element];
-  return `<span class="slot filled" style="--chip-color: ${look.color}" title="${esc(look.name)}">${look.icon}</span>`;
+  return `<span class="slot filled" style="--chip-color: ${look.color}" title="${esc(elementName(element))}">${look.icon}</span>`;
 }
 
 function renderPotions(state: CombatState, selected: number | null): string {
   if (state.potions.length === 0) return '';
   return `
-    <span class="potion-belt" aria-label="Potions">
+    <span class="potion-belt" aria-label="${esc(t('combat.potions'))}">
       ${state.potions
         .map((id, i) => {
           const recipe = getRecipe(id);
-          return `<button class="potion ${selected === i ? 'selected' : ''}" data-potion="${i}" title="${esc(recipe.name)}">
+          return `<button class="potion ${selected === i ? 'selected' : ''}" data-potion="${i}" title="${esc(recipeName(id))}">
             ${ICONS.potion}<small>${recipe.elements.map((e) => ELEMENTS[e].icon).join('')}</small></button>`;
         })
         .join('')}
@@ -540,19 +564,20 @@ function renderCauldron(state: CombatState, known: (recipeId: string) => boolean
     const element = state.cauldron[i];
     return element ? elementChip(element) : '<span class="slot empty"></span>';
   }).join('');
-  let preview = 'Gather elements, then Stir to brew. Tap for recipes.';
+  let preview = esc(t('cauldron.empty'));
   if (state.cauldron.length > 0) {
     const brew = findBrew(state.cauldron);
+    const stirNow = esc(t('cauldron.stirNow'));
     preview = alembicGamble(state, brew.recipe)
-      ? `Stir now: <strong>${RELIC_ICONS.alembic} a random basic brew</strong> · the Alembic turns Sludge into one.`
+      ? `${stirNow} <strong>${RELIC_ICONS.alembic} ${esc(t('cauldron.randomBrew'))}</strong> · ${esc(t('cauldron.alembicNote'))}`
       : known(brew.recipe.id)
-        ? `Stir now: <strong>${esc(brew.recipe.name)}</strong> · ${richText(brew.recipe, weather, !!state.player.statuses.weak)}`
-        : 'Stir now: <strong>???</strong> · an unknown recipe. Brew it to learn it!';
+        ? `${stirNow} <strong>${esc(recipeName(brew.recipe.id))}</strong> · ${richText(recipeItem(brew.recipe.id), weather, !!state.player.statuses.weak)}`
+        : `${stirNow} <strong>???</strong> · ${esc(t('cauldron.unknown'))}`;
   }
-  if (state.bottleNext > 0) preview += ` <strong>${ICONS.potion} The next brew will be bottled.</strong>`;
-  if (state.doubleNext > 0) preview += ` <strong>${ICONS.double} The next brew works twice.</strong>`;
+  if (state.bottleNext > 0) preview += ` <strong>${ICONS.potion} ${esc(t('cauldron.bottled'))}</strong>`;
+  if (state.doubleNext > 0) preview += ` <strong>${ICONS.double} ${esc(t('cauldron.doubled'))}</strong>`;
   return `
-    <button class="cauldron" data-action="recipes" aria-label="Cauldron. Tap to see recipes.">
+    <button class="cauldron" data-action="recipes" aria-label="${esc(t('cauldron.aria'))}">
       <span class="cauldron-row">
         <span class="cauldron-icon">${ICONS.cauldron}</span>
         <span class="slots">${slots}</span>
@@ -570,28 +595,29 @@ function renderRecipeBook(state: CombatState, known: (recipeId: string) => boole
       ? `
     <li class="recipe">
       <span class="recipe-elements">${r.elements.map((e) => ELEMENTS[e].icon).join('')}</span>
-      <span class="recipe-body"><strong>${esc(r.name)}</strong> ${richText(r, weather, !!state.player.statuses.weak)}</span>
+      <span class="recipe-body"><strong>${esc(recipeName(r.id))}</strong> ${richText(recipeItem(r.id), weather, !!state.player.statuses.weak)}</span>
     </li>`
       : `
     <li class="recipe unknown">
       <span class="recipe-elements">${r.elements.map(() => '❔').join('')}</span>
-      <span class="recipe-body"><strong>???</strong> Not discovered yet.</span>
+      <span class="recipe-body"><strong>???</strong> ${esc(t('recipes.unknown'))}</span>
     </li>`;
   const discovered = RECIPES.filter((r) => known(r.id)).length;
+  const catches = (['rain', 'storm', 'heatwave', 'snow'] as const)
+    .map((w) => {
+      const element = WEATHER_ELEMENTS[w];
+      return `${weatherName(w)} ${element ? ELEMENTS[element].icon : ''}`;
+    })
+    .join(', ');
+  const rules = t('recipes.rules', { slots: state.cauldronSlots, catches, sludge: recipeText(SLUDGE.id) });
   return `
     <span class="overlay" data-action="close">
-      <span class="recipe-panel" role="dialog" aria-label="Recipes" data-action="none">
+      <span class="recipe-panel" role="dialog" aria-label="${esc(t('recipes.title'))}" data-action="none">
         <span class="recipe-header">
-          <h2>Recipes <small class="muted">${discovered}/${RECIPES.length}</small></h2>
-          <button class="text-button" data-action="close">Close</button>
+          <h2>${esc(t('recipes.title'))} <small class="muted">${discovered}/${RECIPES.length}</small></h2>
+          <button class="text-button" data-action="close">${esc(t('common.close'))}</button>
         </span>
-        <span class="recipe-rules">
-          Order doesn't matter. Stir brews the biggest recipe you can make, oldest elements first; the rest stay.
-          The cauldron holds ${state.cauldronSlots}; adding another brews it first.
-          Standing out in the weather drops its element into the cauldron each turn
-          (Rain ${ELEMENTS.water.icon}, Storm ${ELEMENTS.spark.icon}, Heatwave ${ELEMENTS.fire.icon}, Snow ${ELEMENTS.frost.icon}).
-          No match makes Sludge (${esc(SLUDGE.text)})
-        </span>
+        <span class="recipe-rules">${esc(rules)}</span>
         <ul class="recipe-list">${RECIPES.map(row).join('')}</ul>
       </span>
     </span>
@@ -603,9 +629,9 @@ function renderResult(state: CombatState, sandbox: boolean): string {
   return `
     <span class="overlay">
       <span class="result-panel">
-        <h2>${won ? 'Victory!' : 'Defeated'}</h2>
-        <p>${won ? `You won in ${state.turn} turn${state.turn === 1 ? '' : 's'}.` : 'The storm got the better of you.'}</p>
-        <button class="primary-button" data-action="continue">${sandbox ? 'Reset' : 'Continue'}</button>
+        <h2>${esc(t(won ? 'result.victory' : 'result.defeat'))}</h2>
+        <p>${esc(won ? (state.turn === 1 ? t('result.wonIn1') : t('result.wonIn', { turns: state.turn })) : t('result.lost'))}</p>
+        <button class="primary-button" data-action="continue">${esc(t(sandbox ? 'result.reset' : 'common.continue'))}</button>
       </span>
     </span>
   `;
@@ -617,21 +643,21 @@ function renderForecast(state: CombatState): string {
   const after = hasRelic(state, 'barometer') ? forecast[1] : undefined;
   const turns = turnsUntilChange(state.weather, state.turn);
   return `
-    <button class="forecast" data-action="forecast" aria-label="Weather forecast">
+    <button class="forecast" data-action="forecast" aria-label="${esc(t('forecast.aria'))}">
       <span class="forecast-now" style="--chip-color: ${WEATHERS[current].color}">
         <span class="forecast-icon">${WEATHERS[current].icon}</span>
         <span class="forecast-text">
-          <strong>${esc(getSkyCard(state.weather.currentCard).name)}</strong>
-          <small>${esc(WEATHER_INFO[current].effect)}</small>
+          <strong>${esc(skyName(state.weather.currentCard))}</strong>
+          <small>${esc(weatherEffect(current))}</small>
         </span>
       </span>
       ${
         next
-          ? `<span class="forecast-next" title="Next weather">
-              <small>${turns === 1 ? 'Next turn' : `In ${turns} turns`}</small>
+          ? `<span class="forecast-next" title="${esc(t('forecast.nextWeather'))}">
+              <small>${esc(turns === 1 ? t('forecast.nextTurn') : t('forecast.inTurns', { n: turns }))}</small>
               <span class="forecast-icons">
-                <span class="forecast-icon" title="${esc(getSkyCard(next).name)}">${WEATHERS[skyWeather(next)].icon}</span>
-                ${after ? `<span class="forecast-icon later" title="Then ${esc(getSkyCard(after).name)} (Barometer)">${WEATHERS[skyWeather(after)].icon}</span>` : ''}
+                <span class="forecast-icon" title="${esc(skyName(next))}">${WEATHERS[skyWeather(next)].icon}</span>
+                ${after ? `<span class="forecast-icon later" title="${esc(t('forecast.then', { name: skyName(after) }))}">${WEATHERS[skyWeather(after)].icon}</span>` : ''}
               </span>
             </span>`
           : ''
@@ -644,99 +670,103 @@ function renderForecast(state: CombatState): string {
 function describeExposure(state: CombatState): string {
   const weather = state.weather.current;
   const element = WEATHER_ELEMENTS[weather];
-  if (!state.player.exposed) return `${ICONS.cover} Under cover: the weather can't reach you, but you catch nothing.`;
-  if (!element) return `Out in the open. ${WEATHER_INFO[weather].name} skies drop nothing.`;
-  const harm =
-    weather === 'storm' ? ' Lightning can hit you.' : weather === 'heatwave' ? ' You gain Burn each turn.' : '';
-  return `Out in the ${WEATHER_INFO[weather].name}: you catch ${ELEMENTS[element].icon} each turn.${harm}`;
+  if (!state.player.exposed) return `${ICONS.cover} ${t('exposure.cover')}`;
+  if (!element) return t('exposure.outClear', { weather: weatherName(weather) });
+  const harm = weather === 'storm' ? ` ${t('exposure.lightning')}` : weather === 'heatwave' ? ` ${t('exposure.burn')}` : '';
+  const out = t('exposure.out', { weather: weatherName(weather), icon: ELEMENTS[element].icon, element: elementName(element) });
+  return out + harm;
 }
 
 function describeForecast(state: CombatState): string {
   const { current, forecast } = state.weather;
   const next = forecast[0];
   const turns = turnsUntilChange(state.weather, state.turn);
-  const now = `${WEATHER_INFO[current].name}: ${WEATHER_INFO[current].effect}`;
-  const when = turns === 1 ? 'next turn' : `in ${turns} turns`;
-  const change = next ? ` Next: ${describeSkyCard(next)} ${when}.` : '';
-  return `${now}${change} ${describeExposure(state)} ${ICONS.sky} Sky: ${summarizeSky(state.weather.skyDeck)}.`;
+  const now = `${weatherName(current)}: ${weatherEffect(current)}`;
+  const change = next
+    ? ` ${turns === 1 ? t('forecast.next1', { sky: describeSkyCard(next) }) : t('forecast.next', { sky: describeSkyCard(next), n: turns })}`
+    : '';
+  return `${now}${change} ${describeExposure(state)} ${ICONS.sky} ${t('forecast.sky', { summary: summarizeSky(state.weather.skyDeck) })}`;
 }
 
 /** "Monsoon (Rain, 5 turns)" or just "Storm" for a basic card. */
 function describeSkyCard(id: string): string {
   const card = getSkyCard(id);
-  const weather = WEATHER_INFO[card.weather].name;
-  return card.name === weather ? weather : `${card.name} (${weather}, ${card.turns} turns)`;
+  const name = skyName(id);
+  const weather = weatherName(card.weather);
+  return name === weather ? weather : t('sky.cardDetail', { name, weather, turns: card.turns });
 }
 
 /** "2 Storm, 1 Rain, …" */
 export function summarizeSky(sky: readonly string[]): string {
   const counts = new Map<string, number>();
-  for (const id of sky) counts.set(getSkyCard(id).name, (counts.get(getSkyCard(id).name) ?? 0) + 1);
-  return [...counts].map(([name, n]) => `${n} ${name}`).join(', ');
+  for (const id of sky) counts.set(skyName(id), (counts.get(skyName(id)) ?? 0) + 1);
+  return [...counts].map(([name, n]) => t('sky.count', { n, name })).join(', ');
 }
 
 /** A short message about the most important thing that just happened. */
 function describeEvents(state: CombatState, events: CombatEvent[]): string {
   const messages: string[] = [];
-  let actingEnemy = 'An enemy';
+  const enemy = (index: number) => {
+    const found = state.enemies[index];
+    return found ? enemyName(found.defId) : t('ev.anEnemy');
+  };
+  const element = (e: ElementId) => ({ icon: ELEMENTS[e].icon, element: elementName(e) });
+  let actingEnemy = t('ev.anEnemy');
   for (const event of events) {
     if (event.type === 'enemyMove') {
-      actingEnemy = state.enemies[event.index]?.name ?? 'An enemy';
+      actingEnemy = enemy(event.index);
     } else if (event.type === 'weather') {
-      const name = WEATHER_INFO[event.to].name;
+      const weather = weatherName(event.to);
       const what =
         event.cause === 'schedule'
-          ? `The weather turned to ${name}.`
+          ? t('ev.weatherSchedule', { weather })
           : event.cause === 'enemy'
-            ? `${actingEnemy} summoned ${name}!`
-            : `You summoned ${name}.`;
-      messages.push(`${WEATHERS[event.to].icon} ${what} ${WEATHER_INFO[event.to].effect}`);
+            ? t('ev.weatherEnemy', { enemy: actingEnemy, weather })
+            : t('ev.weatherPlayer', { weather });
+      messages.push(`${WEATHERS[event.to].icon} ${what} ${weatherEffect(event.to)}`);
     } else if (event.type === 'potion') {
-      messages.push(`${ICONS.potion} You drank ${getRecipe(event.recipeId).name}!`);
+      messages.push(`${ICONS.potion} ${t('ev.potion', { name: recipeName(event.recipeId) })}`);
     } else if (event.type === 'brew' && event.bottled) {
-      messages.push(`${ICONS.potion} Bottled ${getRecipe(event.recipeId).name} for later!`);
+      messages.push(`${ICONS.potion} ${t('ev.bottled', { name: recipeName(event.recipeId) })}`);
     } else if (event.type === 'brew') {
-      const recipe = getRecipe(event.recipeId);
       const used = event.used.map((e) => ELEMENTS[e].icon).join('');
       messages.push(
-        recipe.id === SLUDGE.id ? `${ICONS.cauldron} ${used} made Sludge.` : `${ICONS.cauldron} ${used} → ${recipe.name}!`,
+        `${ICONS.cauldron} ${
+          event.recipeId === SLUDGE.id ? t('ev.sludge', { used }) : t('ev.brew', { used, name: recipeName(event.recipeId) })
+        }`,
       );
     } else if (event.type === 'forecast') {
       const next = state.weather.forecast[0];
-      if (next) messages.push(`${ICONS.sky} The clouds shift: next comes ${describeSkyCard(next)}.`);
+      if (next) messages.push(`${ICONS.sky} ${t('ev.forecast', { sky: describeSkyCard(next) })}`);
     } else if (event.type === 'skyAdded') {
-      const name = state.enemies[event.index]?.name ?? 'An enemy';
-      messages.push(`${ICONS.sky} ${name} added ${event.cards.map(describeSkyCard).join(', ')} to your sky!`);
+      const cards = event.cards.map(describeSkyCard).join(', ');
+      messages.push(`${ICONS.sky} ${t('ev.skyAdded', { enemy: enemy(event.index), cards })}`);
     } else if (event.type === 'enemyBrew') {
-      const name = state.enemies[event.index]?.name ?? 'An enemy';
       messages.push(
         event.recipeId === SLUDGE.id
-          ? `${name}'s brew fizzled into Sludge!`
-          : `${ICONS.cauldron} ${name} brewed ${getRecipe(event.recipeId).name}!`,
+          ? t('ev.enemySludge', { enemy: enemy(event.index) })
+          : `${ICONS.cauldron} ${t('ev.enemyBrew', { enemy: enemy(event.index), name: recipeName(event.recipeId) })}`,
       );
     } else if (event.type === 'pilfer') {
-      const name = state.enemies[event.index]?.name ?? 'the enemy';
-      messages.push(
-        event.kept
-          ? `You stole ${ELEMENTS[event.element].icon} from ${name}'s cauldron.`
-          : `You knocked ${ELEMENTS[event.element].icon} out of ${name}'s cauldron (yours was full).`,
-      );
+      messages.push(t(event.kept ? 'ev.pilfer' : 'ev.pilferLost', { enemy: enemy(event.index), ...element(event.element) }));
     } else if (event.type === 'spoiled') {
-      messages.push(`${ICONS.spoiled} ${state.enemies[event.index]?.name ?? 'The enemy'}'s next brew will fail.`);
+      messages.push(`${ICONS.spoiled} ${t('ev.spoiled', { enemy: enemy(event.index) })}`);
     } else if (event.type === 'element' && event.fromWeather) {
-      messages.push(`You caught ${ELEMENTS[event.element].icon} from the ${WEATHER_INFO[state.weather.current].name}.`);
+      messages.push(t('ev.caught', { weather: weatherName(state.weather.current), ...element(event.element) }));
     } else if (event.type === 'spill') {
-      messages.push(`Your cauldron was full, so the ${ELEMENTS[event.element].icon} spilled.`);
+      messages.push(t('ev.spill', element(event.element)));
     } else if (event.type === 'exposure') {
       messages.push(describeExposure(state));
     } else if (event.type === 'damage' && event.source === 'lightning') {
-      const name = event.target.side === 'player' ? 'you' : (state.enemies[event.target.index]?.name ?? 'an enemy');
-      messages.push(`${ICONS.lightning} Lightning struck ${name}!`);
+      messages.push(
+        `${ICONS.lightning} ${
+          event.target.side === 'player' ? t('ev.lightningYou') : t('ev.lightning', { enemy: enemy(event.target.index) })
+        }`,
+      );
     } else if (event.type === 'steal') {
-      const name = state.enemies[event.index]?.name ?? 'An enemy';
-      messages.push(`${name} stole ${ELEMENTS[event.element].icon} from your cauldron!`);
+      messages.push(t('ev.steal', { enemy: enemy(event.index), ...element(event.element) }));
     } else if (event.type === 'relic') {
-      messages.push(`${RELIC_ICONS[event.relic] ?? ''} ${getRelic(event.relic).name}!`);
+      messages.push(`${RELIC_ICONS[event.relic] ?? ''} ${relicName(event.relic)}!`);
     }
   }
   return messages.join(' ');
@@ -745,6 +775,16 @@ function describeEvents(state: CombatState, events: CombatEvent[]): string {
 interface HasText {
   effects: readonly Effect[];
   text: string;
+}
+
+/** A card's effects with its text in the current language. */
+function cardItem(def: CardDef): HasText {
+  return { effects: def.effects, text: cardText(def) };
+}
+
+/** A recipe's effects with its text in the current language. */
+function recipeItem(id: string): HasText {
+  return { effects: getRecipe(id).effects, text: recipeText(id) };
 }
 
 /** The damage of the first damage effect, before and after weather and the player's Weak. */
@@ -783,7 +823,7 @@ function animate(root: HTMLElement, events: CombatEvent[]): void {
     if (event.type === 'brew') {
       const cauldron = root.querySelector<HTMLElement>('.cauldron');
       flash(cauldron, 'brewed');
-      if (cauldron) floatText(cauldron, getRecipe(event.recipeId).name, 'brew');
+      if (cauldron) floatText(cauldron, recipeName(event.recipeId), 'brew');
       continue;
     }
     if (event.type === 'heal') {
@@ -794,7 +834,7 @@ function animate(root: HTMLElement, events: CombatEvent[]): void {
     if (event.type === 'enemyBrew') {
       const unit = root.querySelector<HTMLElement>(`[data-unit="enemy-${event.index}"]`);
       flash(unit, 'brewed');
-      if (unit) floatText(unit, getRecipe(event.recipeId).name, 'brew');
+      if (unit) floatText(unit, recipeName(event.recipeId), 'brew');
       continue;
     }
     if (event.type === 'steal') {
@@ -810,7 +850,7 @@ function animate(root: HTMLElement, events: CombatEvent[]): void {
     if (event.type === 'damage') {
       float.className = `float damage ${event.source ?? ''}`;
       const icon = event.source === 'burn' ? ` ${ICONS.burn}` : event.source === 'lightning' ? ` ${ICONS.lightning}` : '';
-      float.textContent = event.amount > 0 ? `-${event.amount}${icon}` : 'Blocked';
+      float.textContent = event.amount > 0 ? `-${event.amount}${icon}` : t('combat.blocked');
       if (event.amount > 0) flash(unit);
       if (event.source === 'lightning') flash(root.querySelector('.combat'), 'lightning-flash');
     } else {

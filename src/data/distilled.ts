@@ -11,7 +11,7 @@ import { RECIPES } from './recipes';
 const FLASK = 'flask-';
 const ESSENCE = 'essence-';
 
-const ELEMENT_ICONS: Record<ElementId, string> = {
+export const ELEMENT_ICONS: Record<ElementId, string> = {
   fire: '🔥',
   water: '💧',
   earth: '🪨',
@@ -63,5 +63,12 @@ export const DISTILLED_CARDS: Record<string, CardDef> = Object.fromEntries(
 export function distilledRecipe(cardId: string): string | undefined {
   if (cardId.startsWith(FLASK)) return cardId.slice(FLASK.length);
   if (cardId.startsWith(ESSENCE)) return cardId.slice(ESSENCE.length);
+  return undefined;
+}
+
+/** Whether a distilled card is a Flask or an Essence (undefined for other cards). */
+export function distilledKind(cardId: string): 'flask' | 'essence' | undefined {
+  if (cardId.startsWith(FLASK)) return 'flask';
+  if (cardId.startsWith(ESSENCE)) return 'essence';
   return undefined;
 }

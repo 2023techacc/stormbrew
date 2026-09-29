@@ -17,25 +17,6 @@ export const HEATWAVE_BURN = 1;
 
 export const WEATHER_IDS: readonly WeatherId[] = ['clear', 'rain', 'storm', 'heatwave', 'snow'];
 
-export interface WeatherInfo {
-  name: string;
-  effect: string;
-}
-
-export const WEATHER_INFO: Record<WeatherId, WeatherInfo> = {
-  clear: { name: 'Clear', effect: 'No effect.' },
-  rain: { name: 'Rain', effect: 'Fire damage −25%.' },
-  storm: {
-    name: 'Storm',
-    effect: `End of each round: lightning hits a random unit for ${STORM_BOLT_DAMAGE}.`,
-  },
-  heatwave: {
-    name: 'Heatwave',
-    effect: `Fire damage +25%. Everyone gains ${HEATWAVE_BURN} Burn each turn.`,
-  },
-  snow: { name: 'Snow', effect: 'Block does not wear off.' },
-};
-
 /** Turns left until the next change (1 = it changes next turn). */
 export function turnsUntilChange(weather: WeatherState, turn: number): number {
   return weather.nextChangeTurn - turn;

@@ -41,13 +41,27 @@ import type { CombatState, ElementId } from '../core/types';
 import { getCard } from '../data/cards';
 import { distilledRecipe } from '../data/distilled';
 import { getRecipe } from '../data/recipes';
-import { getRelic } from '../data/relics';
 import { getSkyCard } from '../data/sky';
+import { t } from '../i18n';
+import {
+  cardName,
+  elementName,
+  eventName,
+  eventText,
+  optionLabel,
+  optionText,
+  recipeName,
+  recipeText,
+  relicName,
+  relicText,
+  skyName,
+  skyText,
+} from '../i18n/content';
 import { cardFace, showCombat } from './combatView';
 import { esc } from './dom';
 import { clearRun, saveGrimoire, saveRun } from './storage';
 import { baseText } from './text';
-import { ELEMENTS, EVENT_ICONS, ICONS, NODE_ICONS, NODE_NAMES, RELIC_ICONS, WEATHERS } from './theme';
+import { ELEMENTS, EVENT_ICONS, ICONS, NODE_ICONS, RELIC_ICONS, WEATHERS } from './theme';
 
 const MAP_ROW = 64;
 
@@ -133,7 +147,8 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
   const startNodeFight = (node: MapNode) => {
     const { state } = startFight(run);
     const elite = node.type === 'elite' || node.type === 'event';
-    showFight(state, node.type === 'boss' ? 'Boss' : `${elite ? 'Elite · ' : ''}Floor ${node.floor + 1}`);
+    const floor = node.floor + 1;
+    showFight(state, node.type === 'boss' ? t('fight.boss') : t(elite ? 'fight.eliteFloor' : 'fight.floor', { floor }));
   };
 
   /** Follows an event choice: back to the map, on to a pick, or into a fight. */
@@ -166,12 +181,11 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
     if (d.action === 'sky') return ((showSky = true), render());
     if (d.action === 'close') return ((showDeck = false), (showSky = false), render());
     if (d.relic) {
-      const relic = getRelic(d.relic);
-      return go(screen, `${RELIC_ICONS[relic.id] ?? ''} ${relic.name}: ${relic.text}`);
+      return go(screen, `${RELIC_ICONS[d.relic] ?? ''} ${relicName(d.relic)}: ${relicText(d.relic)}`);
     }
     if (d.potionInfo) {
-      const recipe = getRecipe(d.potionInfo);
-      return go(screen, `${ICONS.potion} ${recipe.name} potion: ${baseText(recipe)} Drink it during a fight.`);
+      const text = potionText(d.potionInfo);
+      return go(screen, `${ICONS.potion} ${t('run.potionInfo', { name: recipeName(d.potionInfo), text })}`);
     }
     if (d.action === 'none' || showDeck || showSky) return;
 
@@ -186,30 +200,31 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
 
     if (screen.name === 'reward') {
       if (d.reward) addCardToDeck(run, d.reward);
-      if (d.reward || d.action === 'skip') go({ name: 'map' }, d.reward ? `Added ${getCard(d.reward).name}.` : '');
+      if (d.reward || d.action === 'skip') go({ name: 'map' }, d.reward ? t('run.added', { name: cardName(getCard(d.reward)) }) : '');
       return;
     }
 
     if (screen.name === 'rest') {
-      if (d.action === 'rest') return go({ name: 'map' }, `You rested and healed ${rest(run)} HP.`);
-      if (d.action === 'infuse') return go({ name: 'rest', step: 'pickCard' }, 'Pick a card to infuse.');
-      if (d.action === 'chart') return go({ name: 'rest', step: 'pickSky' }, 'Pick a weather to clear from your sky.');
+      if (d.action === 'rest') return go({ name: 'map' }, t('run.rested', { n: rest(run) }));
+      if (d.action === 'infuse') return go({ name: 'rest', step: 'pickCard' }, t('run.pickInfuse'));
+      if (d.action === 'chart') return go({ name: 'rest', step: 'pickSky' }, t('run.pickChart'));
       if (d.skyIndex !== undefined && screen.step === 'pickSky') {
-        const name = getSkyCard(run.sky[Number(d.skyIndex)] ?? 'clear').name;
+        const name = skyName(run.sky[Number(d.skyIndex)] ?? 'clear');
         const result = chartSky(run, Number(d.skyIndex));
-        return result.ok ? go({ name: 'map' }, `${name} is gone from your sky.`) : go(screen, result.reason);
+        return result.ok ? go({ name: 'map' }, t('run.skyGone', { name })) : go(screen, result.reason);
       }
       if (d.action === 'back') return go({ name: 'rest', step: 'choose' });
       if (d.deckIndex !== undefined && screen.step === 'pickCard') {
         const index = Number(d.deckIndex);
         const card = run.deck[index];
-        if (!card || !canInfuse(card)) return go(screen, 'That card is already infused.');
-        return go({ name: 'rest', step: 'pickElement', deckIndex: index }, 'Pick an element.');
+        if (!card || !canInfuse(card)) return go(screen, t('err.alreadyInfused'));
+        return go({ name: 'rest', step: 'pickElement', deckIndex: index }, t('run.pickElement'));
       }
       if (d.element && screen.step === 'pickElement' && screen.deckIndex !== undefined) {
         const card = run.deck[screen.deckIndex];
         infuseCard(run, screen.deckIndex, d.element as ElementId);
-        return go({ name: 'map' }, `${card ? getCard(card.id).name : 'The card'} now also adds ${ELEMENTS[d.element as ElementId].icon}.`);
+        const name = card ? cardName(getCard(card.id)) : t('run.theCard');
+        return go({ name: 'map' }, t('run.infused', { name, icon: ELEMENTS[d.element as ElementId].icon }));
       }
       return;
     }
@@ -232,28 +247,29 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
 
     if (screen.name === 'shop') {
       if (d.action === 'leave') return go({ name: 'map' });
-      if (d.action === 'remove') return go({ name: 'shop', removing: true }, 'Pick a card to remove.');
+      if (d.action === 'remove') return go({ name: 'shop', removing: true }, t('run.pickRemove'));
       if (d.action === 'back') return go({ name: 'shop', removing: false });
       if (d.buyCard !== undefined) {
         const result = buyCard(run, Number(d.buyCard));
-        return go(screen, result.ok ? 'Bought!' : result.reason);
+        return go(screen, result.ok ? t('run.bought') : result.reason);
       }
       if (d.buyRelic !== undefined) {
         const result = buyRelic(run, Number(d.buyRelic));
-        return go(screen, result.ok ? 'Bought!' : result.reason);
+        return go(screen, result.ok ? t('run.bought') : result.reason);
       }
       if (d.buyPotion !== undefined) {
         const result = buyPotion(run, Number(d.buyPotion));
-        return go(screen, result.ok ? 'Bought!' : result.reason);
+        return go(screen, result.ok ? t('run.bought') : result.reason);
       }
       if (d.buySky !== undefined) {
         const result = buySky(run, Number(d.buySky));
-        return go(screen, result.ok ? 'Added to your sky!' : result.reason);
+        return go(screen, result.ok ? t('run.addedToSky') : result.reason);
       }
       if (d.deckIndex !== undefined && screen.removing) {
         const card = run.deck[Number(d.deckIndex)];
         const result = removeCard(run, Number(d.deckIndex));
-        return go({ name: 'shop', removing: false }, result.ok && card ? `Removed ${getCard(card.id).name}.` : result.ok ? '' : result.reason);
+        const message = result.ok ? (card ? t('run.removed', { name: cardName(getCard(card.id)) }) : '') : result.reason;
+        return go({ name: 'shop', removing: false }, message);
       }
       return;
     }
@@ -283,23 +299,31 @@ function randomSeed(): number {
   return Math.floor(Math.random() * 2 ** 32);
 }
 
+/** A potion's effect as text, with base damage (outside fights there's no weather). */
+function potionText(recipeId: string): string {
+  return baseText({ effects: getRecipe(recipeId).effects, text: recipeText(recipeId) });
+}
+
+/** "💰 60" */
+const goldAmount = (amount: number) => `${ICONS.gold} ${amount}`;
+
 function renderHeader(run: RunState): string {
   return `
     <header class="run-header">
-      <span class="stat" title="HP">${ICONS.hp} ${run.hp}/${run.maxHp}</span>
-      <span class="stat" title="Gold">${ICONS.gold} ${run.gold}</span>
+      <span class="stat" title="${esc(t('run.hp'))}">${ICONS.hp} ${run.hp}/${run.maxHp}</span>
+      <span class="stat" title="${esc(t('run.gold'))}">${ICONS.gold} ${run.gold}</span>
       <span class="header-buttons">
-        <button class="tool-button" data-action="sky" title="Your sky">${ICONS.sky} ${run.sky.length}</button>
-        <button class="tool-button" data-action="deck" title="Your deck">${ICONS.deck} ${run.deck.length}</button>
+        <button class="tool-button" data-action="sky" title="${esc(t('run.sky'))}">${ICONS.sky} ${run.sky.length}</button>
+        <button class="tool-button" data-action="deck" title="${esc(t('run.deck'))}">${ICONS.deck} ${run.deck.length}</button>
       </span>
     </header>
-    <section class="relic-bar" aria-label="Relics and potions">
+    <section class="relic-bar" aria-label="${esc(t('run.relicBar'))}">
       ${run.relics
-        .map((id) => `<button class="relic" data-relic="${esc(id)}" title="${esc(getRelic(id).name)}">${RELIC_ICONS[id] ?? '❔'}</button>`)
+        .map((id) => `<button class="relic" data-relic="${esc(id)}" title="${esc(relicName(id))}">${RELIC_ICONS[id] ?? '❔'}</button>`)
         .join('')}
       ${run.potions
         .map(
-          (id) => `<button class="relic potion-icon" data-potion-info="${esc(id)}" title="${esc(getRecipe(id).name)}">${ICONS.potion}</button>`,
+          (id) => `<button class="relic potion-icon" data-potion-info="${esc(id)}" title="${esc(recipeName(id))}">${ICONS.potion}</button>`,
         )
         .join('')}
     </section>
@@ -330,37 +354,37 @@ function renderMap(run: RunState): string {
     ].join(' ');
     return `<button class="map-node ${node.type} ${state}" data-node="${node.id}"
       style="left: ${x(node)}%; top: ${y(node)}px" ${reachable.has(node.id) ? '' : 'disabled'}
-      aria-label="${NODE_NAMES[node.type]}, floor ${node.floor + 1}">${NODE_ICONS[node.type]}</button>`;
+      aria-label="${esc(t('map.nodeAria', { type: t(`node.${node.type}`), floor: node.floor + 1 }))}">${NODE_ICONS[node.type]}</button>`;
   });
 
   return `
-    <h2>Act 1</h2>
-    <p class="muted small">Tap a glowing spot to go there.</p>
+    <h2>${esc(t('map.act1'))}</h2>
+    <p class="muted small">${esc(t('map.hint'))}</p>
     <section class="map" style="height: ${height}px">
       <svg viewBox="0 0 100 ${height}" preserveAspectRatio="none" aria-hidden="true">${lines.join('')}</svg>
       ${buttons.join('')}
     </section>
     <p class="map-legend muted small">
-      ${(['fight', 'elite', 'event', 'rest', 'shop', 'boss'] as const).map((t) => `${NODE_ICONS[t]} ${NODE_NAMES[t]}`).join(' · ')}
+      ${(['fight', 'elite', 'event', 'rest', 'shop', 'boss'] as const).map((type) => `${NODE_ICONS[type]} ${esc(t(`node.${type}`))}`).join(' · ')}
     </p>
   `;
 }
 
 function renderReward(rewards: FightRewards): string {
-  const relic = rewards.relic ? getRelic(rewards.relic) : undefined;
+  const relic = rewards.relic;
   return `
-    <h2>Victory!</h2>
-    <p>+${rewards.gold} ${ICONS.gold}${rewards.healed > 0 ? ` · +${rewards.healed} HP (Healing Herb)` : ''}</p>
+    <h2>${esc(t('reward.title'))}</h2>
+    <p>+${rewards.gold} ${ICONS.gold}${rewards.healed > 0 ? ` · ${esc(t('reward.herb', { n: rewards.healed }))}` : ''}</p>
     ${
       relic
-        ? `<p class="relic-found">${RELIC_ICONS[relic.id] ?? ''} <strong>${esc(relic.name)}</strong>: ${esc(relic.text)}</p>`
+        ? `<p class="relic-found">${RELIC_ICONS[relic] ?? ''} <strong>${esc(relicName(relic))}</strong>: ${esc(relicText(relic))}</p>`
         : ''
     }
-    ${rewards.potion ? `<p class="relic-found">${ICONS.potion} Found a <strong>${esc(getRecipe(rewards.potion).name)}</strong> potion!</p>` : ''}
-    <p>Choose a card to add to your deck:</p>
+    ${rewards.potion ? `<p class="relic-found">${ICONS.potion} ${esc(t('reward.potion', { name: recipeName(rewards.potion) }))}</p>` : ''}
+    <p>${esc(t('reward.choose'))}</p>
     ${
       rewards.cardChoices.some((id) => distilledRecipe(id))
-        ? `<p class="muted small">${ICONS.cauldron} Distilled cards come from recipes brewed in this fight.</p>`
+        ? `<p class="muted small">${ICONS.cauldron} ${esc(t('reward.distilledNote'))}</p>`
         : ''
     }
     <section class="reward-cards">
@@ -370,58 +394,58 @@ function renderReward(rewards: FightRewards): string {
           return cardFace(getCard(id), 'clear', {
             attrs: `data-reward="${esc(id)}"`,
             className: from ? 'distilled' : '',
-            note: from ? `${ICONS.cauldron} Distilled` : undefined,
+            note: from ? `${ICONS.cauldron} ${t('reward.distilled')}` : undefined,
           });
         })
         .join('')}
     </section>
-    <button class="text-button" data-action="skip">Skip</button>
+    <button class="text-button" data-action="skip">${esc(t('common.skip'))}</button>
   `;
 }
 
 function renderRest(run: RunState, step: 'choose' | 'pickCard' | 'pickElement' | 'pickSky', deckIndex?: number): string {
   if (step === 'pickSky') {
     return `
-      <h2>${ICONS.sky} Chart the sky</h2>
-      <p class="muted small">Remove one weather card from your sky, so the others come more often.</p>
+      <h2>${ICONS.sky} ${esc(t('rest.chart'))}</h2>
+      <p class="muted small">${esc(t('rest.chartText'))}</p>
       ${skyList(run.sky, (i) => `data-sky-index="${i}"`)}
-      <button class="text-button" data-action="back">Back</button>
+      ${backButton()}
     `;
   }
   if (step === 'pickCard') {
     return `
-      <h2>${NODE_ICONS.rest} Infuse</h2>
-      <p class="muted small">An infused card also adds its element when you play it.</p>
+      <h2>${NODE_ICONS.rest} ${esc(t('rest.infuseTitle'))}</h2>
+      <p class="muted small">${esc(t('rest.infuseText'))}</p>
       ${deckGrid(run, (i) => {
         const card = run.deck[i];
         return card && canInfuse(card) ? '' : 'unplayable';
       })}
-      <button class="text-button" data-action="back">Back</button>
+      ${backButton()}
     `;
   }
   if (step === 'pickElement' && deckIndex !== undefined) {
     const card = run.deck[deckIndex];
     return `
-      <h2>${NODE_ICONS.rest} Infuse</h2>
+      <h2>${NODE_ICONS.rest} ${esc(t('rest.infuseTitle'))}</h2>
       ${card ? `<section class="reward-cards">${cardFace(getCard(card.id), 'clear', { attrs: 'data-action="none"' })}</section>` : ''}
       <section class="element-choices">
         ${INFUSE_ELEMENTS.map(
           (e) => `<button class="element-choice" data-element="${e}" style="--chip-color: ${ELEMENTS[e].color}">
-            ${ELEMENTS[e].icon}<small>${ELEMENTS[e].name}</small></button>`,
+            ${ELEMENTS[e].icon}<small>${esc(elementName(e))}</small></button>`,
         ).join('')}
       </section>
-      <button class="text-button" data-action="back">Back</button>
+      ${backButton()}
     `;
   }
   const heal = restHealAmount(run);
   return `
-    <h2>${NODE_ICONS.rest} Rest site</h2>
-    <p class="muted">Choose one:</p>
+    <h2>${NODE_ICONS.rest} ${esc(t('rest.title'))}</h2>
+    <p class="muted">${esc(t('rest.choose'))}</p>
     <span class="title-buttons">
-      <button class="primary-button" data-action="rest" ${heal > 0 ? '' : 'disabled'}>Rest: heal ${heal} HP</button>
-      <button class="secondary-button" data-action="infuse">Infuse a card</button>
+      <button class="primary-button" data-action="rest" ${heal > 0 ? '' : 'disabled'}>${esc(t('rest.heal', { n: heal }))}</button>
+      <button class="secondary-button" data-action="infuse">${esc(t('rest.infuse'))}</button>
       <button class="secondary-button" data-action="chart" ${run.sky.length > MIN_SKY ? '' : 'disabled'}>
-        ${ICONS.sky} Chart the sky
+        ${ICONS.sky} ${esc(t('rest.chart'))}
       </button>
     </span>
   `;
@@ -429,33 +453,35 @@ function renderRest(run: RunState, step: 'choose' | 'pickCard' | 'pickElement' |
 
 function renderEvent(run: RunState, step: 'choose' | 'pickCard' | 'pickSky', grimoire: Grimoire): string {
   const event = currentEvent(run);
-  if (!event) return '<p>Nothing is left here.</p><button class="primary-button" data-action="leave">Continue</button>';
-  const title = `<h2>${EVENT_ICONS[event.id] ?? NODE_ICONS.event} ${esc(event.name)}</h2>`;
+  if (!event) {
+    return `<p>${esc(t('event.nothingLeft'))}</p><button class="primary-button" data-action="leave">${esc(t('common.continue'))}</button>`;
+  }
+  const title = `<h2>${EVENT_ICONS[event.id] ?? NODE_ICONS.event} ${esc(eventName(event.id))}</h2>`;
   const pick = pendingPick(run);
   if (step === 'pickCard' && pick) {
     return `
       ${title}
       ${deckGrid(run, (i) => (canPickEventCard(run, i) ? '' : 'unplayable'))}
-      <button class="text-button" data-action="back">Back</button>
+      ${backButton()}
     `;
   }
   if (step === 'pickSky' && pick) {
     return `
       ${title}
       ${skyList(eventSkyOptions(run), (i) => `data-sky-index="${i}"`)}
-      <button class="text-button" data-action="back">Back</button>
+      ${backButton()}
     `;
   }
   return `
     ${title}
-    <p class="event-text">${esc(event.text)}</p>
+    <p class="event-text">${esc(eventText(event.id))}</p>
     <section class="event-options">
       ${event.options
         .map((option) => {
           const blocked = eventOptionBlocked(run, option, grimoire);
           return `<button class="event-option" data-event-option="${esc(option.id)}" ${blocked ? 'disabled' : ''}>
-            <strong>${esc(option.label)}</strong>
-            <span>${esc(blocked ?? option.text)}</span>
+            <strong>${esc(optionLabel(event.id, option.id))}</strong>
+            <span>${esc(blocked ?? optionText(event.id, option.id))}</span>
           </button>`;
         })
         .join('')}
@@ -465,19 +491,21 @@ function renderEvent(run: RunState, step: 'choose' | 'pickCard' | 'pickSky', gri
 
 function renderShop(run: RunState, removing: boolean): string {
   const shop = run.shop;
-  if (!shop) return '<p>The shop is closed.</p><button class="primary-button" data-action="leave">Leave</button>';
+  if (!shop) {
+    return `<p>${esc(t('shop.closed'))}</p><button class="primary-button" data-action="leave">${esc(t('common.leave'))}</button>`;
+  }
   if (removing) {
     return `
-      <h2>${NODE_ICONS.shop} Remove a card</h2>
-      <p class="muted small">Costs ${ICONS.gold} ${shop.removalPrice}.</p>
+      <h2>${NODE_ICONS.shop} ${esc(t('shop.removeTitle'))}</h2>
+      <p class="muted small">${esc(t('shop.removeCost', { price: goldAmount(shop.removalPrice) }))}</p>
       ${deckGrid(run, () => '')}
-      <button class="text-button" data-action="back">Back</button>
+      ${backButton()}
     `;
   }
   const price = (p: number, sold: boolean) =>
-    `<span class="price ${sold ? 'sold' : run.gold < p ? 'too-expensive' : ''}">${sold ? 'Sold' : `${ICONS.gold} ${p}`}</span>`;
+    `<span class="price ${sold ? 'sold' : run.gold < p ? 'too-expensive' : ''}">${sold ? esc(t('shop.sold')) : goldAmount(p)}</span>`;
   return `
-    <h2>${NODE_ICONS.shop} Shop</h2>
+    <h2>${NODE_ICONS.shop} ${esc(t('shop.title'))}</h2>
     <section class="shop-cards">
       ${shop.cards
         .map(
@@ -491,10 +519,9 @@ function renderShop(run: RunState, removing: boolean): string {
     <section class="shop-relics">
       ${shop.relics
         .map((item, i) => {
-          const relic = getRelic(item.id);
           return `<button class="shop-relic ${item.sold ? 'sold' : ''}" data-buy-relic="${i}">
-            <span class="relic-icon">${RELIC_ICONS[relic.id] ?? '❔'}</span>
-            <span class="recipe-body"><strong>${esc(relic.name)}</strong> ${esc(relic.text)}</span>
+            <span class="relic-icon">${RELIC_ICONS[item.id] ?? '❔'}</span>
+            <span class="recipe-body"><strong>${esc(relicName(item.id))}</strong> ${esc(relicText(item.id))}</span>
             ${price(item.price, item.sold)}
           </button>`;
         })
@@ -503,10 +530,9 @@ function renderShop(run: RunState, removing: boolean): string {
     <section class="shop-relics">
       ${shop.potions
         .map((item, i) => {
-          const recipe = getRecipe(item.id);
           return `<button class="shop-relic ${item.sold ? 'sold' : ''}" data-buy-potion="${i}">
             <span class="relic-icon">${ICONS.potion}</span>
-            <span class="recipe-body"><strong>${esc(recipe.name)} potion</strong> ${esc(baseText(recipe))}</span>
+            <span class="recipe-body"><strong>${esc(t('shop.potion', { name: recipeName(item.id) }))}</strong> ${esc(potionText(item.id))}</span>
             ${price(item.price, item.sold)}
           </button>`;
         })
@@ -518,17 +544,21 @@ function renderShop(run: RunState, removing: boolean): string {
           const card = getSkyCard(item.id);
           return `<button class="shop-relic ${item.sold ? 'sold' : ''}" data-buy-sky="${i}">
             <span class="relic-icon">${WEATHERS[card.weather].icon}</span>
-            <span class="recipe-body"><strong>${esc(card.name)}</strong> weather card: ${esc(card.text)}</span>
+            <span class="recipe-body"><strong>${esc(skyName(item.id))}</strong> ${esc(t('shop.weatherCard', { text: skyText(item.id) }))}</span>
             ${price(item.price, item.sold)}
           </button>`;
         })
         .join('')}
     </section>
     <button class="secondary-button" data-action="remove" ${shop.removalUsed ? 'disabled' : ''}>
-      Remove a card (${ICONS.gold} ${shop.removalPrice})
+      ${esc(t('shop.remove', { price: goldAmount(shop.removalPrice) }))}
     </button>
-    <button class="primary-button" data-action="leave">Leave</button>
+    <button class="primary-button" data-action="leave">${esc(t('common.leave'))}</button>
   `;
+}
+
+function backButton(): string {
+  return `<button class="text-button" data-action="back">${esc(t('common.back'))}</button>`;
 }
 
 /** The deck as tappable cards; `extraClass(i)` can mark some unavailable. */
@@ -551,10 +581,10 @@ function deckGrid(run: RunState, extraClass: (index: number) => string): string 
 function renderDeck(run: RunState): string {
   return `
     <span class="overlay" data-action="close">
-      <span class="recipe-panel" role="dialog" aria-label="Your deck" data-action="none">
+      <span class="recipe-panel" role="dialog" aria-label="${esc(t('run.deck'))}" data-action="none">
         <span class="recipe-header">
-          <h2>Deck (${run.deck.length})</h2>
-          <button class="text-button" data-action="close">Close</button>
+          <h2>${esc(t('deck.title', { n: run.deck.length }))}</h2>
+          <button class="text-button" data-action="close">${esc(t('common.close'))}</button>
         </span>
         <span class="deck-scroll">
           <span class="card-grid">
@@ -577,7 +607,7 @@ function skyList(sky: readonly string[], attrs: (index: number) => string): stri
           const card = getSkyCard(id);
           return `<button class="shop-relic" ${attrs(i)}>
             <span class="relic-icon">${WEATHERS[card.weather].icon}</span>
-            <span class="recipe-body"><strong>${esc(card.name)}</strong> ${esc(card.text)}</span>
+            <span class="recipe-body"><strong>${esc(skyName(id))}</strong> ${esc(skyText(id))}</span>
           </button>`;
         })
         .join('')}
@@ -588,15 +618,12 @@ function skyList(sky: readonly string[], attrs: (index: number) => string): stri
 function renderSky(run: RunState): string {
   return `
     <span class="overlay" data-action="close">
-      <span class="recipe-panel" role="dialog" aria-label="Your sky" data-action="none">
+      <span class="recipe-panel" role="dialog" aria-label="${esc(t('run.sky'))}" data-action="none">
         <span class="recipe-header">
-          <h2>${ICONS.sky} Sky (${run.sky.length})</h2>
-          <button class="text-button" data-action="close">Close</button>
+          <h2>${ICONS.sky} ${esc(t('sky.title', { n: run.sky.length }))}</h2>
+          <button class="text-button" data-action="close">${esc(t('common.close'))}</button>
         </span>
-        <span class="recipe-rules">
-          Each fight's forecast is drawn from these weather cards. Buy more in shops;
-          chart the sky at rest sites to remove one. Some enemies add their own weather.
-        </span>
+        <span class="recipe-rules">${esc(t('sky.rules'))}</span>
         <span class="deck-scroll">${skyList(run.sky, () => 'data-action="none"')}</span>
       </span>
     </span>
@@ -606,20 +633,23 @@ function renderSky(run: RunState): string {
 function renderOver(run: RunState): string {
   const won = run.status === 'won';
   const node = currentNode(run);
+  const floor = node ? node.floor + 1 : 1;
   return `
     <main class="screen">
-      <h2>${won ? 'Act 1 complete!' : 'Defeated'}</h2>
-      <p>${
+      <h2>${esc(t(won ? 'over.won' : 'over.lost'))}</h2>
+      <p>${esc(
         won
-          ? 'You defeated the Eye of the Storm.'
-          : `You fell on floor ${node ? node.floor + 1 : 1} after winning ${run.fightsWon} fight${run.fightsWon === 1 ? '' : 's'}.`
-      }</p>
+          ? t('over.wonText')
+          : run.fightsWon === 1
+            ? t('over.lostText1', { floor })
+            : t('over.lostText', { floor, n: run.fightsWon }),
+      )}</p>
       <p class="muted small">
-        Deck: ${run.deck.length} cards · Relics: ${run.relics.map((id) => RELIC_ICONS[id] ?? '').join(' ')}
+        ${esc(t('over.summary', { n: run.deck.length, relics: run.relics.map((id) => RELIC_ICONS[id] ?? '').join(' ') }))}
       </p>
       <span class="title-buttons">
-        <button class="primary-button" data-action="new-run">New run</button>
-        <button class="text-button" data-action="title">Back to title</button>
+        <button class="primary-button" data-action="new-run">${esc(t('over.newRun'))}</button>
+        <button class="text-button" data-action="title">${esc(t('over.title'))}</button>
       </span>
     </main>
   `;

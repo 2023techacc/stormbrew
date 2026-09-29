@@ -1,6 +1,7 @@
 import { getCard } from '../data/cards';
 import { getEnemy } from '../data/enemies';
 import { RECIPES, SLUDGE, getRecipe } from '../data/recipes';
+import { t } from '../i18n';
 import { CAULDRON_SLOTS, WEATHER_ELEMENTS, effectsNeedTarget, findBrew, type BrewResult } from './brewing';
 import { dealDamage, gainBlock } from './effects';
 import { Rng } from './rng';
@@ -160,11 +161,11 @@ export function isWeathered(enemy: EnemyState, weather: WeatherId): boolean {
 
 /** Why a card can't be played right now, or null if it can. */
 export function cannotPlayReason(state: CombatState, card: CardInstance): string | null {
-  if (state.status !== 'playing') return 'The fight is over.';
-  if (!state.hand.some((c) => c.uid === card.uid)) return 'That card is not in your hand.';
+  if (state.status !== 'playing') return t('err.fightOver');
+  if (!state.hand.some((c) => c.uid === card.uid)) return t('err.notInHand');
   const effects = cardEffects(card, state.weather.current);
-  if (getCard(card.defId).cost > state.player.energy) return 'Not enough energy.';
-  if (usesCauldronOnly(effects) && state.cauldron.length === 0) return 'The cauldron is empty.';
+  if (getCard(card.defId).cost > state.player.energy) return t('err.noEnergy');
+  if (usesCauldronOnly(effects) && state.cauldron.length === 0) return t('err.emptyCauldron');
   return null;
 }
 
@@ -202,7 +203,7 @@ export function cardNeedsTarget(state: CombatState, card: CardInstance): boolean
 
 export function playCard(state: CombatState, uid: number, targetIndex?: number): PlayResult {
   const card = state.hand.find((c) => c.uid === uid);
-  if (!card) return { ok: false, reason: 'That card is not in your hand.' };
+  if (!card) return { ok: false, reason: t('err.notInHand') };
   const reason = cannotPlayReason(state, card);
   if (reason) return { ok: false, reason };
 
@@ -211,7 +212,7 @@ export function playCard(state: CombatState, uid: number, targetIndex?: number):
   if (cardNeedsTarget(state, card)) {
     const enemy = targetIndex === undefined ? undefined : state.enemies[targetIndex];
     if (targetIndex === undefined || !enemy || !isAlive(enemy)) {
-      return { ok: false, reason: 'Choose an enemy.' };
+      return { ok: false, reason: t('err.chooseEnemy') };
     }
     target = targetIndex;
   }
@@ -688,13 +689,13 @@ export function potionNeedsTarget(state: CombatState, index: number): boolean {
 
 /** Drinks a potion: its brew's effects happen right away, for free. */
 export function usePotion(state: CombatState, index: number, targetIndex?: number): PlayResult {
-  if (state.status !== 'playing') return { ok: false, reason: 'The fight is over.' };
+  if (state.status !== 'playing') return { ok: false, reason: t('err.fightOver') };
   const id = state.potions[index];
-  if (id === undefined) return { ok: false, reason: 'No potion there.' };
+  if (id === undefined) return { ok: false, reason: t('err.noPotion') };
   let target: number | undefined;
   if (potionNeedsTarget(state, index)) {
     const enemy = targetIndex === undefined ? undefined : state.enemies[targetIndex];
-    if (targetIndex === undefined || !enemy || !isAlive(enemy)) return { ok: false, reason: 'Choose an enemy.' };
+    if (targetIndex === undefined || !enemy || !isAlive(enemy)) return { ok: false, reason: t('err.chooseEnemy') };
     target = targetIndex;
   }
   state.potions.splice(index, 1);
