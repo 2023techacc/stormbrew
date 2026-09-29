@@ -37,7 +37,7 @@ npm run build      # production web build in dist/
 npm run balance    # balance report: 200 runs by a computer player (about 30 s)
 ```
 
-Releasing: bump the version (`npm version 0.13.0 --no-git-tag-version`), merge it into `main`, then push the tag `v0.13.0` on that commit. CI builds the APK and publishes the release; it refuses a tag that doesn't match `package.json`. The Android app's version comes from `package.json` too.
+Releasing: bump the version (`npm version 0.13.0 --no-git-tag-version`) and merge it into `main`. CI builds the APK, creates the tag `v0.13.0` and publishes the release. Pushing a `v0.13.0` tag by hand does the same; CI refuses a tag that doesn't match `package.json`. The Android app's version comes from `package.json` too.
 
 Building the APK locally needs Java 21 and the Android SDK (easiest via Android Studio):
 
