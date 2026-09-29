@@ -411,8 +411,8 @@ you can't take says why (not enough gold or HP, a full potion belt…):
   - Every push runs tests and builds the web version (deployed to GitHub Pages).
   - An Android job builds an **APK** you can download from the Actions page and
     install on a phone, so no Android Studio is needed to try it.
-  - Each version gets a tag (`v0.12.0`), and the tag publishes a **GitHub
-    Release** with the APK. Every APK is signed with the same key, so a new
+  - Each new version merged into `main` is published as a **GitHub Release**
+    with the APK, tagged `v0.12.0` and so on. Every APK is signed with the same key, so a new
     version installs over the old one and keeps the saves.
 
 ### 7.2 Architecture

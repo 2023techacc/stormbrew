@@ -16,7 +16,7 @@ jobs:
     name: Build debug APK
     runs-on: ubuntu-latest
     permissions:
-      contents: write # needed to attach the APK to a release on version tags
+      contents: write # needed to publish releases (and their tags)
     steps:
       - uses: actions/checkout@v5
 
@@ -75,11 +75,19 @@ jobs:
           path: ${{ steps.apk.outputs.name }}
           if-no-files-found: error
 
-      - name: Attach APK to a GitHub release (version tags only)
-        if: startsWith(github.ref, 'refs/tags/v')
+      # A new version on main (or a pushed version tag) is published as a release:
+      # this creates the tag vX.Y.Z on the commit and attaches the APK.
+      - name: Publish a release for a new version
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "${{ steps.apk.outputs.name }}" \
-            --title "Stormbrew $GITHUB_REF_NAME" --generate-notes \
+          tag="v$(node -p "require('./package.json').version")"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "$tag is already released."
+            exit 0
+          fi
+          gh release create "$tag" "${{ steps.apk.outputs.name }}" --target "$GITHUB_SHA" \
+            --title "Stormbrew $tag" --generate-notes \
             --notes "Download the APK below and open it on an Android phone (allow installing from this source when asked). A new version installs over the old one and keeps your saved run and Grimoire. A test build from before 0.12.0 has to be uninstalled once first."
