@@ -13,15 +13,16 @@ See [PLAN.md](PLAN.md) for the full game design and development plan.
 
 ## Getting the Android app
 
-Every push builds a debug APK on GitHub Actions:
+Every version is published as a **[GitHub Release](https://github.com/2023techacc/stormbrew/releases/latest)** with the APK attached:
 
-1. Open the **Actions** tab and pick the latest **Android APK** run.
-2. Download the **stormbrew-debug-apk** artifact (a zip containing the APK) and unzip it.
-3. Copy the APK to your phone and open it. Android will ask you to allow installing apps from that source.
+1. On your phone, open the [latest release](https://github.com/2023techacc/stormbrew/releases/latest) and download the `.apk` file under **Assets**.
+2. Open it. Android will ask you to allow installing apps from that source.
 
-Pushing a version tag (e.g. `v0.1.0`) also creates a GitHub Release with the APK attached, which is easier to download straight from a phone.
+A new version installs over the old one and keeps your saved run, Grimoire and settings. (A test build from before 0.12.0 was signed differently, so uninstall it once first.)
 
-> Each CI build is signed with a different temporary debug key, so if Android refuses to install over an older build, uninstall the old one first. A permanent signing key will be added before any store release.
+Builds between releases are on the **Actions** tab: pick the latest **Android APK** run and download the **stormbrew-debug-apk** artifact (a zip containing the APK).
+
+> The APK is signed with a debug key kept in this repository (`android/app/debug.keystore`), so every build can update the last one. Because that key is public, it is only for test builds; a store release will need a private key.
 
 ## Development
 
@@ -35,6 +36,8 @@ npm run typecheck  # TypeScript checks
 npm run build      # production web build in dist/
 npm run balance    # balance report: 200 runs by a computer player (about 30 s)
 ```
+
+Releasing: bump the version (`npm version 0.13.0 --no-git-tag-version`), merge it into `main`, then push the tag `v0.13.0` on that commit. CI builds the APK and publishes the release; it refuses a tag that doesn't match `package.json`. The Android app's version comes from `package.json` too.
 
 Building the APK locally needs Java 21 and the Android SDK (easiest via Android Studio):
 

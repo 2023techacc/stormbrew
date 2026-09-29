@@ -411,6 +411,9 @@ you can't take says why (not enough gold or HP, a full potion belt…):
   - Every push runs tests and builds the web version (deployed to GitHub Pages).
   - An Android job builds an **APK** you can download from the Actions page and
     install on a phone, so no Android Studio is needed to try it.
+  - Each version gets a tag (`v0.12.0`), and the tag publishes a **GitHub
+    Release** with the APK. Every APK is signed with the same key, so a new
+    version installs over the old one and keeps the saves.
 
 ### 7.2 Architecture
 Keep **game logic separate from rendering** so rules can be tested and
@@ -493,6 +496,7 @@ is fun in a single fight on a phone, the rest is adding content.
 | Crowded hands | Cards keep their size and overlap instead of shrinking |
 | Scope | One character (the Stormbrewer) for the MVP |
 | Languages | English (default) and Korean, chosen in Settings (§6.4) |
+| Releases | Every version is tagged (`vX.Y.Z`) and published as a GitHub Release with the APK; test builds share one signing key so updates keep your progress |
 | Sound | Made in code (Web Audio), no audio files; sound, vibration and weather effects each have an on/off setting (§6.5) |
 
 ## 10. Open Questions
