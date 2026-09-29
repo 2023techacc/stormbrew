@@ -345,6 +345,12 @@ you can't take says why (not enough gold or HP, a full potion belt…):
   or recipe.
 - Large touch targets (at least 44px), readable text on small screens, and
   support for screen notches (safe areas).
+- **No scrolling**: every screen fits between the phone's status bar and
+  navigation bar. A fight is exactly that tall; on shorter phones the enemies,
+  cards, cauldron and gaps shrink smoothly (full size from 760px of height,
+  compact at 600px), and a long fight message scrolls inside its own area. The
+  map stretches or squeezes its floors to fill the screen. (Checked from
+  360×600 to 412×800, in both languages.)
 - **Auto-save** after every action, because the phone may close the app at any
   time. Leaving mid-fight and coming back must work.
 - Runs in 20–40 minutes, and a single fight takes a few minutes.
@@ -358,6 +364,9 @@ you can't take says why (not enough gold or HP, a full potion belt…):
 - Cards are text plus an icon in a colored frame by type.
 - All visuals come from a single theme file, so real art can be swapped in
   later without changing game code.
+- **Planned: an art revamp.** Playtesting says the icon, sounds and animations
+  work, but the enemy and card pictures (emoji for now) should be redrawn
+  overall later on, with a consistent style.
 
 ### 6.4 Languages
 - **English** (the default) and **Korean**, chosen on the title screen under
@@ -378,8 +387,10 @@ you can't take says why (not enough gold or HP, a full potion belt…):
   dropping in, brewing, thunder, weather changes, coins, victory and defeat.
   Phones only allow sound after the first touch, so audio starts then.
 - **Vibration** (Capacitor Haptics; the vibration API in browsers that have
-  one): taking damage (stronger for big hits or lightning), brewing, a card
-  you can't play, victory and defeat.
+  one), kept for the moments that matter: a real hit (6+ damage in one go,
+  stronger from 12), lightning striking you, victory and defeat. Brewing and
+  tapping a card you can't play only make a sound (playtest: buzzing was too
+  frequent).
 - **Weather sky**: one canvas behind the page, tinted in the weather's color,
   with rain streaks, slanted storm rain, snowflakes, rising embers or slow
   motes. A new weather rolls in while the old one fades out, and lightning
@@ -468,7 +479,7 @@ Important choices:
 | 6 | **Discovery & potions** ✅ | Grimoire (persistent), Bottling, potions, auto-save and resume |
 | 7 | **Identity** (A–D done, see §11) | The features that make Stormbrew play differently from *Slay the Spire*: Exposure, enemy cauldrons, the Sky Deck, Distilling |
 | 8 | **MVP content & balance** ✅ | MVP content targets reached (§5), events, a balance pass with a computer player and `WEATHER_INTERVAL` tested (§12). Playtesting on real phones is still to do |
-| 9 | **Polish** (in progress) | Languages (English and Korean) ✅. Round 1 ✅: animations, sound, vibration feedback, weather particles, app icon and splash screen (§6.5). Next rounds follow feedback from playing on a phone |
+| 9 | **Polish** (in progress) | Languages (English and Korean) ✅. Round 1 ✅: animations, sound, vibration feedback, weather particles, app icon and splash screen (§6.5). Round 2 ✅: every screen fits the phone without scrolling (§6.2), fewer vibrations. Later: new enemy and card art (§6.3). Next rounds follow feedback from playing on a phone |
 | 10 | **Expansion** | Acts 2–3, Fog/Gale/Eclipse, a second character, ascension levels, iOS/desktop builds |
 
 Milestones 1–3 prove the game's core idea. If combat with weather and brewing

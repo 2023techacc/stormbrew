@@ -65,8 +65,6 @@ import { baseText } from './text';
 import { ELEMENTS, EVENT_ICONS, ICONS, NODE_ICONS, RELIC_ICONS, WEATHERS } from './theme';
 import { setWeatherFx } from './weatherFx';
 
-const MAP_ROW = 64;
-
 export interface RunViewOptions {
   onExit: () => void;
   /** Recipes known so far; updated (and saved) as new ones are brewed. */
@@ -362,9 +360,10 @@ function renderMap(run: RunState): string {
   const nodes = Object.values(run.map.nodes);
   const reachable = new Set(availableNodes(run).map((n) => n.id));
   const visited = new Set(run.visited);
-  const height = (run.map.floors + 1) * MAP_ROW;
+  // Positions are percentages, so the map can stretch to whatever height the phone has.
+  const rows = run.map.floors + 1;
   const x = (node: MapNode) => ((node.lane + 0.5) / MAP_LANES) * 100;
-  const y = (node: MapNode) => height - MAP_ROW / 2 - node.floor * MAP_ROW;
+  const y = (node: MapNode) => ((rows - 0.5 - node.floor) / rows) * 100;
 
   const lines = nodes.flatMap((node) =>
     node.next.flatMap((id) => {
@@ -381,15 +380,14 @@ function renderMap(run: RunState): string {
       node.id === run.nodeId ? 'current' : '',
     ].join(' ');
     return `<button class="map-node ${node.type} ${state}" data-node="${node.id}"
-      style="left: ${x(node)}%; top: ${y(node)}px" ${reachable.has(node.id) ? '' : 'disabled'}
+      style="left: ${x(node)}%; top: ${y(node)}%" ${reachable.has(node.id) ? '' : 'disabled'}
       aria-label="${esc(t('map.nodeAria', { type: t(`node.${node.type}`), floor: node.floor + 1 }))}">${NODE_ICONS[node.type]}</button>`;
   });
 
   return `
-    <h2>${esc(t('map.act1'))}</h2>
-    <p class="muted small">${esc(t('map.hint'))}</p>
-    <section class="map" style="height: ${height}px">
-      <svg viewBox="0 0 100 ${height}" preserveAspectRatio="none" aria-hidden="true">${lines.join('')}</svg>
+    <p class="map-title muted small"><strong>${esc(t('map.act1'))}</strong> · ${esc(t('map.hint'))}</p>
+    <section class="map" style="--rows: ${rows}">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${lines.join('')}</svg>
       ${buttons.join('')}
     </section>
     <p class="map-legend muted small">
@@ -578,10 +576,12 @@ function renderShop(run: RunState, removing: boolean): string {
         })
         .join('')}
     </section>
-    <button class="secondary-button" data-action="remove" ${shop.removalUsed ? 'disabled' : ''}>
-      ${esc(t('shop.remove', { price: goldAmount(shop.removalPrice) }))}
-    </button>
-    <button class="primary-button" data-action="leave">${esc(t('common.leave'))}</button>
+    <span class="button-row">
+      <button class="secondary-button" data-action="remove" ${shop.removalUsed ? 'disabled' : ''}>
+        ${esc(t('shop.remove', { price: goldAmount(shop.removalPrice) }))}
+      </button>
+      <button class="primary-button" data-action="leave">${esc(t('common.leave'))}</button>
+    </span>
   `;
 }
 

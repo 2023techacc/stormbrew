@@ -2,10 +2,15 @@ import type { CombatEvent, CombatState } from '../core/types';
 import { buzz } from './haptics';
 import { playSfx, type Sfx } from './sound';
 
+/** Damage in one go that makes the phone buzz, and that makes it buzz harder. */
+export const BUZZ_HURT = 6;
+export const BUZZ_HURT_HARD = 12;
+
 /**
  * Sounds and vibration for what just happened in a fight. A turn can produce
  * many events at once, so each sound plays a limited number of times, slightly
- * apart, instead of all on top of each other.
+ * apart, instead of all on top of each other. Vibration is kept for the moments
+ * that matter: a real hit, lightning striking you, and winning or losing.
  */
 export function combatFeedback(events: readonly CombatEvent[], state: CombatState, wasPlaying: boolean): void {
   const counts = new Map<Sfx, number>();
@@ -24,7 +29,7 @@ export function combatFeedback(events: readonly CombatEvent[], state: CombatStat
       case 'damage':
         if (e.source === 'lightning') {
           play('thunder');
-          if (e.target.side === 'player') buzz('heavy');
+          if (e.target.side === 'player' && e.amount > 0) buzz('heavy');
         } else if (e.source === 'burn') play('burn');
         else if (e.target.side === 'player') {
           if (e.amount > 0) {
@@ -42,7 +47,6 @@ export function combatFeedback(events: readonly CombatEvent[], state: CombatStat
       case 'brew':
       case 'potion':
         play('brew');
-        buzz('light');
         break;
       case 'enemyBrew':
         play('enemyBrew');
@@ -61,7 +65,7 @@ export function combatFeedback(events: readonly CombatEvent[], state: CombatStat
         break;
     }
   }
-  if (hurt > 0) buzz(hurt >= 10 ? 'heavy' : 'medium');
+  if (hurt >= BUZZ_HURT) buzz(hurt >= BUZZ_HURT_HARD ? 'heavy' : 'medium');
   if (wasPlaying && state.status === 'won') {
     playSfx('victory', delay + 0.15);
     buzz('success');
