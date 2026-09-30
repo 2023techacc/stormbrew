@@ -88,8 +88,14 @@ export interface CardInstance {
 export interface EnemyMove {
   name: string;
   damage?: number;
+  /** The attack hits this many times (each hit is `damage`); 1 if not set. */
+  hits?: number;
   element?: ElementId;
   block?: number;
+  /** The enemy heals itself this much. */
+  heal?: number;
+  /** Breaks all the player's Block before the attack lands. */
+  shatter?: boolean;
   /** Changes the weather before attacking. */
   weather?: WeatherId;
   /** A status applied to the player after attacking. */
@@ -219,5 +225,9 @@ export type CombatEvent =
   | { type: 'spoiled'; index: number }
   | { type: 'enemyGather'; index: number; element: ElementId }
   | { type: 'enemyBrew'; index: number; recipeId: string; used: ElementId[] }
+  /** An enemy healed itself. */
+  | { type: 'enemyHeal'; index: number; amount: number }
+  /** An enemy broke all of the player's Block. */
+  | { type: 'shatter'; amount: number }
   | { type: 'relic'; relic: string }
   | { type: 'shuffle' };

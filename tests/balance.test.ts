@@ -4,9 +4,9 @@ import { smartRun } from './helpers/smartplay';
 
 /**
  * A guard against big balance slips. The full report is `npm run balance`
- * (200 runs, per-encounter numbers); this plays a few runs and checks the
- * game is neither a pushover nor impossible for a good player, and that
- * playing well matters.
+ * (200 three-act runs, per-encounter numbers); this plays a few runs and
+ * checks the game is neither a pushover nor impossible for a good player, and
+ * that playing well matters.
  */
 describe('balance', () => {
   it('a strong player wins some runs but not all, and random play almost never wins', () => {
@@ -16,8 +16,9 @@ describe('balance', () => {
       Boolean,
     ).length;
     console.log(`balance: the heuristic player won ${smartWins}/${runs}, random play won ${randomWins}/${runs}`);
-    expect(smartWins).toBeGreaterThanOrEqual(runs * 0.3);
-    expect(smartWins).toBeLessThanOrEqual(runs * 0.9);
-    expect(randomWins).toBeLessThanOrEqual(runs * 0.1);
+    // The full report aims for about 40% of runs won (§12 of PLAN.md).
+    expect(smartWins).toBeGreaterThanOrEqual(runs * 0.2);
+    expect(smartWins).toBeLessThanOrEqual(runs * 0.8);
+    expect(randomWins).toBeLessThanOrEqual(runs * 0.05);
   }, 120_000);
 });

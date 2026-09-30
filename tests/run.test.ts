@@ -23,6 +23,7 @@ import {
 import type { CombatState } from '../src/core/types';
 import { REWARD_POOL, STARTER_DECK } from '../src/data/cards';
 import { ENCOUNTERS } from '../src/data/enemies';
+import { LAST_ACT } from '../src/data/acts';
 import { RELIC_POOL } from '../src/data/relics';
 
 const win = (state: CombatState) => {
@@ -119,8 +120,9 @@ describe('fight rewards', () => {
     expect(run.relics).toContain(rewards.relic);
   });
 
-  it('beating the boss wins the run', () => {
+  it("beating the last act's boss wins the run", () => {
     const run = createRun(7);
+    run.act = LAST_ACT;
     placeAt(run, 'boss');
     finishFight(run, win(startFight(run).state));
     expect(run.status).toBe('won');
@@ -162,9 +164,10 @@ describe('rest sites', () => {
   it('resting heals 30% of max HP, up to max', () => {
     const run = createRun(11);
     run.hp = 40;
-    expect(rest(run)).toBe(23);
-    expect(run.hp).toBe(63);
-    expect(rest(run)).toBe(12);
+    const heal = Math.ceil(PLAYER_MAX_HP * 0.3);
+    expect(rest(run)).toBe(heal);
+    expect(run.hp).toBe(40 + heal);
+    expect(rest(run)).toBe(PLAYER_MAX_HP - 40 - heal);
     expect(run.hp).toBe(PLAYER_MAX_HP);
   });
 

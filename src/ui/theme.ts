@@ -1,4 +1,6 @@
+import type { NodeType } from '../core/map';
 import type { ElementId, WeatherId } from '../core/types';
+import { getAct } from '../data/acts';
 
 /**
  * Minimal art: every visual identity (color + icon) lives here so real art can
@@ -44,6 +46,26 @@ export const ENEMY_LOOKS: Record<string, Look> = {
   stormRoc: { icon: '🦅', color: '#5a4f8a' },
   cauldronCrone: { icon: '🧙‍♀️', color: '#8e5ea2' },
   cinderDrake: { icon: '🐉', color: '#d9542b' },
+  // Act 2: the Frostpeaks.
+  iceBat: { icon: '🦇', color: '#9fc3e0' },
+  frostMammoth: { icon: '🦣', color: '#b8c7d6' },
+  sleetSprite: { icon: '🧚', color: '#bfe3f5' },
+  thunderRam: { icon: '🐏', color: '#d6c16a' },
+  stormEel: { icon: '🐍', color: '#6fd0c9' },
+  glacierTitan: { icon: '🗻', color: '#9dc3e6' },
+  rimeWitch: { icon: '🧝‍♀️', color: '#a7d8f0' },
+  thunderOwl: { icon: '🦉', color: '#8c7ae6' },
+  frostWyrm: { icon: '🐲', color: '#9fd3f5' },
+  // Act 3: the Sky Citadel.
+  lavaLizard: { icon: '🦎', color: '#e0602a' },
+  stormElemental: { icon: '🌪️', color: '#8c95d6' },
+  brassAutomaton: { icon: '🤖', color: '#c9a45a' },
+  emberWraith: { icon: '👻', color: '#e08a4a' },
+  cloudShark: { icon: '🦈', color: '#7fa3c9' },
+  magmaColossus: { icon: '🌋', color: '#d9542b' },
+  tempestDjinn: { icon: '🧞', color: '#6f7fd6' },
+  grandAlchemist: { icon: '🧑‍🔬', color: '#8e7cc3' },
+  heartOfTheStorm: { icon: '🌀', color: '#5b6bbf' },
 };
 
 export const RELIC_ICONS: Record<string, string> = {
@@ -62,6 +84,13 @@ export const RELIC_ICONS: Record<string, string> = {
   windChime: '🎐',
   dewcatcher: '🕸️',
   cloudSeed: '🌱',
+  // Boss relics.
+  stormVow: '💓',
+  skyAnchor: '⚓',
+  philosophersStone: '💎',
+  grandGrimoire: '📜',
+  bottomlessFlask: '🥃',
+  thunderDrum: '🥁',
 };
 
 export const NODE_ICONS = {
@@ -161,4 +190,15 @@ export const ICONS = {
   settings: '⚙️',
   steal: '🫳',
   double: '✴️',
+  heal: '💚',
+  shatter: '🔨',
+  anchor: '⚓',
+  crown: '👑',
 } as const;
+
+/** A map spot's icon; an act's boss spot shows that act's boss. */
+export function nodeIcon(type: NodeType, act: number): string {
+  if (type !== 'boss') return NODE_ICONS[type];
+  const id = getAct(act).encounters.boss[0]?.[0];
+  return (id && ENEMY_LOOKS[id]?.icon) || NODE_ICONS.boss;
+}

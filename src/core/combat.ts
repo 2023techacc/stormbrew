@@ -41,7 +41,11 @@ export const WEAK_MULTIPLIER = 0.75;
 
 export const BASE_ELEMENTS: readonly ElementId[] = ['fire', 'water', 'earth', 'air'];
 export const WEATHERVANE_BLOCK = 3;
+/** Potions you can carry (the Bottomless Flask adds more). */
 export const MAX_POTIONS = 3;
+export const BOTTOMLESS_FLASK_POTIONS = 2;
+/** Boss relics that give 1 extra energy each turn (each with a catch). */
+export const ENERGY_RELICS: readonly string[] = ['stormVow', 'skyAnchor', 'philosophersStone'];
 export const SNOW_GLOBE_BLOCK = 3;
 export const UMBRELLA_BLOCK = 4;
 export const DEWCATCHER_BLOCK = 2;
@@ -70,6 +74,16 @@ export function hasRelic(state: CombatState, relic: string): boolean {
   return state.relics.includes(relic);
 }
 
+/** How many potions fit in the belt with these relics. */
+export function potionCapacity(relics: readonly string[]): number {
+  return MAX_POTIONS + (relics.includes('bottomlessFlask') ? BOTTOMLESS_FLASK_POTIONS : 0);
+}
+
+/** Whether the player can step under cover (the Storm Vow keeps them out in the open). */
+export function canTakeCover(state: CombatState): boolean {
+  return !hasRelic(state, 'stormVow');
+}
+
 /** Whether a card's Attuned bonus is active in this weather. */
 export function isAttuned(defId: string, weather: WeatherId): boolean {
   return getCard(defId).attuned?.weather === weather;
@@ -92,6 +106,10 @@ export function createCombat(setup: CombatSetup): { state: CombatState; events: 
     return infusion ? { uid, defId: id, infusion } : { uid, defId: id };
   });
   const cauldron: ElementId[] = relics.includes('copperCauldron') ? [rng.pick(BASE_ELEMENTS)] : [];
+  // The Bottomless Flask brings a random potion to every fight, if there's room.
+  const potions = [...(setup.potions ?? [])];
+  const flask = relics.includes('bottomlessFlask') && potions.length < potionCapacity(relics);
+  if (flask) potions.push(rng.pick(BASIC_RECIPES));
   // Cloud Seed: the fight starts in a weather from the sky instead of Clear.
   const start = setup.startWeather ?? (relics.includes('cloudSeed') ? 'sky' : 'clear');
   const state: CombatState = {
@@ -101,7 +119,7 @@ export function createCombat(setup: CombatSetup): { state: CombatState; events: 
       block: 0,
       statuses: {},
       energy: 0,
-      maxEnergy: PLAYER_MAX_ENERGY,
+      maxEnergy: PLAYER_MAX_ENERGY + ENERGY_RELICS.filter((id) => relics.includes(id)).length,
       exposed: true,
     },
     enemies: setup.enemies.map((id) => {
@@ -125,16 +143,18 @@ export function createCombat(setup: CombatSetup): { state: CombatState; events: 
     turn: 0,
     weather: createWeather(rng, start, setup.sky),
     cauldron,
-    cauldronSlots: CAULDRON_SLOTS + (relics.includes('ironCauldron') ? 1 : 0),
+    cauldronSlots:
+      CAULDRON_SLOTS + (relics.includes('ironCauldron') ? 1 : 0) - (relics.includes('philosophersStone') ? 1 : 0),
     relics: [...relics],
-    potions: [...(setup.potions ?? [])],
+    potions,
     bottleNext: 0,
     doubleNext: 0,
     brewed: [],
     status: 'playing',
     rngState: rng.getState(),
   };
-  return { state, events: startPlayerTurn(state) };
+  const events: CombatEvent[] = flask ? [{ type: 'relic', relic: 'bottomlessFlask' }] : [];
+  return { state, events: [...events, ...startPlayerTurn(state)] };
 }
 
 /** Whether an enemy has reached its second phase (if it has one). */
@@ -238,6 +258,7 @@ export function endTurn(state: CombatState): CombatEvent[] {
 
   state.discardPile.push(...state.hand);
   state.hand = [];
+  if (!canTakeCover(state)) state.player.exposed = true;
   events.push(...tickBurn(state, { side: 'player' }));
   if (state.player.statuses.weak) state.player.statuses.weak -= 1;
   updateStatus(state);
@@ -259,10 +280,21 @@ export function endTurn(state: CombatState): CombatEvent[] {
       gainBlock(enemy, block);
       events.push({ type: 'block', target: { side: 'enemy', index }, amount: block });
     }
+    if (move.heal) {
+      const healed = Math.min(move.heal, enemy.maxHp - enemy.hp);
+      enemy.hp += healed;
+      events.push({ type: 'enemyHeal', index, amount: healed });
+    }
+    if (move.shatter && state.player.block > 0) {
+      events.push({ type: 'shatter', amount: state.player.block });
+      state.player.block = 0;
+    }
     if (move.damage) {
       const amount = enemyAttackDamage(enemy, move, state.weather.current, state.player.exposed);
-      const { blocked, hpLost } = dealDamage(state.player, amount);
-      events.push({ type: 'damage', target: { side: 'player' }, amount: hpLost, blocked });
+      for (let hit = 0; hit < (move.hits ?? 1) && isAlive(state.player); hit++) {
+        const { blocked, hpLost } = dealDamage(state.player, amount);
+        events.push({ type: 'damage', target: { side: 'player' }, amount: hpLost, blocked });
+      }
     }
     if (move.status) {
       const { status, amount } = move.status;
@@ -359,7 +391,9 @@ function startPlayerTurn(state: CombatState): CombatEvent[] {
   state.turn += 1;
 
   let changed = false;
-  if (isChangeDue(state.weather, state.turn)) {
+  if (!canTakeCover(state)) state.player.exposed = true;
+  // The Sky Anchor holds the weather: only cards and enemies change it.
+  if (isChangeDue(state.weather, state.turn) && !hasRelic(state, 'skyAnchor')) {
     const from = state.weather.current;
     const to = withRng(state, (rng) => advanceWeather(state.weather, rng, state.turn));
     changed = from !== to;
@@ -421,7 +455,7 @@ function catchWeather(state: CombatState): CombatEvent[] {
  * you end your turn with decides whether the weather reaches you this round.
  */
 export function toggleExposure(state: CombatState): CombatEvent[] {
-  if (state.status !== 'playing') return [];
+  if (state.status !== 'playing' || !canTakeCover(state)) return [];
   state.player.exposed = !state.player.exposed;
   return [{ type: 'exposure', exposed: state.player.exposed }];
 }
@@ -590,11 +624,11 @@ function brew(state: CombatState, target?: number): CombatEvent[] {
   events.unshift(event);
   recordBrewed(state, recipe.id);
   // Bottling keeps a real recipe for later; Sludge and full potion belts are used as normal.
-  if (state.bottleNext > 0 && recipe.id !== SLUDGE.id && state.potions.length < MAX_POTIONS) {
+  if (state.bottleNext > 0 && recipe.id !== SLUDGE.id && state.potions.length < potionCapacity(state.relics)) {
     state.bottleNext -= 1;
     state.potions.push(recipe.id);
     event.bottled = true;
-    return events;
+    return [...events, ...grimoireDraw(state)];
   }
   events.push(...applyEffects(state, recipe.effects, target));
   // Catalyst: the brew works a second time.
@@ -602,7 +636,13 @@ function brew(state: CombatState, target?: number): CombatEvent[] {
     state.doubleNext -= 1;
     events.push(...applyEffects(state, recipe.effects, target));
   }
-  return events;
+  return [...events, ...grimoireDraw(state)];
+}
+
+/** The Grand Grimoire: every brew also draws a card. */
+function grimoireDraw(state: CombatState): CombatEvent[] {
+  if (!hasRelic(state, 'grandGrimoire') || state.status !== 'playing') return [];
+  return [{ type: 'relic', relic: 'grandGrimoire' }, ...drawCards(state, 1)];
 }
 
 /**
@@ -715,12 +755,21 @@ function tickBurn(state: CombatState, ref: UnitRef): CombatEvent[] {
   return [{ type: 'damage', target: ref, amount: hpLost, blocked: 0, source: 'burn' }];
 }
 
+export const THUNDER_DRUM_BOLTS = 2;
+
+/** Storm lightning strikes a random unit out in the weather (the Thunder Drum: only enemies, twice). */
 function stormBolt(state: CombatState): CombatEvent[] {
-  const candidates = livingUnits(state, 'storm');
-  if (candidates.length === 0) return [];
-  const ref = withRng(state, (rng) => rng.pick(candidates));
-  const { blocked, hpLost } = dealDamage(getUnit(state, ref), STORM_BOLT_DAMAGE);
-  return [{ type: 'damage', target: ref, amount: hpLost, blocked, source: 'lightning' }];
+  const drum = hasRelic(state, 'thunderDrum');
+  const events: CombatEvent[] = [];
+  for (let bolt = 0; bolt < (drum ? THUNDER_DRUM_BOLTS : 1); bolt++) {
+    const candidates = livingUnits(state, 'storm').filter((ref) => !drum || ref.side === 'enemy');
+    if (candidates.length === 0 || state.status !== 'playing') break;
+    const ref = withRng(state, (rng) => rng.pick(candidates));
+    const { blocked, hpLost } = dealDamage(getUnit(state, ref), STORM_BOLT_DAMAGE);
+    events.push({ type: 'damage', target: ref, amount: hpLost, blocked, source: 'lightning' });
+    updateStatus(state);
+  }
+  return events;
 }
 
 /**

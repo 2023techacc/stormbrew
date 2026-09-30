@@ -19,6 +19,7 @@ export type Sfx =
   | 'burn'
   | 'heal'
   | 'steal'
+  | 'shatter'
   | 'coin'
   | 'endTurn'
   | 'victory'
@@ -160,6 +161,12 @@ export function playSfx(name: Sfx, delay = 0): void {
       break;
     case 'steal':
       tone(700, 0.18, { type: 'triangle', slideTo: 250, gain: 0.18, delay: d });
+      break;
+    case 'shatter':
+      // Ice cracking: a sharp crack, then glassy bits falling.
+      noise(0.05, { filter: 'highpass', freq: 3500, gain: 0.3, delay: d });
+      tone(2400, 0.12, { type: 'triangle', slideTo: 900, gain: 0.12, delay: d + 0.02 });
+      tone(1800, 0.1, { type: 'triangle', slideTo: 700, gain: 0.08, delay: d + 0.07 });
       break;
     case 'coin':
       tone(988, 0.07, { type: 'square', gain: 0.08, delay: d });

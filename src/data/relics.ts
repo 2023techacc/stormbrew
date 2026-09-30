@@ -2,6 +2,8 @@ export interface RelicDef {
   id: string;
   name: string;
   text: string;
+  /** A boss relic: only offered after an act's boss (see BOSS_RELIC_POOL). */
+  boss?: boolean;
 }
 
 /** Relics are passive bonuses kept for the whole run. Their effects live in core/combat.ts and core/run.ts. */
@@ -29,12 +31,48 @@ export const RELICS: Record<string, RelicDef> = {
     text: 'Whenever the weather drops an element into your cauldron, gain 2 Block.',
   },
   cloudSeed: { id: 'cloudSeed', name: 'Cloud Seed', text: 'Fights start in a weather from your sky instead of Clear.' },
+
+  // Boss relics: after an act's boss you pick one of three. Strong, and the energy ones have a catch.
+  stormVow: {
+    id: 'stormVow',
+    name: 'Storm Vow',
+    text: 'Gain 1 extra energy each turn. You can never take cover.',
+    boss: true,
+  },
+  skyAnchor: {
+    id: 'skyAnchor',
+    name: 'Sky Anchor',
+    text: 'Gain 1 extra energy each turn. The weather no longer changes on its own.',
+    boss: true,
+  },
+  philosophersStone: {
+    id: 'philosophersStone',
+    name: "Philosopher's Stone",
+    text: 'Gain 1 extra energy each turn. Your cauldron has 1 slot less.',
+    boss: true,
+  },
+  grandGrimoire: { id: 'grandGrimoire', name: 'Grand Grimoire', text: 'Whenever you brew, draw a card.', boss: true },
+  bottomlessFlask: {
+    id: 'bottomlessFlask',
+    name: 'Bottomless Flask',
+    text: 'Carry 2 more potions. Start each fight with a random potion.',
+    boss: true,
+  },
+  thunderDrum: {
+    id: 'thunderDrum',
+    name: 'Thunder Drum',
+    text: 'Storm lightning never hits you, and strikes twice each round.',
+    boss: true,
+  },
 };
 
 export const STARTING_RELICS = ['copperCauldron'];
 
-/** Relics that can be found (elites, shops). */
-export const RELIC_POOL = Object.keys(RELICS).filter((id) => !STARTING_RELICS.includes(id));
+/** Relics that can be found (elites, shops, events). */
+export const RELIC_POOL = Object.keys(RELICS).filter((id) => !STARTING_RELICS.includes(id) && !RELICS[id]?.boss);
+
+/** Relics offered after an act's boss. */
+export const BOSS_RELIC_POOL = Object.keys(RELICS).filter((id) => RELICS[id]?.boss);
 
 export function getRelic(id: string): RelicDef {
   const relic = RELICS[id];

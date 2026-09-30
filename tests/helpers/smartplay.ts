@@ -18,19 +18,23 @@ import {
   buyRelic,
   canInfuse,
   createRun,
+  currentNode,
   enterNode,
   finishFight,
   infuseCard,
   removeCard,
   rest,
+  runFloor,
   startFight,
+  startNextAct,
+  takeBossRelic,
   type RunState,
 } from '../../src/core/run';
 import type { CardDef, CombatEvent, CombatState, Effect } from '../../src/core/types';
 import { blockPersists } from '../../src/core/weather';
 import { getCard } from '../../src/data/cards';
 import type { EventOutcome } from '../../src/data/events';
-import { playEvent, type EventPolicy } from './autoplay';
+import { MAX_RUN_STEPS, playEvent, type EventPolicy } from './autoplay';
 
 /**
  * A heuristic player for balance testing. In fights it tries every playable
@@ -348,13 +352,43 @@ function pickNode(run: RunState, rng: Rng): string | undefined {
 
 export interface RunStats {
   won: boolean;
-  /** The floor the run ended on (the boss is floor MAP_FLOORS). */
+  /** The act the run ended in. */
+  act: number;
+  /** The floor within that act the run ended on (the boss is floor MAP_FLOORS). */
   floor: number;
+  /** The floor counted from the start of the run. */
+  runFloor: number;
   fights: FightStats[];
-  hpAtBoss?: number;
+  /** HP when reaching each act's boss. */
+  hpAtBoss: number[];
+  /** Boss relics taken, in order. */
+  bossRelics: string[];
   deckSize: number;
   relics: number;
   gold: number;
+}
+
+/** How much the heuristic player wants each boss relic. */
+const BOSS_RELIC_VALUE: Record<string, number> = {
+  philosophersStone: 6,
+  stormVow: 5,
+  skyAnchor: 4,
+  grandGrimoire: 5,
+  bottomlessFlask: 4,
+  thunderDrum: 3,
+};
+
+function pickBossRelic(ids: readonly string[], rng: Rng): string | undefined {
+  let best: string | undefined;
+  let bestValue = -Infinity;
+  for (const id of ids) {
+    const value = (BOSS_RELIC_VALUE[id] ?? 3) + rng.next() * 2;
+    if (value > bestValue) {
+      bestValue = value;
+      best = id;
+    }
+  }
+  return best;
 }
 
 /** Plays a whole run with the heuristic player. */
@@ -362,22 +396,41 @@ export function smartRun(seed: number): { run: RunState; stats: RunStats } {
   const rng = new Rng(seed * 7919 + 17);
   const run = createRun(seed);
   const grimoire = createGrimoire();
-  const stats: RunStats = { won: false, floor: 0, fights: [], deckSize: 0, relics: 0, gold: 0 };
-  for (let step = 0; step < 30 && run.status === 'playing'; step++) {
+  const stats: RunStats = {
+    won: false,
+    act: 1,
+    floor: 0,
+    runFloor: 1,
+    fights: [],
+    hpAtBoss: [],
+    bossRelics: [],
+    deckSize: 0,
+    relics: 0,
+    gold: 0,
+  };
+  for (let step = 0; step < MAX_RUN_STEPS && run.status === 'playing'; step++) {
     const id = pickNode(run, rng);
     if (!id) break;
     const node = enterNode(run, id);
+    stats.act = run.act;
     stats.floor = node.floor;
+    stats.runFloor = runFloor(run, node);
     if (node.type === 'rest') visitRest(run, rng);
     else if (node.type === 'shop') visitShop(run, rng);
     else if (node.type === 'event' && !playEvent(run, grimoire, smartEventPolicy(run, rng))) continue;
     else {
-      if (node.type === 'boss') stats.hpAtBoss = run.hp;
+      if (node.type === 'boss') stats.hpAtBoss.push(run.hp);
       const { state } = startFight(run);
       stats.fights.push(smartFight(state));
       const rewards = finishFight(run, state);
+      const relic = rewards.bossRelics ? pickBossRelic(rewards.bossRelics, rng) : undefined;
+      if (relic) {
+        takeBossRelic(run, rewards, relic);
+        stats.bossRelics.push(relic);
+      }
       const pick = run.status === 'playing' ? pickReward(rewards.cardChoices, rng) : undefined;
       if (pick) addCardToDeck(run, pick);
+      if (run.status === 'playing' && currentNode(run)?.type === 'boss') startNextAct(run);
     }
   }
   stats.won = run.status === 'won';

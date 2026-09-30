@@ -18,7 +18,10 @@ import {
   removeCard,
   rest,
   restHealAmount,
+  runFloor,
   startFight,
+  startNextAct,
+  takeBossRelic,
   type FightRewards,
   type RunScreen,
   type RunState,
@@ -44,6 +47,7 @@ import { getRecipe } from '../data/recipes';
 import { getSkyCard } from '../data/sky';
 import { t } from '../i18n';
 import {
+  actName,
   cardName,
   elementName,
   eventName,
@@ -62,7 +66,7 @@ import { esc } from './dom';
 import { playSfx, type Sfx } from './sound';
 import { clearRun, saveGrimoire, saveRun } from './storage';
 import { baseText } from './text';
-import { ELEMENTS, EVENT_ICONS, ICONS, NODE_ICONS, RELIC_ICONS, WEATHERS } from './theme';
+import { ELEMENTS, EVENT_ICONS, ICONS, NODE_ICONS, RELIC_ICONS, WEATHERS, nodeIcon } from './theme';
 import { setWeatherFx } from './weatherFx';
 
 export interface RunViewOptions {
@@ -121,11 +125,13 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
         ? renderMap(run)
         : screen.name === 'reward'
           ? renderReward(screen.rewards)
-          : screen.name === 'rest'
+          : screen.name === 'bossRelic'
+            ? renderBossRelic(screen.rewards)
+            : screen.name === 'rest'
             ? renderRest(run, screen.step, screen.deckIndex)
             : screen.name === 'event'
               ? renderEvent(run, screen.step, grimoire)
-              : renderShop(run, screen.removing);
+              : renderShop(run, screen.name === 'shop' && screen.removing);
     const scrollY = window.scrollY;
     root.innerHTML = `
       <main class="screen run-screen ${entering ? 'enter' : ''}">
@@ -150,7 +156,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
   const startNodeFight = (node: MapNode) => {
     const { state } = startFight(run);
     const elite = node.type === 'elite' || node.type === 'event';
-    const floor = node.floor + 1;
+    const floor = runFloor(run, node);
     showFight(state, node.type === 'boss' ? t('fight.boss') : t(elite ? 'fight.eliteFloor' : 'fight.floor', { floor }));
   };
 
@@ -174,12 +180,22 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
   const afterFight = (combat: CombatState) => {
     const rewards = finishFight(run, combat);
     if (run.status !== 'playing') go({ name: 'over' });
+    else if (rewards.bossRelics?.length) go({ name: 'bossRelic', rewards });
     else go({ name: 'reward', rewards });
+  };
+
+  /** Leaves a fight's rewards: back to the map, or after an act's boss, on to the next act. */
+  const leaveRewards = (note: string) => {
+    if (currentNode(run)?.type !== 'boss') return go({ name: 'map' }, note);
+    const healed = startNextAct(run);
+    scroll = 'map';
+    const next = t('run.nextAct', { n: run.act, name: actName(run.act) });
+    go({ name: 'map' }, healed > 0 ? `${next} ${t('run.nextActHealed', { n: healed })}` : next);
   };
 
   const onClick = (event: MouseEvent) => {
     const el = (event.target as HTMLElement).closest<HTMLElement>(
-      '[data-action],[data-node],[data-relic],[data-potion-info],[data-reward],[data-deck-index],[data-element],[data-buy-card],[data-buy-relic],[data-buy-potion],[data-buy-sky],[data-sky-index],[data-event-option]',
+      '[data-action],[data-node],[data-relic],[data-potion-info],[data-reward],[data-boss-relic],[data-deck-index],[data-element],[data-buy-card],[data-buy-relic],[data-buy-potion],[data-buy-sky],[data-sky-index],[data-event-option]',
     );
     if (!el) return;
     const d = el.dataset;
@@ -207,10 +223,22 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
       return startNodeFight(node);
     }
 
+    if (screen.name === 'bossRelic') {
+      const { rewards } = screen;
+      if (d.bossRelic) {
+        takeBossRelic(run, rewards, d.bossRelic);
+        playSfx('coin');
+      } else if (d.action === 'skip') {
+        delete rewards.bossRelics;
+        playSfx('tap');
+      } else return;
+      return go({ name: 'reward', rewards });
+    }
+
     if (screen.name === 'reward') {
       if (d.reward) addCardToDeck(run, d.reward);
       if (d.reward || d.action === 'skip') playSfx(d.reward ? 'card' : 'tap');
-      if (d.reward || d.action === 'skip') go({ name: 'map' }, d.reward ? t('run.added', { name: cardName(getCard(d.reward)) }) : '');
+      if (d.reward || d.action === 'skip') leaveRewards(d.reward ? t('run.added', { name: cardName(getCard(d.reward)) }) : '');
       return;
     }
 
@@ -381,17 +409,20 @@ function renderMap(run: RunState): string {
     ].join(' ');
     return `<button class="map-node ${node.type} ${state}" data-node="${node.id}"
       style="left: ${x(node)}%; top: ${y(node)}%" ${reachable.has(node.id) ? '' : 'disabled'}
-      aria-label="${esc(t('map.nodeAria', { type: t(`node.${node.type}`), floor: node.floor + 1 }))}">${NODE_ICONS[node.type]}</button>`;
+      aria-label="${esc(t('map.nodeAria', { type: t(`node.${node.type}`), floor: runFloor(run, node) }))}">${nodeIcon(node.type, run.act)}</button>`;
   });
 
   return `
-    <p class="map-title muted small"><strong>${esc(t('map.act1'))}</strong> · ${esc(t('map.hint'))}</p>
+    <p class="map-title muted small"><strong>${esc(t('map.act', { n: run.act }))} · ${esc(actName(run.act))}</strong>${
+      // How to move, until the first move of the run.
+      run.act === 1 && run.nodeId === null ? ` · ${esc(t('map.hint'))}` : ''
+    }</p>
     <section class="map" style="--rows: ${rows}">
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">${lines.join('')}</svg>
       ${buttons.join('')}
     </section>
     <p class="map-legend muted small">
-      ${(['fight', 'elite', 'event', 'rest', 'shop', 'boss'] as const).map((type) => `${NODE_ICONS[type]} ${esc(t(`node.${type}`))}`).join(' · ')}
+      ${(['fight', 'elite', 'event', 'rest', 'shop', 'boss'] as const).map((type) => `${nodeIcon(type, run.act)} ${esc(t(`node.${type}`))}`).join(' · ')}
     </p>
   `;
 }
@@ -423,6 +454,25 @@ function renderReward(rewards: FightRewards): string {
             note: from ? `${ICONS.cauldron} ${t('reward.distilled')}` : undefined,
           });
         })
+        .join('')}
+    </section>
+    <button class="text-button" data-action="skip">${esc(t('common.skip'))}</button>
+  `;
+}
+
+/** After an act's boss: choose one of three boss relics (or none). */
+function renderBossRelic(rewards: FightRewards): string {
+  return `
+    <h2>${ICONS.crown} ${esc(t('bossRelic.title'))}</h2>
+    <p class="muted small">${esc(t('bossRelic.choose'))}</p>
+    <section class="shop-relics">
+      ${(rewards.bossRelics ?? [])
+        .map(
+          (id) => `<button class="shop-relic boss-relic" data-boss-relic="${esc(id)}">
+            <span class="relic-icon">${RELIC_ICONS[id] ?? '❔'}</span>
+            <span class="recipe-body"><strong>${esc(relicName(id))}</strong> ${esc(relicText(id))}</span>
+          </button>`,
+        )
         .join('')}
     </section>
     <button class="text-button" data-action="skip">${esc(t('common.skip'))}</button>
@@ -660,8 +710,7 @@ function renderSky(run: RunState): string {
 
 function renderOver(run: RunState): string {
   const won = run.status === 'won';
-  const node = currentNode(run);
-  const floor = node ? node.floor + 1 : 1;
+  const floor = runFloor(run);
   return `
     <main class="screen enter">
       <h2>${esc(t(won ? 'over.won' : 'over.lost'))}</h2>

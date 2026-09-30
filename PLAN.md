@@ -205,7 +205,7 @@ How elements improve your deck between fights:
 ## 5. Content Plan
 
 ### 5.1 Starting character: the Stormbrewer
-- 75 HP. Starter deck (12 cards): 2× Strike, *Pilfer*, 3× Defend, *Gather
+- 80 HP (75 while the game was one act long). Starter deck (12 cards): 2× Strike, *Pilfer*, 3× Defend, *Gather
   Ember*, *Gather Dew*, *Gather Stone*, *Gather Gust*, *Stir* (Brew) and
   *Summon Rain*.
 - Starting relic: **Copper Cauldron**: start each fight with a random base
@@ -234,10 +234,10 @@ distilled cards (a Flask and an Essence, §11), 82 in all:
   *Clarity* (Clear: draw 2 more).
 - **Against enemy cauldrons**: *Pilfer*, *Curdle*.
 
-### 5.3 Enemies
+### 5.3 Enemies (Act 1: the Mirelands)
 
 Each enemy uses the weather, the cauldron or your stance in its own way. The
-numbers come from the balance pass (§12).
+numbers come from the balance passes (§12). Acts 2 and 3 are in §5.6.
 
 | Enemy | HP | What it does |
 |-------|----|--------------|
@@ -256,15 +256,15 @@ The first three floors use one easy enemy (or two slimes); later floors use the
 Golem, the Wolf, or a pair.
 
 **Elites** each test one part of the game, and give a relic:
-- **Storm Roc** (110 HP), *exposure*: calls Storm, dives for 28 at a player out
-  in the open (18 under cover), and adds two Squalls to your sky.
+- **Storm Roc** (100 HP), *exposure*: calls Storm, dives for 26 at a player out
+  in the open (16 under cover), and adds two Squalls to your sky.
 - **Cauldron Crone** (95 HP), *brewing*: a three-slot cauldron that brews Heat
   Haze (Heatwave, fire at you) and Downpour (Rain, heals itself), and a Snatch
   that steals from your cauldron. *Pilfer* and *Curdle* are made for her.
 - **Cinder Drake** (100 HP), *the sky*: calls a Heatwave, adds a Heat Dome to
   your sky, and breathes fire that is strongest in a Heatwave.
 
-**Boss: the Eye of the Storm** (170 HP): changes the weather every round in a
+**Boss: the Eye of the Storm** (150 HP): changes the weather every round in a
 fixed cycle (Rain, Storm, Heatwave, Snow). Below half HP its moves hit harder
 and two of them steal your newest element into its own cauldron, which it
 brews against you.
@@ -274,7 +274,7 @@ Strength over a fight.
 
 ### 5.4 Relics
 
-15 relics (found at elites, events and shops):
+15 relics (found at elites, events and shops), plus 6 boss relics (§5.6):
 - **Copper Cauldron** (starting relic): start each fight with a random base element.
 - **Barometer**: the forecast shows the next two weathers.
 - **Weathervane**: whenever the weather changes, gain 3 Block.
@@ -308,6 +308,65 @@ you can't take says why (not enough gold or HP, a full potion belt…):
   (45 gold).
 - **Wandering Alchemist**: trade a card (it becomes a random card) or buy a
   lesson (30 gold: learn 3 recipes).
+
+### 5.6 Acts 2 and 3 (Milestone 10)
+
+A run is **three acts**, each a map of 10 floors and a boss. Three acts keep a
+run to one sitting on a phone (about 40–60 minutes) while leaving room for a
+deck to grow and change, like most games of this kind. Beating an act's boss
+gives gold and a card, then **one of three boss relics**, and you **heal fully**
+before the next act's map. Floors count on across acts (Act 2 starts at floor
+12). Beating the Act 3 boss wins the run.
+
+New enemy moves: **many-hit attacks** (e.g. 4×3, so Weak and Block matter per
+hit), **self-healing**, and **shatter**, which breaks all your Block before the
+hit.
+
+**Act 2: the Frostpeaks** (snow and storm). Snow keeps everyone's Block, and
+here the cold enemies *shatter* yours: in Snow their walls of ice pile up while
+yours crack, so changing the weather matters.
+
+| Enemy | HP | What it does |
+|-------|----|--------------|
+| **Ice Bat** | 26 | Comes in pairs; Swoop hits twice, harder while you're Out; Weathered (Snow) |
+| **Frost Mammoth** | 72 | Calls Snow; Trample shatters your Block |
+| **Sleet Sprite** | 44 | Brews Ice Lance at you every other turn |
+| **Thunder Ram** | 72 | Charges harder in Storm; Weathered (Storm) |
+| **Storm Eel** | 58 | Two-hit Jolts, adds a Storm to your sky, discharges harder in Storm |
+
+Elites: **Glacier Titan** (140 HP: walls itself in Snow, shattering Crush),
+**Rime Witch** (120 HP: a three-slot cauldron of Blizzard, Ice Lance and
+Permafrost, steals, shattering Ice Shards), **Thunder Owl** (165 HP: a Storm
+hunter with a three-hit flurry). Boss: the **Frost Wyrm** (210 HP): Snow is its
+fortress; it shatters, hibernates to heal, and turns savage below half HP.
+
+**Act 3: the Sky Citadel** (heat, lightning, many-hit attacks).
+
+| Enemy | HP | What it does |
+|-------|----|--------------|
+| **Lava Lizard** | 76 | Burns you, basks in a Heatwave; Weathered (Heatwave) |
+| **Storm Elemental** | 90 | Three-hit Whirl, adds two Squalls to your sky, lashes harder in Storm |
+| **Brass Automaton** | 100 | Heavy Pistons and Plating; brews Plasma Bolt at you |
+| **Ember Wraith** | 60 | Weak and Burn; Sheltered (a ghost: the weather passes through it) |
+| **Cloud Shark** | 80 | Hunter: strikes from above while you're Out; three-hit Frenzy |
+
+Elites: **Magma Colossus** (215 HP: Heatwave, Heat Domes, lava), **Tempest
+Djinn** (200 HP: Storm and three-hit gusts), **Grand Alchemist** (190 HP:
+brews Thunderhead and Heat Haze, steals, heals itself). Final boss: the
+**Heart of the Storm** (280 HP): Weathered to Storm, Heatwave and Snow; a
+four-hit lightning barrage, its own cauldron, and a harder second half.
+
+**Boss relics** (one of three after the Act 1 and Act 2 bosses; the energy ones
+have a catch):
+- **Storm Vow**: +1 energy each turn; you can never take cover.
+- **Sky Anchor**: +1 energy each turn; the weather no longer changes on its own.
+- **Philosopher's Stone**: +1 energy each turn; the cauldron has 1 slot less.
+- **Grand Grimoire**: whenever you brew, draw a card.
+- **Bottomless Flask**: carry 2 more potions; start each fight with a random potion.
+- **Thunder Drum**: Storm lightning never hits you, and strikes twice each round.
+
+Next (Milestone 10, part 2): more cards (with rarer, stronger cards in later
+acts), relics, potions and events.
 
 ### MVP content targets (reached in Milestone 8)
 
@@ -480,7 +539,7 @@ Important choices:
 | 7 | **Identity** (A–D done, see §11) | The features that make Stormbrew play differently from *Slay the Spire*: Exposure, enemy cauldrons, the Sky Deck, Distilling |
 | 8 | **MVP content & balance** ✅ | MVP content targets reached (§5), events, a balance pass with a computer player and `WEATHER_INTERVAL` tested (§12). Playtesting on real phones is still to do |
 | 9 | **Polish** (in progress) | Languages (English and Korean) ✅. Round 1 ✅: animations, sound, vibration feedback, weather particles, app icon and splash screen (§6.5). Round 2 ✅: every screen fits the phone without scrolling (§6.2), fewer vibrations. Later: new enemy and card art (§6.3). Next rounds follow feedback from playing on a phone |
-| 10 | **Expansion** | Acts 2–3, Fog/Gale/Eclipse, a second character, ascension levels, iOS/desktop builds |
+| 10 | **Expansion** (in progress) | Acts 2–3 with their own enemies, elites and bosses, and boss relics ✅ (§5.6). Next: more cards, relics, potions and events. Later: Fog/Gale/Eclipse, a second character, ascension levels, iOS/desktop builds |
 
 Milestones 1–3 prove the game's core idea. If combat with weather and brewing
 is fun in a single fight on a phone, the rest is adding content.
@@ -507,6 +566,7 @@ is fun in a single fight on a phone, the rest is adding content.
 | Crowded hands | Cards keep their size and overlap instead of shrinking |
 | Scope | One character (the Stormbrewer) for the MVP |
 | Languages | English (default) and Korean, chosen in Settings (§6.4) |
+| Run length | Three acts of 10 floors and a boss; a full heal and a choice of boss relics between acts (§5.6). The player has 80 max HP |
 | Releases | Every version is tagged (`vX.Y.Z`) and published as a GitHub Release with the APK; test builds share one signing key so updates keep your progress |
 | Sound | Made in code (Web Audio), no audio files; sound, vibration and weather effects each have an on/off setting (§6.5) |
 
@@ -649,7 +709,7 @@ are in, since they change the numbers.
 
 ---
 
-## 12. Balance (Milestone 8)
+## 12. Balance (Milestones 8 and 10)
 
 ### 12.1 How it was measured
 
@@ -728,3 +788,33 @@ people play differently (they'll lose more HP but may spot tricks it misses).
 The next step is playtesting on real phones. If the game feels too hard, the
 easiest levers are enemy damage in `src/data/enemies.ts`, the rest-site heal
 (`REST_HEAL`) and gold rewards.
+
+### 12.5 Three acts (Milestone 10)
+
+With three acts, Act 1 is no longer the whole run, so it got a little easier
+(Eye of the Storm 170 → 150 HP, Storm Roc 110 → 100 HP) and the player's max
+HP went from 75 to 80. Acts 2 and 3 were tuned the same way as §12.1, with the
+heuristic player playing whole runs (200 runs, `npm run balance`):
+
+| | Result |
+|---|---|
+| Runs won by the heuristic player | 38% (random play: 0%) |
+| Runs that clear Act 1 / Act 2 / Act 3 | 77% / 75% of those / 66% of those |
+| Boss fights won | Eye of the Storm 88%, Frost Wyrm 90%, Heart of the Storm 80% |
+| HP lost to each boss | about 28 / 38 / 38 |
+| Elites | 87–100% won, 9–29 HP lost |
+| Hardest normal fights | 91–94% won (Automaton + Wraith, Lava Lizard + Wraith, Sleet Sprites) |
+
+Two lessons from the tuning:
+- Enemies that call **Snow** made fights *easier*, because Snow keeps the
+  player's Block too (the Frost Golem lost its Snow move for the same reason
+  in §12.2). Act 2's cold enemies now **shatter** your Block, so Snow favours
+  them instead. The first shatter hits were too strong (the Frost Wyrm won
+  79% of fights *against* the player), so shattering attacks hit lighter.
+- Two-enemy fights in Act 3 were the biggest killers (about 40% lost at
+  first); lower Burn and Weak on the Ember Wraith and a little less HP fixed
+  them.
+
+The boss relics are close to each other: runs with the Philosopher's Stone won
+63%, the Grand Grimoire, Sky Anchor and Bottomless Flask 55–56%, the Storm
+Vow 46%.

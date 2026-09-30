@@ -1,13 +1,14 @@
 import type { CardDef, ElementId, WeatherId } from '../core/types';
 import { HEATWAVE_BURN, STORM_BOLT_DAMAGE } from '../core/weather';
 import { ELEMENT_ICONS, distilledKind, distilledRecipe } from '../data/distilled';
+import { getAct } from '../data/acts';
 import { getEnemy } from '../data/enemies';
 import { getEvent } from '../data/events';
 import { getRecipe } from '../data/recipes';
 import { getRelic } from '../data/relics';
 import { getSkyCard } from '../data/sky';
 import { format, getLanguage, t } from './index';
-import { KO_CARDS, KO_ENEMIES, KO_EVENTS, KO_MOVES, KO_RECIPES, KO_RELICS, KO_SKY } from './ko-content';
+import { KO_ACTS, KO_CARDS, KO_ENEMIES, KO_EVENTS, KO_MOVES, KO_RECIPES, KO_RELICS, KO_SKY } from './ko-content';
 
 /**
  * Names and texts of game content in the current language. English comes
@@ -55,6 +56,11 @@ export function enemyName(id: string): string {
 /** An enemy move's name (moves are looked up by their English name). */
 export function moveName(name: string): string {
   return (korean() && KO_MOVES[name]) || name;
+}
+
+/** An act's name, e.g. "The Frostpeaks". */
+export function actName(act: number): string {
+  return (korean() && KO_ACTS[act]) || getAct(act).name;
 }
 
 export function relicName(id: string): string {

@@ -4,6 +4,7 @@ A roguelike deck-builder like *Slay the Spire*, built around **weather** and **b
 
 - **Weather** changes every few turns. The player, enemies, and events can also change it, and it alters the rules for everyone in the fight.
 - **Brewing** combines elements in a cauldron. Different combinations produce different results, including brews that change the weather.
+- A run climbs **three acts** (the Mirelands, the Frostpeaks and the Sky Citadel), each with its own enemies, elites and boss, and a boss relic to choose between acts.
 
 Made for **Android (APK)** first, and also runs in a web browser. iOS and desktop builds may come later.
 

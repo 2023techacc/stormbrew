@@ -3,7 +3,10 @@ import { createCombat, endTurn, playCard, playerAttackDamage, toggleExposure, ty
 import { SANDBOX_ENEMIES, createSandbox, sandboxAddCard, sandboxRefillEnergy, sandboxSetWeather } from '../src/core/sandbox';
 import type { CombatState } from '../src/core/types';
 import { CARDS, REWARD_POOL, STARTER_DECK } from '../src/data/cards';
-import { ENCOUNTERS, ENEMIES } from '../src/data/enemies';
+import { ACTS } from '../src/data/acts';
+import { ENEMIES } from '../src/data/enemies';
+import { RELICS } from '../src/data/relics';
+import { ENEMY_LOOKS, RELIC_ICONS } from '../src/ui/theme';
 import { enemyHp, enemyMove } from './helpers/data';
 
 const newCombat = (deck: string[], overrides: Partial<CombatSetup> = {}): CombatState =>
@@ -22,9 +25,20 @@ describe('content', () => {
     for (const id of [...STARTER_DECK, ...REWARD_POOL]) expect(CARDS[id], id).toBeDefined();
   });
 
-  it('every enemy in an encounter or the sandbox exists', () => {
-    const ids = [...Object.values(ENCOUNTERS).flat(2), ...SANDBOX_ENEMIES];
-    for (const id of ids) expect(ENEMIES[id], id).toBeDefined();
+  it('every enemy in an encounter or the sandbox exists and has a look', () => {
+    const ids = [...ACTS.flatMap((act) => Object.values(act.encounters).flat(2)), ...SANDBOX_ENEMIES];
+    for (const id of ids) {
+      expect(ENEMIES[id], id).toBeDefined();
+      expect(ENEMY_LOOKS[id], id).toBeDefined();
+    }
+  });
+
+  it('every enemy can be fought in the sandbox', () => {
+    for (const id of Object.keys(ENEMIES)) expect(SANDBOX_ENEMIES, id).toContain(id);
+  });
+
+  it('every relic has an icon', () => {
+    for (const id of Object.keys(RELICS)) expect(RELIC_ICONS[id], id).toBeDefined();
   });
 });
 
