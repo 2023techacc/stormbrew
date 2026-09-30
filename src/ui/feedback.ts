@@ -61,6 +61,12 @@ export function combatFeedback(events: readonly CombatEvent[], state: CombatStat
       case 'pilfer':
         play('steal');
         break;
+      case 'shatter':
+        play('shatter');
+        break;
+      case 'enemyHeal':
+        if (e.amount > 0) play('heal');
+        break;
       default:
         break;
     }

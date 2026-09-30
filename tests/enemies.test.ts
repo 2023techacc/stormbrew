@@ -8,7 +8,7 @@ import {
   type CombatSetup,
 } from '../src/core/combat';
 import type { CombatState, EnemyState, WeatherId } from '../src/core/types';
-import { ENCOUNTERS } from '../src/data/enemies';
+import { ACTS } from '../src/data/acts';
 import { enemyMove } from './helpers/data';
 
 const newCombat = (enemies: string[], overrides: Partial<CombatSetup> = {}): CombatState =>
@@ -110,8 +110,11 @@ describe('new enemies', () => {
   });
 
   it('elites are their own enemies, never seen in normal fights', () => {
-    const normal = new Set([...ENCOUNTERS.easy, ...ENCOUNTERS.hard].flat());
-    expect(ENCOUNTERS.elite.length).toBeGreaterThanOrEqual(3);
-    for (const group of ENCOUNTERS.elite) for (const id of group) expect(normal.has(id), id).toBe(false);
+    for (const { encounters } of ACTS) {
+      const normal = new Set([...encounters.easy, ...encounters.hard].flat());
+      expect(encounters.elite.length).toBeGreaterThanOrEqual(3);
+      expect(encounters.boss).toHaveLength(1);
+      for (const group of encounters.elite) for (const id of group) expect(normal.has(id), id).toBe(false);
+    }
   });
 });

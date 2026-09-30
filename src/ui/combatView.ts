@@ -4,6 +4,7 @@ import {
   cannotPlayReason,
   cardEffects,
   cardNeedsTarget,
+  canTakeCover,
   hasRelic,
   currentIntent,
   endTurn,
@@ -256,7 +257,13 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
     else if (el.dataset.potion !== undefined) onPotionTap(Number(el.dataset.potion));
     else if (el.dataset.enemy !== undefined) onEnemyTap(Number(el.dataset.enemy));
     else if (el.dataset.action === 'end-turn') onEndTurn();
-    else if (el.dataset.action === 'exposure') after(toggleExposure(state));
+    else if (el.dataset.action === 'exposure') {
+      if (canTakeCover(state)) after(toggleExposure(state));
+      else {
+        hint = `${RELIC_ICONS.stormVow} ${t('combat.noCover')}`;
+        render();
+      }
+    }
     else if (el.dataset.action === 'forecast') {
       selectedUid = null;
       hint = describeForecast(state);
@@ -353,7 +360,7 @@ function renderCombat(state: CombatState, ui: CombatUi): string {
 
       <footer class="controls">
         <span class="pile" title="${esc(t('combat.drawPile'))}">${ICONS.drawPile} ${state.drawPile.length}</span>
-        <button class="stance ${player.exposed ? 'out' : 'cover'}" data-action="exposure"
+        <button class="stance ${player.exposed ? 'out' : 'cover'} ${canTakeCover(state) ? '' : 'locked'}" data-action="exposure"
           aria-label="${esc(t(player.exposed ? 'combat.outAria' : 'combat.coverAria'))}">
           <span>${player.exposed ? WEATHERS[state.weather.current].icon : ICONS.cover}</span>
           <small>${esc(t(player.exposed ? 'combat.out' : 'combat.cover'))}</small>
@@ -394,12 +401,15 @@ function renderEnemy(
   const block = enemyMoveBlock(move, attackWeather);
   // A hunter's dive shows its bonus while you're out in the open.
   const hunting = exposed && move.exposedBonus ? ICONS.hunter : '';
+  const hits = (move.hits ?? 1) > 1 ? `×${move.hits}` : '';
   const intentParts = [
     move.weather ? WEATHERS[move.weather].icon : '',
+    move.shatter ? ICONS.shatter : '',
     move.damage
-      ? `${ICONS.attack} ${enemyAttackDamage(enemy, move, attackWeather, exposed)}${move.element === 'fire' ? ICONS.burn : ''}${hunting}`
+      ? `${ICONS.attack} ${enemyAttackDamage(enemy, move, attackWeather, exposed)}${hits}${move.element === 'fire' ? ICONS.burn : ''}${hunting}`
       : '',
     block ? `${ICONS.block} ${block}` : '',
+    move.heal ? `${ICONS.heal} ${move.heal}` : '',
     move.status ? `${ICONS[move.status.status]} ${move.status.amount}` : '',
     move.stealElement ? ICONS.steal : '',
   ].filter(Boolean);
@@ -684,6 +694,12 @@ function renderForecast(state: CombatState): string {
   const next = forecast[0];
   const after = hasRelic(state, 'barometer') ? forecast[1] : undefined;
   const turns = turnsUntilChange(state.weather, state.turn);
+  // The Sky Anchor holds the weather: the next one only comes when something changes it.
+  const when = hasRelic(state, 'skyAnchor')
+    ? `${ICONS.anchor} ${t('forecast.anchored')}`
+    : turns === 1
+      ? t('forecast.nextTurn')
+      : t('forecast.inTurns', { n: turns });
   return `
     <button class="forecast" data-action="forecast" aria-label="${esc(t('forecast.aria'))}">
       <span class="forecast-now" style="--chip-color: ${WEATHERS[current].color}">
@@ -696,7 +712,7 @@ function renderForecast(state: CombatState): string {
       ${
         next
           ? `<span class="forecast-next" title="${esc(t('forecast.nextWeather'))}">
-              <small>${esc(turns === 1 ? t('forecast.nextTurn') : t('forecast.inTurns', { n: turns }))}</small>
+              <small>${esc(when)}</small>
               <span class="forecast-icons">
                 <span class="forecast-icon" title="${esc(skyName(next))}">${WEATHERS[skyWeather(next)].icon}</span>
                 ${after ? `<span class="forecast-icon later" title="${esc(t('forecast.then', { name: skyName(after) }))}">${WEATHERS[skyWeather(after)].icon}</span>` : ''}
@@ -724,9 +740,11 @@ function describeForecast(state: CombatState): string {
   const next = forecast[0];
   const turns = turnsUntilChange(state.weather, state.turn);
   const now = `${weatherName(current)}: ${weatherEffect(current)}`;
-  const change = next
-    ? ` ${turns === 1 ? t('forecast.next1', { sky: describeSkyCard(next) }) : t('forecast.next', { sky: describeSkyCard(next), n: turns })}`
-    : '';
+  const change = hasRelic(state, 'skyAnchor')
+    ? ` ${ICONS.anchor} ${t('forecast.anchoredLong')}`
+    : next
+      ? ` ${turns === 1 ? t('forecast.next1', { sky: describeSkyCard(next) }) : t('forecast.next', { sky: describeSkyCard(next), n: turns })}`
+      : '';
   return `${now}${change} ${describeExposure(state)} ${ICONS.sky} ${t('forecast.sky', { summary: summarizeSky(state.weather.skyDeck) })}`;
 }
 
@@ -807,6 +825,10 @@ function describeEvents(state: CombatState, events: CombatEvent[]): string {
       );
     } else if (event.type === 'steal') {
       messages.push(t('ev.steal', { enemy: enemy(event.index), ...element(event.element) }));
+    } else if (event.type === 'enemyHeal' && event.amount > 0) {
+      messages.push(`${ICONS.heal} ${t('ev.enemyHeal', { enemy: enemy(event.index), n: event.amount })}`);
+    } else if (event.type === 'shatter') {
+      messages.push(`${ICONS.shatter} ${t('ev.shatter', { enemy: actingEnemy })}`);
     } else if (event.type === 'relic') {
       messages.push(`${RELIC_ICONS[event.relic] ?? ''} ${relicName(event.relic)}!`);
     }
@@ -897,6 +919,17 @@ function animate(root: HTMLElement, events: CombatEvent[]): void {
       const cauldron = root.querySelector<HTMLElement>('.cauldron');
       flash(cauldron, 'hit');
       if (cauldron) floatText(cauldron, `-${ELEMENTS[event.element].icon}`, 'damage');
+      continue;
+    }
+    if (event.type === 'enemyHeal') {
+      const unit = root.querySelector<HTMLElement>(`[data-unit="enemy-${event.index}"]`);
+      if (unit && event.amount > 0) floatText(unit, `+${event.amount}`, 'heal');
+      continue;
+    }
+    if (event.type === 'shatter') {
+      const player = root.querySelector<HTMLElement>('[data-unit="player"]');
+      shake(player);
+      if (player) floatText(player, `${ICONS.shatter} -${event.amount} ${ICONS.block}`, 'damage');
       continue;
     }
     if (event.type !== 'damage' && event.type !== 'block') continue;

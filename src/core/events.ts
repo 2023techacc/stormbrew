@@ -4,7 +4,7 @@ import { RECIPES } from '../data/recipes';
 import { SKY_POOL } from '../data/sky';
 import { listOf, t } from '../i18n';
 import { cardName, elementName, recipeName, relicName, skyName } from '../i18n/content';
-import { MAX_POTIONS } from './combat';
+import { potionCapacity } from './combat';
 import { isKnown, type Grimoire } from './grimoire';
 import {
   MIN_SKY,
@@ -42,7 +42,7 @@ export function eventOptionBlocked(run: RunState, option: EventOption, grimoire:
   for (const o of option.outcomes) {
     if (o.type === 'gold' && o.amount < 0 && run.gold < -o.amount) return t('err.noGold');
     if (o.type === 'loseHp' && run.hp <= o.amount) return t('err.tooDangerous');
-    if (o.type === 'potion' && run.potions.length >= MAX_POTIONS) return t('err.beltFull');
+    if (o.type === 'potion' && run.potions.length >= potionCapacity(run.relics)) return t('err.beltFull');
     if (o.type === 'relic' && relicsLeft(run).length === 0) return t('err.allRelics');
     if (o.type === 'learn' && unknownRecipes(grimoire).length === 0) return t('err.allRecipes');
     if (o.type === 'infuse' && !run.deck.some(canInfuse)) return t('err.allInfused');
@@ -191,7 +191,7 @@ function applyOutcomes(run: RunState, outcomes: readonly EventOutcome[], grimoir
         break;
       }
       case 'potion': {
-        if (run.potions.length >= MAX_POTIONS) break;
+        if (run.potions.length >= potionCapacity(run.relics)) break;
         const potion = withRng(run, (rng) => rng.pick(POTION_POOL));
         run.potions.push(potion);
         messages.push(t('event.bottled', { name: recipeName(potion) }));

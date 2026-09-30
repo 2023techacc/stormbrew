@@ -2,8 +2,8 @@ import type { Grimoire } from './grimoire';
 import type { RunScreen, RunState } from './run';
 import type { CombatState } from './types';
 
-/** Bump when the saved shape changes incompatibly; older saves are then ignored. */
-export const SAVE_VERSION = 4;
+/** Bump when the saved shape changes; older saves are upgraded (see upgradeSave) or ignored. */
+export const SAVE_VERSION = 5;
 
 /** Everything needed to resume a run exactly where it was left, even mid-fight. */
 export interface RunSave {
@@ -18,11 +18,24 @@ export function makeRunSave(run: RunState, screen: RunScreen, combat?: CombatSta
   return combat ? { version: SAVE_VERSION, run, screen, combat } : { version: SAVE_VERSION, run, screen };
 }
 
-/** Parses a saved run; returns null for missing, corrupt, outdated or finished saves. */
+/**
+ * Brings an older save up to date, so updating the game doesn't lose a run in
+ * progress. Version 4 runs were all in Act 1.
+ */
+function upgradeSave(data: Record<string, unknown>): void {
+  if (data.version === 4 && data.run && typeof data.run === 'object') {
+    (data.run as Partial<RunState>).act = 1;
+    data.version = 5;
+  }
+}
+
+/** Parses a saved run; returns null for missing, corrupt, too old or finished saves. */
 export function parseRunSave(text: string | null): RunSave | null {
   if (!text) return null;
   try {
-    const data = JSON.parse(text) as Partial<RunSave> | null;
+    const raw = JSON.parse(text) as Record<string, unknown> | null;
+    if (raw && typeof raw === 'object') upgradeSave(raw);
+    const data = raw as Partial<RunSave> | null;
     if (!data || data.version !== SAVE_VERSION || !data.run || !data.screen) return null;
     if (data.run.status !== 'playing') return null;
     if (data.screen.name === 'combat' && !data.combat) return null;

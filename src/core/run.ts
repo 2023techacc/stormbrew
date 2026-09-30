@@ -1,17 +1,17 @@
+import { LAST_ACT, getAct } from '../data/acts';
 import { REWARD_POOL, STARTER_DECK, getCard } from '../data/cards';
 import { distilledRecipe, essenceId, flaskId } from '../data/distilled';
-import { ENCOUNTERS } from '../data/enemies';
 import { EVENT_IDS } from '../data/events';
 import { RECIPES } from '../data/recipes';
-import { RELIC_POOL, STARTING_RELICS, getRelic } from '../data/relics';
+import { BOSS_RELIC_POOL, RELIC_POOL, STARTING_RELICS, getRelic } from '../data/relics';
 import { SKY_POOL, STARTING_SKY, getSkyCard } from '../data/sky';
 import { t } from '../i18n';
-import { MAX_POTIONS, createCombat } from './combat';
-import { generateMap, reachableNodes, type MapNode, type MapState } from './map';
+import { createCombat, potionCapacity } from './combat';
+import { MAP_FLOORS, generateMap, reachableNodes, type MapNode, type MapState } from './map';
 import { Rng } from './rng';
 import type { CombatEvent, CombatState, DeckCard, ElementId } from './types';
 
-export const PLAYER_MAX_HP = 75;
+export const PLAYER_MAX_HP = 80;
 export const STARTING_GOLD = 50;
 /** Floors (from 0) that use easy encounters before normal fights get harder. */
 export const EASY_FLOORS = 3;
@@ -24,7 +24,11 @@ export const REPEAT_DISTILL_CHANCE = 0.25;
 export const REST_HEAL = 0.3;
 export const HEALING_HERB_HEAL = 6;
 export const LUCKY_COIN_GOLD = 10;
-export const GOLD_REWARD = { fight: [12, 18], elite: [28, 35] } as const;
+export const GOLD_REWARD = { fight: [12, 18], elite: [28, 35], boss: [60, 75] } as const;
+/** Fights in later acts give this much more gold per act (elites twice as much). */
+export const ACT_GOLD_BONUS = 4;
+/** Boss relics offered to choose from after an act's boss. */
+export const BOSS_RELIC_CHOICES = 3;
 export const SHOP_PRICES = { card: [40, 55], relic: [110, 140], potion: [30, 45], sky: [35, 50], removal: 60 } as const;
 /** The sky deck can't be charted below this many cards. */
 export const MIN_SKY = 2;
@@ -65,17 +69,19 @@ export interface ShopState {
 }
 
 /**
- * A run through Act 1: pick a path up the map to the boss. HP, gold, the deck
- * and relics carry over. Plain data so it can be saved as JSON.
+ * A run through three acts: in each, pick a path up the map to the boss. HP,
+ * gold, the deck and relics carry over. Plain data so it can be saved as JSON.
  */
 export interface RunState {
   rngState: number;
+  /** The act being played: 1, 2 or 3 (see data/acts.ts). */
+  act: number;
   hp: number;
   maxHp: number;
   gold: number;
   deck: DeckCard[];
   relics: string[];
-  /** Bottled brews (recipe ids), at most MAX_POTIONS. */
+  /** Bottled brews (recipe ids), up to the belt's capacity (see potionCapacity). */
   potions: string[];
   /** The sky deck: weather cards the forecast is drawn from in every fight. */
   sky: string[];
@@ -101,6 +107,8 @@ export interface FightRewards {
   /** A potion found after the fight (already added if there was room). */
   potion?: string;
   cardChoices: string[];
+  /** After an act's boss: the boss relics to choose one from. */
+  bossRelics?: string[];
 }
 
 /**
@@ -111,6 +119,8 @@ export type RunScreen =
   | { name: 'map' }
   | { name: 'combat'; label: string }
   | { name: 'reward'; rewards: FightRewards }
+  /** Choosing a boss relic, before the rest of an act boss's rewards. */
+  | { name: 'bossRelic'; rewards: FightRewards }
   | { name: 'rest'; step: 'choose' | 'pickCard' | 'pickElement' | 'pickSky'; deckIndex?: number }
   | { name: 'shop'; removing: boolean }
   | { name: 'event'; step: 'choose' | 'pickCard' | 'pickSky' }
@@ -121,6 +131,7 @@ export function createRun(seed: number): RunState {
   const map = generateMap(rng);
   return {
     rngState: rng.getState(),
+    act: 1,
     hp: PLAYER_MAX_HP,
     maxHp: PLAYER_MAX_HP,
     gold: STARTING_GOLD,
@@ -139,6 +150,11 @@ export function createRun(seed: number): RunState {
 
 export function currentNode(run: RunState): MapNode | undefined {
   return run.nodeId === null ? undefined : run.map.nodes[run.nodeId];
+}
+
+/** A node's floor counted from the start of the run (Act 2 continues where Act 1's boss was). */
+export function runFloor(run: RunState, node: MapNode | undefined = currentNode(run)): number {
+  return (run.act - 1) * (MAP_FLOORS + 1) + (node ? node.floor : 0) + 1;
 }
 
 export function availableNodes(run: RunState): MapNode[] {
@@ -177,14 +193,15 @@ export function startFight(run: RunState): { state: CombatState; events: CombatE
   const node = currentNode(run);
   const fightNode = node?.type === 'fight' || node?.type === 'elite' || node?.type === 'boss';
   if (!node || (!fightNode && !isEliteFight(run, node))) throw new Error('Not at a fight');
+  const encounters = getAct(run.act).encounters;
   const tier =
     node.type === 'boss'
-      ? ENCOUNTERS.boss
+      ? encounters.boss
       : isEliteFight(run, node)
-        ? ENCOUNTERS.elite
+        ? encounters.elite
         : node.floor < EASY_FLOORS
-          ? ENCOUNTERS.easy
-          : ENCOUNTERS.hard;
+          ? encounters.easy
+          : encounters.hard;
   const { enemies, seed } = withRng(run, (rng) => ({ enemies: rng.pick(tier), seed: rng.int(0, 2 ** 32 - 1) }));
   return createCombat({
     seed,
@@ -200,8 +217,9 @@ export function startFight(run: RunState): { state: CombatState; events: CombatE
 
 /**
  * Records a finished fight and gives its rewards: gold (and a relic from elites)
- * right away, plus card choices for the player to pick from. Beating the boss
- * wins the run; losing ends it.
+ * right away, plus card choices for the player to pick from. An act's boss also
+ * offers boss relics to choose from; beating the last act's boss wins the run.
+ * Losing ends it.
  */
 export function finishFight(
   run: RunState,
@@ -219,7 +237,8 @@ export function finishFight(
   run.hp = combat.player.hp;
   run.potions = [...combat.potions];
   const node = currentNode(run);
-  if (node?.type === 'boss') {
+  const boss = node?.type === 'boss';
+  if (boss && run.act >= LAST_ACT) {
     run.status = 'won';
     return none;
   }
@@ -227,15 +246,20 @@ export function finishFight(
   const elite = isEliteFight(run, node);
   delete run.event;
   const healed = run.relics.includes('healingHerb') ? heal(run, HEALING_HERB_HEAL) : 0;
-  const [min, max] = elite ? GOLD_REWARD.elite : GOLD_REWARD.fight;
+  const [min, max] = boss ? GOLD_REWARD.boss : elite ? GOLD_REWARD.elite : GOLD_REWARD.fight;
+  const bonus = boss ? 0 : (run.act - 1) * ACT_GOLD_BONUS * (elite ? 2 : 1);
   const gold =
-    withRng(run, (rng) => rng.int(min, max)) + (run.relics.includes('luckyCoin') ? LUCKY_COIN_GOLD : 0);
+    withRng(run, (rng) => rng.int(min, max)) + bonus + (run.relics.includes('luckyCoin') ? LUCKY_COIN_GOLD : 0);
   run.gold += gold;
 
   const brewed = options.distill === false ? [] : combat.brewed;
   const rewards: FightRewards = { gold, healed, cardChoices: rewardChoices(run, brewed) };
+  if (boss) {
+    rewards.bossRelics = bossRelicChoices(run);
+    return rewards;
+  }
   const potion = withRng(run, (rng) => (rng.next() < POTION_DROP_CHANCE ? rng.pick(POTION_POOL) : undefined));
-  if (potion && run.potions.length < MAX_POTIONS) {
+  if (potion && run.potions.length < potionCapacity(run.relics)) {
     run.potions.push(potion);
     rewards.potion = potion;
   }
@@ -267,6 +291,35 @@ export function rewardChoices(run: RunState, brewed: readonly string[] = []): st
     const random = rng.shuffle(REWARD_POOL).slice(0, REWARD_CHOICES - distilled.length);
     return [...distilled, ...random];
   });
+}
+
+/** The boss relics offered after an act's boss: a few the player doesn't have. */
+export function bossRelicChoices(run: RunState): string[] {
+  const options = BOSS_RELIC_POOL.filter((id) => !run.relics.includes(id));
+  return withRng(run, (rng) => rng.shuffle(options).slice(0, BOSS_RELIC_CHOICES));
+}
+
+/** Takes one of the offered boss relics. */
+export function takeBossRelic(run: RunState, rewards: FightRewards, id: string): void {
+  if (!rewards.bossRelics?.includes(id)) throw new Error(`Boss relic ${id} was not offered`);
+  run.relics.push(getRelic(id).id);
+  rewards.relic = id;
+  delete rewards.bossRelics;
+}
+
+/**
+ * After an act's boss: on to the next act's map. You rest before the climb and
+ * heal fully. Returns how much was healed.
+ */
+export function startNextAct(run: RunState): number {
+  if (run.act >= LAST_ACT) throw new Error('There is no act after the last one');
+  run.act += 1;
+  run.map = withRng(run, (rng) => generateMap(rng));
+  run.nodeId = null;
+  run.visited = [];
+  delete run.shop;
+  delete run.event;
+  return heal(run, run.maxHp);
 }
 
 export function addCardToDeck(run: RunState, cardId: string): void {
@@ -353,7 +406,7 @@ export function buyRelic(run: RunState, index: number): ShopResult {
 export function buyPotion(run: RunState, index: number): ShopResult {
   const item = run.shop?.potions[index];
   if (!item || item.sold) return { ok: false, reason: t('err.soldOut') };
-  if (run.potions.length >= MAX_POTIONS) return { ok: false, reason: t('err.beltFull') };
+  if (run.potions.length >= potionCapacity(run.relics)) return { ok: false, reason: t('err.beltFull') };
   const paid = pay(run, item.price);
   if (!paid.ok) return paid;
   item.sold = true;

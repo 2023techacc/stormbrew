@@ -510,6 +510,12 @@ button {
   background: color-mix(in srgb, var(--weather-color, #6fa8dc) 30%, transparent);
 }
 
+/* The Storm Vow: always out in the open. */
+.stance.locked {
+  border-style: dashed;
+  opacity: 0.8;
+}
+
 .controls .primary-button {
   min-height: var(--control-h);
 }
@@ -837,12 +843,12 @@ button {
   margin: 0;
 }
 
-/* The map fills the screen's free height: each floor gets 38 to 64px. */
+/* The map fills the screen's free height: each floor gets 36 to 64px. */
 .map {
   position: relative;
   width: min(100%, 360px);
   flex: 1 1 0;
-  min-height: calc(var(--rows) * 38px);
+  min-height: calc(var(--rows) * 36px);
   max-height: calc(var(--rows) * 64px);
   container-type: size;
 }
@@ -1051,6 +1057,11 @@ button {
 
 .shop-relic.sold {
   opacity: 0.5;
+}
+
+.shop-relic.boss-relic {
+  border-color: #e0a33a;
+  background: color-mix(in srgb, #e0a33a 12%, rgb(0 0 0 / 0.25));
 }
 
 .event-text {

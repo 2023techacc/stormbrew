@@ -19,6 +19,26 @@ export const SANDBOX_ENEMIES = [
   'cauldronCrone',
   'cinderDrake',
   'eyeOfTheStorm',
+  // Act 2.
+  'iceBat',
+  'frostMammoth',
+  'sleetSprite',
+  'thunderRam',
+  'stormEel',
+  'glacierTitan',
+  'rimeWitch',
+  'thunderOwl',
+  'frostWyrm',
+  // Act 3.
+  'lavaLizard',
+  'stormElemental',
+  'brassAutomaton',
+  'emberWraith',
+  'cloudShark',
+  'magmaColossus',
+  'tempestDjinn',
+  'grandAlchemist',
+  'heartOfTheStorm',
 ];
 
 /** A practice fight with lots of HP, to try cards, weather and brews. */

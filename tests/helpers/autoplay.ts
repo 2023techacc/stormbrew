@@ -14,10 +14,13 @@ import {
   addCardToDeck,
   availableNodes,
   createRun,
+  currentNode,
   enterNode,
   finishFight,
   rest,
   startFight,
+  startNextAct,
+  takeBossRelic,
   type RunState,
 } from '../../src/core/run';
 import type { CombatState } from '../../src/core/types';
@@ -67,12 +70,15 @@ export function playEvent(run: RunState, grimoire: Grimoire, policy: EventPolicy
   return result.next === 'fight';
 }
 
-/** Plays a whole run: random paths, rests heal, shops are skipped, events and rewards are picked at random. */
+/** Most map steps a whole run can take (three acts of ten floors and a boss). */
+export const MAX_RUN_STEPS = 120;
+
+/** Plays a whole run: random paths, rests heal, shops are skipped, events, rewards and boss relics are picked at random. */
 export function autoplayRun(seed: number, options: { distill: boolean }): RunState {
   const run = createRun(seed);
   const rng = new Rng(seed * 7919 + 13);
   const grimoire = createGrimoire();
-  for (let step = 0; step < 30 && run.status === 'playing'; step++) {
+  for (let step = 0; step < MAX_RUN_STEPS && run.status === 'playing'; step++) {
     const next = availableNodes(run);
     if (next.length === 0) break;
     const node = enterNode(run, rng.pick(next).id);
@@ -82,7 +88,9 @@ export function autoplayRun(seed: number, options: { distill: boolean }): RunSta
     const { state } = startFight(run);
     autoplayFight(state, rng);
     const rewards = finishFight(run, state, { distill: options.distill });
+    if (rewards.bossRelics?.length) takeBossRelic(run, rewards, rng.pick(rewards.bossRelics));
     if (run.status === 'playing' && rewards.cardChoices.length) addCardToDeck(run, rng.pick(rewards.cardChoices));
+    if (run.status === 'playing' && currentNode(run)?.type === 'boss') startNextAct(run);
   }
   return run;
 }

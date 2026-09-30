@@ -1,5 +1,6 @@
 import { it } from 'vitest';
 import { MAP_FLOORS } from '../../src/core/map';
+import { ACTS } from '../../src/data/acts';
 import { autoplayRun } from '../helpers/autoplay';
 import { smartRun, type FightStats, type RunStats } from '../helpers/smartplay';
 
@@ -18,17 +19,28 @@ function report(runs: RunStats[]): string {
   const won = runs.filter((r) => r.won);
   lines.push(`Runs: ${runs.length}, won: ${won.length} (${pct(won.length / runs.length)})`);
   const lost = runs.filter((r) => !r.won);
-  const floors = Array.from({ length: MAP_FLOORS + 1 }, (_, f) => lost.filter((r) => r.floor === f).length);
-  lines.push(`Defeats by floor (1-${MAP_FLOORS}, then boss): ${floors.join(' ')}`);
-  const atBoss = runs.flatMap((r) => (r.hpAtBoss === undefined ? [] : [r.hpAtBoss]));
-  lines.push(`Reached the boss: ${atBoss.length}, with ${fixed(avg(atBoss))} HP on average`);
+  for (const act of ACTS) {
+    const here = lost.filter((r) => r.act === act.number);
+    const floors = Array.from({ length: MAP_FLOORS + 1 }, (_, f) => here.filter((r) => r.floor === f).length);
+    lines.push(`Act ${act.number} defeats by floor (1-${MAP_FLOORS}, then boss): ${floors.join(' ')}  (${here.length} in all)`);
+  }
+  for (const act of ACTS) {
+    const atBoss = runs.flatMap((r) => (r.hpAtBoss[act.number - 1] === undefined ? [] : [r.hpAtBoss[act.number - 1] as number]));
+    lines.push(`Reached the Act ${act.number} boss: ${atBoss.length} (${pct(atBoss.length / runs.length)}), with ${fixed(avg(atBoss))} HP on average`);
+  }
+  const relics = new Map<string, RunStats[]>();
+  for (const r of runs) for (const id of r.bossRelics) relics.set(id, [...(relics.get(id) ?? []), r]);
+  lines.push(
+    `Boss relics taken (runs won): ${[...relics].map(([id, list]) => `${id} ${list.length} (${pct(list.filter((r) => r.won).length / list.length)})`).join(', ')}`,
+  );
   lines.push(
     `End of run: deck ${fixed(avg(runs.map((r) => r.deckSize)))} cards, ${fixed(avg(runs.map((r) => r.relics)))} relics, ${fixed(avg(runs.map((r) => r.gold)))} gold`,
   );
 
   const fights = runs.flatMap((r) => r.fights);
-  // The boss changes the weather every round, so it is left out of the weather numbers.
-  const regular = fights.filter((f) => f.enemies !== 'eyeOfTheStorm');
+  // Bosses change the weather all the time, so they are left out of the weather numbers.
+  const bosses = new Set(ACTS.flatMap((a) => a.encounters.boss.flat()));
+  const regular = fights.filter((f) => !bosses.has(f.enemies));
   lines.push(
     `Per fight: ${fixed(avg(fights.map((f) => f.turns)))} turns, ${fixed(avg(fights.map((f) => f.hpLost)))} HP lost, ` +
       `${fixed(avg(fights.map((f) => f.caught)))} elements caught, ${fixed(avg(fights.map((f) => f.spilled)))} spilled, ` +
@@ -41,10 +53,15 @@ function report(runs: RunStats[]): string {
 
   const byEncounter = new Map<string, FightStats[]>();
   for (const f of fights) byEncounter.set(f.enemies, [...(byEncounter.get(f.enemies) ?? []), f]);
-  lines.push('', 'Encounter                          n   win   HP lost  turns');
-  for (const [name, list] of [...byEncounter].sort((a, b) => avg(b[1].map((f) => f.hpLost)) - avg(a[1].map((f) => f.hpLost)))) {
+  const actOf = (name: string) =>
+    ACTS.find((a) => Object.values(a.encounters).some((tier: string[][]) => tier.some((g) => g.join('+') === name)))?.number ?? 0;
+  lines.push('', 'Act  Encounter                          n   win   HP lost  turns');
+  const sorted = [...byEncounter].sort(
+    (a, b) => actOf(a[0]) - actOf(b[0]) || avg(b[1].map((f) => f.hpLost)) - avg(a[1].map((f) => f.hpLost)),
+  );
+  for (const [name, list] of sorted) {
     lines.push(
-      `${name.padEnd(32)} ${String(list.length).padStart(4)} ${pct(list.filter((f) => f.won).length / list.length).padStart(5)} ` +
+      `${String(actOf(name)).padStart(3)}  ${name.padEnd(32)} ${String(list.length).padStart(4)} ${pct(list.filter((f) => f.won).length / list.length).padStart(5)} ` +
         `${fixed(avg(list.map((f) => f.hpLost))).padStart(8)} ${fixed(avg(list.map((f) => f.turns))).padStart(6)}`,
     );
   }
