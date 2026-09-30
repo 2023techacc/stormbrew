@@ -56,21 +56,31 @@ const enemy = (s: CombatState, index = 0) => {
 
 const filler = (n = 6) => Array<string>(n).fill('defend');
 
+/** A number from a card's data, so balance changes don't break tests about rules. */
+const amount = (cardId: string, type: 'damage' | 'applyStatus', attuned = false): number => {
+  const def = CARDS[cardId];
+  const effect = (attuned ? def?.attuned?.effects : def?.effects)?.find((e) => e.type === type);
+  if (!effect || (effect.type !== 'damage' && effect.type !== 'applyStatus')) throw new Error(`${cardId} has no ${type}`);
+  return effect.amount;
+};
+
 describe('new common cards', () => {
-  it('Fan the Flames applies 3 Burn and adds Air', () => {
+  it('Fan the Flames applies Burn and adds Air', () => {
     const s = newCombat(['fanTheFlames', ...filler()]);
     play(s, 'fanTheFlames', 0);
-    expect(enemy(s).statuses.burn).toBe(3);
+    expect(enemy(s).statuses.burn).toBe(amount('fanTheFlames', 'applyStatus'));
     expect(s.cauldron).toEqual(['air']);
   });
 
   it('Forked Lightning also hits every enemy in a Storm', () => {
     const s = newCombat(['forkedLightning', 'forkedLightning', ...filler()], { enemies: ['trainingDummy', 'trainingDummy'] });
+    const hit = amount('forkedLightning', 'damage');
+    const fork = amount('forkedLightning', 'damage', true);
     play(s, 'forkedLightning', 0);
-    expect([enemy(s, 0).hp, enemy(s, 1).hp]).toEqual([DUMMY_HP - 6, DUMMY_HP]);
+    expect([enemy(s, 0).hp, enemy(s, 1).hp]).toEqual([DUMMY_HP - hit, DUMMY_HP]);
     s.weather.current = 'storm';
     play(s, 'forkedLightning', 0);
-    expect([enemy(s, 0).hp, enemy(s, 1).hp]).toEqual([DUMMY_HP - 6 - 6 - 4, DUMMY_HP - 4]);
+    expect([enemy(s, 0).hp, enemy(s, 1).hp]).toEqual([DUMMY_HP - hit * 2 - fork, DUMMY_HP - fork]);
   });
 
   it('Whisk brews and draws 2', () => {
@@ -110,8 +120,8 @@ describe('new common cards', () => {
     s.weather.current = 'heatwave';
     play(s, 'heatShimmer');
     for (const e of s.enemies) {
-      expect(e.hp).toBe(DUMMY_HP - 5); // 4 fire, +25% in a Heatwave
-      expect(e.statuses.burn).toBe(2);
+      expect(e.hp).toBe(DUMMY_HP - Math.floor(amount('heatShimmer', 'damage') * 1.25)); // fire, +25% in a Heatwave
+      expect(e.statuses.burn).toBe(amount('heatShimmer', 'applyStatus', true));
     }
   });
 

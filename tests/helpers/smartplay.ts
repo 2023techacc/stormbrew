@@ -383,6 +383,10 @@ export interface RunStats {
   hpAtBoss: number[];
   /** Boss relics taken, in order. */
   bossRelics: string[];
+  /** Rare cards in the deck at the end. */
+  rareCards: string[];
+  /** Every relic at the end (the starter included). */
+  relicIds: string[];
   deckSize: number;
   relics: number;
   gold: number;
@@ -424,6 +428,8 @@ export function smartRun(seed: number): { run: RunState; stats: RunStats } {
     fights: [],
     hpAtBoss: [],
     bossRelics: [],
+    rareCards: [],
+    relicIds: [],
     deckSize: 0,
     relics: 0,
     gold: 0,
@@ -454,6 +460,8 @@ export function smartRun(seed: number): { run: RunState; stats: RunStats } {
     }
   }
   stats.won = run.status === 'won';
+  stats.rareCards = run.deck.flatMap((c) => (getCard(c.id).rarity === 'rare' ? [c.id] : []));
+  stats.relicIds = [...run.relics];
   stats.deckSize = run.deck.length;
   stats.relics = run.relics.length;
   stats.gold = run.gold;

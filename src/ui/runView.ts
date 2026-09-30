@@ -64,7 +64,7 @@ import {
   skyText,
 } from '../i18n/content';
 import { cardFace, showCombat } from './combatView';
-import { esc } from './dom';
+import { esc, fitCards } from './dom';
 import { playSfx, type Sfx } from './sound';
 import { clearRun, saveGrimoire, saveRun } from './storage';
 import { baseText } from './text';
@@ -135,8 +135,13 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
               ? renderEvent(run, screen.step, grimoire)
               : renderShop(run, screen.name === 'shop' && screen.removing);
     const scrollY = window.scrollY;
+    // Picking a card from the deck: the deck scrolls inside the screen, which is exactly the phone's height.
+    const picking =
+      (screen.name === 'rest' && screen.step === 'pickCard') ||
+      (screen.name === 'event' && screen.step === 'pickCard') ||
+      (screen.name === 'shop' && screen.removing);
     root.innerHTML = `
-      <main class="screen run-screen ${entering ? 'enter' : ''}">
+      <main class="screen run-screen ${entering ? 'enter' : ''} ${picking ? 'fills' : ''}">
         ${renderHeader(run)}
         <p class="run-message" aria-live="polite">${esc(message)}</p>
         ${body}
@@ -144,6 +149,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
         ${showSky ? renderSky(run) : ''}
       </main>
     `;
+    fitCards(root);
     if (scroll === 'map') root.querySelector('.map-node.reachable')?.scrollIntoView({ block: 'center' });
     else window.scrollTo(0, scroll === 'top' ? 0 : scrollY);
     scroll = 'keep';
@@ -662,10 +668,10 @@ function backButton(): string {
   return `<button class="text-button" data-action="back">${esc(t('common.back'))}</button>`;
 }
 
-/** The deck as tappable cards; `extraClass(i)` can mark some unavailable. */
+/** The deck as tappable cards, scrolling in the screen's free height; `extraClass(i)` can mark some unavailable. */
 function deckGrid(run: RunState, extraClass: (index: number) => string): string {
   return `
-    <section class="card-grid">
+    <section class="card-grid pick-scroll">
       ${run.deck
         .map((card, i) =>
           cardFace(getCard(card.id), 'clear', {

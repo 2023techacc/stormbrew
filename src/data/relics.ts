@@ -35,7 +35,7 @@ export const RELICS: Record<string, RelicDef> = {
   frostCharm: { id: 'frostCharm', name: 'Frost Charm', text: 'Whenever you apply Weak, apply 1 more.' },
   kiln: { id: 'kiln', name: 'Kiln', text: 'In a Heatwave, gain 1 extra energy each turn.' },
   sunlitLantern: { id: 'sunlitLantern', name: 'Sunlit Lantern', text: 'In Clear skies, draw 1 extra card each turn.' },
-  beltPouch: { id: 'beltPouch', name: 'Belt Pouch', text: 'Carry 1 more potion.' },
+  beltPouch: { id: 'beltPouch', name: 'Belt Pouch', text: 'Carry 1 more potion. Comes with a random potion.' },
   heartyStew: { id: 'heartyStew', name: 'Hearty Stew', text: 'When you get it, gain 10 max HP.' },
   mastersNotes: {
     id: 'mastersNotes',

@@ -24,7 +24,7 @@ export const REPEAT_DISTILL_CHANCE = 0.25;
  * The chance that a random card reward is rare, in Acts 1, 2 and 3. Elites
  * give better odds, and after an act's boss every card offered is rare.
  */
-export const RARE_CHANCE = { fight: [0.05, 0.1, 0.15], elite: [0.2, 0.25, 0.3] } as const;
+export const RARE_CHANCE = { fight: [0.08, 0.14, 0.2], elite: [0.25, 0.3, 0.35] } as const;
 /** Resting heals this fraction of max HP. */
 export const REST_HEAL = 0.3;
 export const HEALING_HERB_HEAL = 6;
@@ -40,7 +40,7 @@ export const BOSS_RELIC_CHOICES = 3;
 /** Shops sell two common cards and one rare card. */
 export const SHOP_PRICES = {
   card: [40, 55],
-  rare: [75, 90],
+  rare: [70, 85],
   relic: [110, 140],
   potion: [30, 45],
   sky: [35, 50],
@@ -510,14 +510,17 @@ export function heal(run: RunState, amount: number): number {
 
 /**
  * Adds a relic to the run. A few do something the moment you get them: the
- * Hearty Stew raises max HP, and the Golden Scale also discounts the shop
- * you're in.
+ * Hearty Stew raises max HP, the Belt Pouch comes with a potion, and the
+ * Golden Scale also discounts the shop you're in.
  */
 export function gainRelic(run: RunState, id: string): void {
   run.relics.push(getRelic(id).id);
   if (id === 'heartyStew') {
     run.maxHp += HEARTY_STEW_MAX_HP;
     run.hp += HEARTY_STEW_MAX_HP;
+  }
+  if (id === 'beltPouch' && run.potions.length < potionCapacity(run.relics)) {
+    run.potions.push(withRng(run, (rng) => rng.pick(potionPool(run.act))));
   }
   if (id === 'goldenScale' && run.shop) {
     const shop = run.shop;

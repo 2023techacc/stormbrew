@@ -140,11 +140,14 @@ so the next change always changes something.
 
 ### 4.3 Recipe table
 
-The game has 21 recipes (see `src/data/recipes.ts`): every pair of base
-elements, every weather element with every base element, and three
-three-element brews. The table below shows the original examples; some changed
-in the game (e.g. Mud and Sandstorm use Weak/Block instead of Slow/Blind,
-Heat Haze deals damage instead of giving Strength, Ice Lance applies Weak).
+The game has 27 recipes (see `src/data/recipes.ts`): every pair of base
+elements, every weather element with every base element, the weather elements
+with each other (Overcharge ⚡⚡, Ice Storm ❄️❄️, Frozen Lightning ⚡❄️), and six
+three-element brews (Heat Haze, Thunderhead, Downpour, and from Milestone 10
+Volcano 🔥🔥🪨, Glacier ❄️🪨🪨 and Tincture 💧🪨🌬️). The table below shows the
+original examples; some changed in the game (e.g. Mud and Sandstorm use
+Weak/Block instead of Slow/Blind, Heat Haze deals damage instead of giving
+Strength, Ice Lance applies Weak).
 
 | Combination             | Result           | Effect                                                |
 |-------------------------|------------------|-------------------------------------------------------|
@@ -165,7 +168,10 @@ Heat Haze deals damage instead of giving Strength, Ice Lance applies Weak).
 
 Three-element recipes are stronger than two-element ones. A three-slot cauldron
 can hold one three-element brew, or a two-element brew plus one element kept
-for later.
+for later. Because the biggest recipe always wins, a three-element brew
+replaces the two-element brew inside it *and* the element that would have been
+kept, so it has to be worth about one and a half brews: the first versions of
+Volcano, Glacier and Tincture weren't, and made runs harder (§12.6).
 
 ### 4.4 Discovery and the Grimoire
 - Recipes start **unknown**. When you brew one for the first time, it is
@@ -216,23 +222,30 @@ How elements improve your deck between fights:
 
 ### 5.2 Cards
 
-40 cards are made by hand (`src/data/cards.ts`), and every recipe adds two
-distilled cards (a Flask and an Essence, §11), 82 in all:
-- **Basics**: Strike, Defend, Brace, Ember Bolt, Thunderclap.
+55 cards are made by hand (`src/data/cards.ts`), 8 of them rare (§5.7), and
+every recipe adds two distilled cards (a Flask and an Essence, §11), 109 in all:
+- **Basics**: Strike, Defend, Brace, Ember Bolt, Thunderclap, *Hailstones*
+  (3 frost damage 3 times).
 - **Elements**: *Gather Ember / Dew / Stone / Gust*, *Twin Embers*, *Deluge*,
   *Riptide* (deal 5, add 💧), *Gale Force* (3 to ALL, add 🌬️), *Earthen Wall*
   (12 Block, add 🪨), *Static Charge* (add ⚡, draw 1), *Rime* (4 Block, add ❄️),
-  *Catch the Sky* (add the weather's element, draw 1).
+  *Catch the Sky* (add the weather's element, draw 1), *Fan the Flames*
+  (4 Burn, add 🌬️).
 - **Brewing**: *Stir*, *Double Boil*, *Simmer* (5 Block, brew), *Catalyst*
   (the next brew works twice), *Boil Over* (empty the cauldron: 4 damage per
-  element), *Bottle It*.
+  element), *Bottle It*, *Whisk* (brew, draw 2).
 - **Weather**: *Summon Rain*, *Clear Skies*, *Kindle*, *Call Lightning*,
   *First Frost*, *Cloudburst* (Rain, 7 to ALL), *Shift Winds*, *Hold the Sky*,
-  *Scatter Clouds*, *Weather Front* (the next weather comes now).
+  *Scatter Clouds*, *Weather Front* (the next weather comes now), *Fog Bank*
+  (7 Block, change the next weather).
 - **Attuned** (§3.3): *Frostbite* (Snow: 2 Weak), *Sunstrike* (Heatwave:
   3 Burn), *Static Shock* (Storm: +1 energy), *Undertow* (Rain: draw 2),
-  *Clarity* (Clear: draw 2 more).
+  *Clarity* (Clear: draw 2 more), *Forked Lightning* (Storm: 4 to ALL too),
+  *Snowdrift* (6 Block; Snow: draw 2), *Heat Shimmer* (5 fire to ALL;
+  Heatwave: 2 Burn to ALL).
 - **Against enemy cauldrons**: *Pilfer*, *Curdle*.
+- **Rare** (§5.7): *Conductor*, *Steady Hands*, *Sky Harvest* (Lasting),
+  *Perfect Brew*, *Lightning Storm*, *Sunbreak*, *Hoarfrost*, *Avalanche*.
 
 ### 5.3 Enemies (Act 1: the Mirelands)
 
@@ -274,7 +287,7 @@ Strength over a fight.
 
 ### 5.4 Relics
 
-15 relics (found at elites, events and shops), plus 6 boss relics (§5.6):
+23 relics (found at elites, events and shops), plus 6 boss relics (§5.6):
 - **Copper Cauldron** (starting relic): start each fight with a random base element.
 - **Barometer**: the forecast shows the next two weathers.
 - **Weathervane**: whenever the weather changes, gain 3 Block.
@@ -290,6 +303,12 @@ Strength over a fight.
 - **Alembic**: Sludge becomes a random brew of two base elements.
 - **Healing Herb**: heal 6 HP after each fight you win.
 - **Lucky Coin**: gain 10 extra gold from each fight.
+- From Milestone 10 (§5.7): **Ember Charm** and **Frost Charm** (+1 to every
+  Burn / Weak you apply), **Kiln** (in a Heatwave, +1 energy each turn),
+  **Sunlit Lantern** (in Clear skies, draw 1 more card each turn), **Belt
+  Pouch** (carry 1 more potion; comes with one), **Hearty Stew** (+10 max HP),
+  **Master's Notes** (+1 energy for every three-element brew) and **Golden
+  Scale** (shops 20% cheaper, starting with the one you buy it in).
 
 ### 5.5 Events
 
@@ -308,6 +327,19 @@ you can't take says why (not enough gold or HP, a full potion belt…):
   (45 gold).
 - **Wandering Alchemist**: trade a card (it becomes a random card) or buy a
   lesson (30 gold: learn 3 recipes).
+
+From Milestone 10 some events only happen in certain acts, so each act has
+6–10 to draw from:
+- **Old Observatory** (every act): study the sky (learn 3 recipes) or chart
+  a new course (choose 1 of 3 weather cards to add, for free).
+- **Frozen Lake** (Act 2): break the ice (lose 7 HP: choose 1 of 3 rare
+  cards) or chill a card (infuse it with ❄️ Frost).
+- **Lightning Forge** (Acts 2–3): melt down a card (remove it from the deck)
+  or work the bellows (lose 6 HP, gain 60 gold).
+- **Sky Merchant** (Acts 2–3): buy a rare card (70 gold: choose 1 of 3) or a
+  potion (20 gold).
+- **Storm Altar** (Act 3): offer your strength (lose 8 max HP: a random
+  relic) or pray for calm (heal 25).
 
 ### 5.6 Acts 2 and 3 (Milestone 10)
 
@@ -365,8 +397,48 @@ have a catch):
 - **Bottomless Flask**: carry 2 more potions; start each fight with a random potion.
 - **Thunder Drum**: Storm lightning never hits you, and strikes twice each round.
 
-Next (Milestone 10, part 2): more cards (with rarer, stronger cards in later
-acts), relics, potions and events.
+Part 2 of Milestone 10 added rare cards, relics, recipes, potions and events
+(§5.7).
+
+### 5.7 Rare cards, relics, potions and events (Milestone 10, part 2)
+
+- **Rarity.** Cards are common or **rare** (a gold edge and a ★). Each card
+  in a reward can be rare: 8% after normal fights in Act 1, 14% in Act 2 and
+  20% in Act 3, and 25% / 30% / 35% after elites. After an act's boss all
+  three cards are rare. Every shop sells two common cards and one rare
+  (70–85 gold), and the Frozen Lake and Sky Merchant offer a choice of three.
+- **Lasting cards.** Three rares are *Lasting*: once played they leave the
+  fight, and their effect stays until it ends. They show as small badges next
+  to your name in the fight (tap one to read it), and more copies stack.
+  - **Conductor** (1 energy): whenever the weather changes, 5 damage to ALL
+    enemies.
+  - **Steady Hands** (1): every brew also gives 4 Block.
+  - **Sky Harvest** (1): out in the open, you catch the weather's element
+    twice each turn.
+- **The other rares**: *Perfect Brew* (1: brew, and it works twice),
+  *Lightning Storm* (2: Storm, 10 to ALL), *Sunbreak* (0: Clear, +1 energy),
+  *Hoarfrost* (1: double your Block) and *Avalanche* (1: damage equal to your
+  Block), which reward piling up Block in Snow.
+- **Recipes**: *Overcharge* (⚡⚡: +2 energy), *Ice Storm* (❄️❄️: 2 Weak to
+  ALL, 5 Block), *Frozen Lightning* (⚡❄️: 15 lightning damage), *Volcano*
+  (🔥🔥🪨: 12 fire and 3 Burn to ALL), *Glacier* (❄️🪨🪨: Snow, 18 Block) and
+  *Tincture* (💧🪨🌬️: 12 Block, draw 2). Each comes with its Flask and Essence.
+  Catching the same weather twice (Sky Harvest) now always brews something:
+  Rain makes Tonic, Storm Overcharge, Heatwave Fireball and Snow Ice Storm.
+- **Potions by act**: potions found after fights, sold in shops and given by
+  events are two-base-element brews in Act 1; from Act 2 also brews with ⚡ or
+  ❄️, and in Act 3 also three-element brews.
+- **Relics and events**: 8 relics (§5.4) and 5 events, most of them for the
+  later acts (§5.5). Two new kinds of event choice: remove a card from your
+  deck, and choose one of three rare cards.
+
+| | In the game now |
+|---|---|
+| Cards | 55 made by hand (8 rare, 3 of them Lasting), plus 54 distilled |
+| Recipes | 27 |
+| Relics | 23, plus 6 boss relics and the starting relic |
+| Events | 11 (6 to 10 in each act) |
+| Enemies | 20 normal enemies, 9 elites and 3 bosses over three acts |
 
 ### MVP content targets (reached in Milestone 8)
 
@@ -539,7 +611,7 @@ Important choices:
 | 7 | **Identity** (A–D done, see §11) | The features that make Stormbrew play differently from *Slay the Spire*: Exposure, enemy cauldrons, the Sky Deck, Distilling |
 | 8 | **MVP content & balance** ✅ | MVP content targets reached (§5), events, a balance pass with a computer player and `WEATHER_INTERVAL` tested (§12). Playtesting on real phones is still to do |
 | 9 | **Polish** (in progress) | Languages (English and Korean) ✅. Round 1 ✅: animations, sound, vibration feedback, weather particles, app icon and splash screen (§6.5). Round 2 ✅: every screen fits the phone without scrolling (§6.2), fewer vibrations. Later: new enemy and card art (§6.3). Next rounds follow feedback from playing on a phone |
-| 10 | **Expansion** (in progress) | Acts 2–3 with their own enemies, elites and bosses, and boss relics ✅ (§5.6). Next: more cards, relics, potions and events. Later: Fog/Gale/Eclipse, a second character, ascension levels, iOS/desktop builds |
+| 10 | **Expansion** (in progress) | Acts 2–3 with their own enemies, elites and bosses, and boss relics ✅ (§5.6). Rare and Lasting cards, relics, recipes, potions by act and events ✅ (§5.7). Later: Fog/Gale/Eclipse, a second character, ascension levels, iOS/desktop builds |
 
 Milestones 1–3 prove the game's core idea. If combat with weather and brewing
 is fun in a single fight on a phone, the rest is adding content.
@@ -561,8 +633,8 @@ is fun in a single fight on a phone, the rest is adding content.
 | Sludge | Friendly: a failed brew gives 2 Block |
 | Act 1 structure | 10-floor branching map (4 lanes, paths never cross): fights, elites, events, rest sites, shops, then the boss. HP carries over (no free heal); rest sites heal 30%, Infuse or chart the sky |
 | Difficulty | A strong computer player wins about 60% of runs and random play never wins (§12). Healing brews are small (Tonic heals 2, Thaw 3, Downpour 3) so fights can't be dragged out to heal |
-| Rewards | Fights: 12–18 gold + pick 1 of 3 cards; elites: 28–35 gold + a relic + a card. Start with 50 gold |
-| Shops | 3 cards (40–55 gold), 2 relics (110–140), one card removal (60) per visit |
+| Rewards | Fights: 12–18 gold + pick 1 of 3 cards; elites: 28–35 gold + a relic + a card. Now and then a card is rare, more often after elites and in later acts; after an act's boss all three are (§5.7). Start with 50 gold |
+| Shops | 2 common cards (40–55 gold) and 1 rare (70–85), 2 relics (110–140), a potion, a weather card and one card removal (60) per visit |
 | Crowded hands | Cards keep their size and overlap instead of shrinking |
 | Scope | One character (the Stormbrewer) for the MVP |
 | Languages | English (default) and Korean, chosen in Settings (§6.4) |
@@ -724,8 +796,12 @@ Balancing by hand needs many runs, so the game plays itself:
   where runs end, HP lost in each kind of fight, and how the weather behaved.
   It also plays 200 runs of random cards and random rewards, as a floor.
 - A test (`tests/balance.test.ts`) plays 20 runs of each and fails if the
-  computer player wins less than 30% or more than 90%, or random play wins
-  more than 10%, so later changes can't break the balance by accident.
+  computer player wins less than 20% or more than 80% of the three-act runs,
+  or random play wins more than 5%, so later changes can't break the balance
+  by accident.
+- 200 runs can easily be 5 points off, so comparing two versions takes a
+  thousand or more: `RUNS=1000 SEED=1001 npm run balance` plays more runs
+  from another starting seed.
 
 ### 12.2 Targets and results
 
@@ -818,3 +894,41 @@ Two lessons from the tuning:
 The boss relics are close to each other: runs with the Philosopher's Stone won
 63%, the Grand Grimoire, Sky Anchor and Bottomless Flask 55–56%, the Storm
 Vow 46%.
+
+### 12.6 Rare cards and more content (Milestone 10, part 2)
+
+New content should add choices, not make runs easier or harder by accident.
+Measuring that took more runs than before: the first 200-run report said the
+heuristic player's wins fell from 38% to 28%, so both versions were played on
+the same 2,000 seeds, and each new part was switched off, and on, by itself
+(1,000 runs each).
+
+| | Runs won |
+|---|---|
+| Before part 2 (v0.14.0), 2,000 runs | about 35% |
+| Part 2, first version, 1,000 runs | about 29% |
+| Part 2, tuned, 2,000 runs | about 32% (Act 1 cleared 75%, Act 2 52%) |
+
+What each part did, switched on alone (1,000 runs, about ±2 points):
+- **Rare cards** help the most (+4.5 points), mostly for Act 3: a deck with a
+  rare in it is stronger for the rest of the run.
+- The new **three-element recipes** cost 4 points and made Act 1 harder,
+  where nothing else changed much. The biggest recipe always wins, so common
+  cauldrons like 💧🪨🌬️ and 🔥🔥🪨 now made Tincture or Volcano *instead of* a
+  two-element brew plus a kept element, and the first versions were weaker
+  than that. Stronger versions (Volcano 12 fire and 3 Burn, Glacier 18 Block,
+  Tincture 12 Block) are neutral. The two-weather-element recipes changed
+  nothing.
+- More **relics** and more **common cards** each cost 1–2 points: with bigger
+  pools, the strongest old relics and cards come up less often. That is the
+  price of variety; rares a little more often (8/14/20% by act), a potion
+  with the Belt Pouch and small buffs to the weaker new commons make up most
+  of it.
+- The new **events** and **potions by act** changed nothing measurable.
+
+The standard 200-run report after tuning: 33% of runs won (random play 0%);
+the bosses are won 92% (Eye of the Storm), 84% (Frost Wyrm) and 82% (Heart of
+the Storm) of the time. The Conductor and Sunbreak are the rares the
+heuristic player takes most; Hoarfrost and Avalanche the least, since it
+doesn't plan around Snow and Block. How strong the Lasting cards feel is a
+question for playtesting.

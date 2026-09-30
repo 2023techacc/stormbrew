@@ -58,7 +58,7 @@ import {
   weatherEffect,
   weatherName,
 } from '../i18n/content';
-import { esc } from './dom';
+import { esc, fitCards } from './dom';
 import { combatFeedback } from './feedback';
 import { playSfx } from './sound';
 import { CARD_KIND_COLORS, RARE_COLOR, cardIcon, ELEMENTS, ENEMY_LOOKS, ICONS, RELIC_ICONS, WEATHERS } from './theme';
@@ -115,6 +115,7 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       fresh,
       entering,
     });
+    fitCards(root);
     entering = false;
   };
 

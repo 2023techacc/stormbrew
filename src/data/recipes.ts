@@ -245,11 +245,11 @@ export const RECIPES: RecipeDef[] = [
     name: 'Volcano',
     elements: ['fire', 'fire', 'earth'],
     effects: [
-      { type: 'damage', amount: 10, element: 'fire', all: true },
-      { type: 'applyStatus', status: 'burn', amount: 2, all: true },
+      { type: 'damage', amount: 12, element: 'fire', all: true },
+      { type: 'applyStatus', status: 'burn', amount: 3, all: true },
     ],
-    text: 'Deal {damage} fire damage to ALL enemies. Apply 2 Burn to ALL.',
-    cardText: '{damage} fire to ALL. 2 Burn to ALL.',
+    text: 'Deal {damage} fire damage to ALL enemies. Apply 3 Burn to ALL.',
+    cardText: '{damage} fire to ALL. 3 Burn to ALL.',
   },
   {
     id: 'glacier',
@@ -257,21 +257,21 @@ export const RECIPES: RecipeDef[] = [
     elements: ['frost', 'earth', 'earth'],
     effects: [
       { type: 'setWeather', weather: 'snow' },
-      { type: 'block', amount: 14 },
+      { type: 'block', amount: 18 },
     ],
-    text: 'Set the weather to Snow. Gain 14 Block.',
-    cardText: 'Weather: Snow. Gain 14 Block.',
+    text: 'Set the weather to Snow. Gain 18 Block.',
+    cardText: 'Weather: Snow. Gain 18 Block.',
   },
   {
     id: 'tincture',
     name: 'Tincture',
     elements: ['water', 'earth', 'air'],
     effects: [
-      { type: 'block', amount: 9 },
+      { type: 'block', amount: 12 },
       { type: 'draw', amount: 2 },
     ],
-    text: 'Gain 9 Block. Draw 2 cards.',
-    cardText: 'Gain 9 Block. Draw 2.',
+    text: 'Gain 12 Block. Draw 2 cards.',
+    cardText: 'Gain 12 Block. Draw 2.',
   },
 ];
 

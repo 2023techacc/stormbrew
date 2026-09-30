@@ -440,10 +440,10 @@ export const CARDS: Record<string, CardDef> = {
     kind: 'skill',
     target: 'enemy',
     effects: [
-      { type: 'applyStatus', status: 'burn', amount: 3 },
+      { type: 'applyStatus', status: 'burn', amount: 4 },
       { type: 'addElement', element: 'air' },
     ],
-    text: 'Apply 3 Burn. Add 🌬️.',
+    text: 'Apply 4 Burn. Add 🌬️.',
   },
   forkedLightning: {
     id: 'forkedLightning',
@@ -451,7 +451,7 @@ export const CARDS: Record<string, CardDef> = {
     cost: 1,
     kind: 'attack',
     target: 'enemy',
-    effects: [{ type: 'damage', amount: 6, element: 'spark' }],
+    effects: [{ type: 'damage', amount: 7, element: 'spark' }],
     attuned: { weather: 'storm', effects: [{ type: 'damage', amount: 4, element: 'spark', all: true }] },
     text: 'Deal {damage}. In Storm: also 4 to ALL.',
   },
@@ -489,9 +489,9 @@ export const CARDS: Record<string, CardDef> = {
     cost: 1,
     kind: 'attack',
     target: 'self',
-    effects: [{ type: 'damage', amount: 4, element: 'fire', all: true }],
+    effects: [{ type: 'damage', amount: 5, element: 'fire', all: true }],
     attuned: { weather: 'heatwave', effects: [{ type: 'applyStatus', status: 'burn', amount: 2, all: true }] },
-    text: 'Deal {damage} to ALL. In Heatwave: 2 Burn to ALL.',
+    text: 'Deal {damage} to ALL. In Heatwave: also 2 Burn.',
   },
   hailstones: {
     id: 'hailstones',
@@ -516,7 +516,7 @@ export const CARDS: Record<string, CardDef> = {
     target: 'self',
     rarity: 'rare',
     effects: [{ type: 'lasting', card: 'conductor' }],
-    text: 'Lasting: when the weather changes, deal 5 to ALL.',
+    text: 'Lasting: each weather change deals 5 to ALL.',
   },
   steadyHands: {
     id: 'steadyHands',
@@ -526,7 +526,7 @@ export const CARDS: Record<string, CardDef> = {
     target: 'self',
     rarity: 'rare',
     effects: [{ type: 'lasting', card: 'steadyHands' }],
-    text: 'Lasting: whenever you brew, gain 4 Block.',
+    text: 'Lasting: each brew gives 4 Block.',
   },
   skyHarvest: {
     id: 'skyHarvest',
@@ -536,7 +536,7 @@ export const CARDS: Record<string, CardDef> = {
     target: 'self',
     rarity: 'rare',
     effects: [{ type: 'lasting', card: 'skyHarvest' }],
-    text: "Lasting: out in the open, catch the weather's element twice.",
+    text: 'Lasting: catch the weather twice.',
   },
   perfectBrew: {
     id: 'perfectBrew',
@@ -546,7 +546,7 @@ export const CARDS: Record<string, CardDef> = {
     target: 'self',
     rarity: 'rare',
     effects: [{ type: 'doubleBrew' }, { type: 'brew' }],
-    text: 'Your next brew works twice. Brew.',
+    text: 'Brew. It works twice.',
   },
   lightningStorm: {
     id: 'lightningStorm',

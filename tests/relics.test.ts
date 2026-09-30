@@ -32,6 +32,7 @@ import {
   type RunState,
 } from '../src/core/run';
 import type { CombatState, ElementId, WeatherId } from '../src/core/types';
+import { CARDS } from '../src/data/cards';
 import { RELICS, RELIC_POOL } from '../src/data/relics';
 
 const newCombat = (relics: string[], overrides: Partial<CombatSetup> = {}): CombatState =>
@@ -248,7 +249,8 @@ describe('more relics', () => {
     const s = newCombat(['emberCharm', 'frostCharm'], { deck: ['fanTheFlames', 'thunderclap', 'defend', 'defend', 'defend'] });
     play(s, 'fanTheFlames', 0);
     play(s, 'thunderclap', 0);
-    expect(s.enemies[0]?.statuses).toEqual({ burn: 4, weak: 2 });
+    const burn = CARDS.fanTheFlames?.effects.find((e) => e.type === 'applyStatus');
+    expect(s.enemies[0]?.statuses).toEqual({ burn: (burn?.type === 'applyStatus' ? burn.amount : 0) + 1, weak: 2 });
   });
 
   it('the Kiln gives 1 extra energy in a Heatwave', () => {
@@ -267,8 +269,12 @@ describe('more relics', () => {
     expect(s.hand).toHaveLength(5);
   });
 
-  it('the Belt Pouch carries one more potion', () => {
+  it('the Belt Pouch carries one more potion, and comes with one', () => {
     expect(potionCapacity(['beltPouch'])).toBe(MAX_POTIONS + 1);
+    const run = createRun(3);
+    gainRelic(run, 'beltPouch');
+    expect(run.potions).toHaveLength(1);
+    expect(POTION_POOL).toContain(run.potions[0]);
   });
 
   it("Master's Notes give energy for brewing a three-element recipe", () => {

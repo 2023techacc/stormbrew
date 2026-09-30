@@ -12,7 +12,7 @@ import {
   startFight,
   type RunState,
 } from '../src/core/run';
-import { CARDS, REWARD_POOL, STARTER_DECK, getCard } from '../src/data/cards';
+import { CARDS, RARE_POOL, REWARD_POOL, STARTER_DECK, getCard } from '../src/data/cards';
 import { DISTILLED_CARDS, distilledRecipe, essenceId, flaskId } from '../src/data/distilled';
 import { RECIPES } from '../src/data/recipes';
 import { autoplayRun } from './helpers/autoplay';
@@ -83,13 +83,13 @@ describe('distilling rewards', () => {
       expect(choices).toHaveLength(REWARD_CHOICES);
       const distilled = choices.filter((id) => distilledRecipe(id));
       expect(distilled).toHaveLength(MAX_DISTILLED);
-      expect(REWARD_POOL).toContain(choices.at(-1));
+      expect([...REWARD_POOL, ...RARE_POOL]).toContain(choices.at(-1));
     }
   });
 
   it('with nothing brewed, all choices are random cards', () => {
     const choices = rewardChoices(createRun(2), []);
-    for (const id of choices) expect(REWARD_POOL).toContain(id);
+    for (const id of choices) expect([...REWARD_POOL, ...RARE_POOL]).toContain(id);
   });
 
   it('a recipe already in the deck comes back only rarely', () => {
