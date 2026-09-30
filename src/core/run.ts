@@ -1,5 +1,5 @@
 import { LAST_ACT, getAct } from '../data/acts';
-import { REWARD_POOL, STARTER_DECK, getCard } from '../data/cards';
+import { RARE_POOL, REWARD_POOL, STARTER_DECK, getCard } from '../data/cards';
 import { distilledRecipe, essenceId, flaskId } from '../data/distilled';
 import { EVENT_IDS } from '../data/events';
 import { RECIPES } from '../data/recipes';
@@ -20,6 +20,11 @@ export const REWARD_CHOICES = 3;
 export const MAX_DISTILLED = 2;
 /** A recipe already distilled into your deck is only offered again with this chance. */
 export const REPEAT_DISTILL_CHANCE = 0.25;
+/**
+ * The chance that a random card reward is rare, in Acts 1, 2 and 3. Elites
+ * give better odds, and after an act's boss every card offered is rare.
+ */
+export const RARE_CHANCE = { fight: [0.05, 0.1, 0.15], elite: [0.2, 0.25, 0.3] } as const;
 /** Resting heals this fraction of max HP. */
 export const REST_HEAL = 0.3;
 export const HEALING_HERB_HEAL = 6;
@@ -29,7 +34,15 @@ export const GOLD_REWARD = { fight: [12, 18], elite: [28, 35], boss: [60, 75] } 
 export const ACT_GOLD_BONUS = 4;
 /** Boss relics offered to choose from after an act's boss. */
 export const BOSS_RELIC_CHOICES = 3;
-export const SHOP_PRICES = { card: [40, 55], relic: [110, 140], potion: [30, 45], sky: [35, 50], removal: 60 } as const;
+/** Shops sell two common cards and one rare card. */
+export const SHOP_PRICES = {
+  card: [40, 55],
+  rare: [75, 90],
+  relic: [110, 140],
+  potion: [30, 45],
+  sky: [35, 50],
+  removal: 60,
+} as const;
 /** The sky deck can't be charted below this many cards. */
 export const MIN_SKY = 2;
 /** Chance that a won fight also drops a potion. */
@@ -41,6 +54,9 @@ export const POTION_POOL = RECIPES.filter(
 export const INFUSE_ELEMENTS: readonly ElementId[] = ['fire', 'water', 'earth', 'air'];
 
 export type RunStatus = 'playing' | 'won' | 'lost';
+
+/** What kind of fight a card reward comes from. */
+export type RewardTier = 'fight' | 'elite' | 'boss';
 
 export interface ShopItem {
   id: string;
@@ -253,7 +269,8 @@ export function finishFight(
   run.gold += gold;
 
   const brewed = options.distill === false ? [] : combat.brewed;
-  const rewards: FightRewards = { gold, healed, cardChoices: rewardChoices(run, brewed) };
+  const tier: RewardTier = boss ? 'boss' : elite ? 'elite' : 'fight';
+  const rewards: FightRewards = { gold, healed, cardChoices: rewardChoices(run, brewed, tier) };
   if (boss) {
     rewards.bossRelics = bossRelicChoices(run);
     return rewards;
@@ -276,19 +293,27 @@ export function finishFight(
 /**
  * The cards to choose from after a victory. Up to MAX_DISTILLED are distilled
  * from recipes brewed in the fight (as a Flask or an Essence, at random); the
- * rest, at least one, are random cards from the reward pool. A recipe already
- * distilled into the deck is only offered again now and then, so decks keep
- * branching out instead of stacking one brew.
+ * rest, at least one, are random cards, each rare now and then (RARE_CHANCE).
+ * A recipe already distilled into the deck is only offered again now and then,
+ * so decks keep branching out instead of stacking one brew. After an act's
+ * boss, all the cards are rare.
  */
-export function rewardChoices(run: RunState, brewed: readonly string[] = []): string[] {
+export function rewardChoices(run: RunState, brewed: readonly string[] = [], tier: RewardTier = 'fight'): string[] {
   return withRng(run, (rng) => {
+    if (tier === 'boss') return rng.shuffle(RARE_POOL).slice(0, REWARD_CHOICES);
     const owned = new Set(run.deck.flatMap((c) => distilledRecipe(c.id) ?? []));
     const eligible = brewed.filter((id) => !owned.has(id) || rng.next() < REPEAT_DISTILL_CHANCE);
     const distilled = rng
       .shuffle(eligible)
       .slice(0, MAX_DISTILLED)
       .map((id) => (rng.next() < 0.5 ? flaskId(id) : essenceId(id)));
-    const random = rng.shuffle(REWARD_POOL).slice(0, REWARD_CHOICES - distilled.length);
+    const chances = RARE_CHANCE[tier];
+    const chance = chances[Math.min(run.act, chances.length) - 1] ?? 0;
+    const commons = rng.shuffle(REWARD_POOL);
+    const rares = rng.shuffle(RARE_POOL);
+    const random = Array.from({ length: REWARD_CHOICES - distilled.length }, () =>
+      rng.next() < chance && rares.length ? rares.pop() : commons.pop(),
+    ).filter((id): id is string => id !== undefined);
     return [...distilled, ...random];
   });
 }
@@ -359,12 +384,16 @@ export function infuseCard(
 
 function createShop(run: RunState): ShopState {
   return withRng(run, (rng) => {
-    const cards = rng.shuffle(REWARD_POOL).slice(0, 3);
+    const cards = rng.shuffle(REWARD_POOL).slice(0, 2);
+    const rare = rng.pick(RARE_POOL);
     const relics = rng.shuffle(RELIC_POOL.filter((id) => !run.relics.includes(id))).slice(0, 2);
     const potion = rng.pick(POTION_POOL);
     const sky = rng.pick(SKY_POOL);
     return {
-      cards: cards.map((id) => ({ id, price: rng.int(...SHOP_PRICES.card), sold: false })),
+      cards: [
+        ...cards.map((id) => ({ id, price: rng.int(...SHOP_PRICES.card), sold: false })),
+        { id: rare, price: rng.int(...SHOP_PRICES.rare), sold: false },
+      ],
       relics: relics.map((id) => ({ id, price: rng.int(...SHOP_PRICES.relic), sold: false })),
       potions: [{ id: potion, price: rng.int(...SHOP_PRICES.potion), sold: false }],
       sky: [{ id: sky, price: rng.int(...SHOP_PRICES.sky), sold: false }],

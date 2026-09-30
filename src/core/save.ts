@@ -3,7 +3,7 @@ import type { RunScreen, RunState } from './run';
 import type { CombatState } from './types';
 
 /** Bump when the saved shape changes; older saves are upgraded (see upgradeSave) or ignored. */
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 /** Everything needed to resume a run exactly where it was left, even mid-fight. */
 export interface RunSave {
@@ -20,12 +20,17 @@ export function makeRunSave(run: RunState, screen: RunScreen, combat?: CombatSta
 
 /**
  * Brings an older save up to date, so updating the game doesn't lose a run in
- * progress. Version 4 runs were all in Act 1.
+ * progress. Version 4 runs were all in Act 1; version 5 fights had no Lasting
+ * cards.
  */
 function upgradeSave(data: Record<string, unknown>): void {
   if (data.version === 4 && data.run && typeof data.run === 'object') {
     (data.run as Partial<RunState>).act = 1;
     data.version = 5;
+  }
+  if (data.version === 5) {
+    if (data.combat && typeof data.combat === 'object') (data.combat as Partial<CombatState>).lasting ??= {};
+    data.version = 6;
   }
 }
 

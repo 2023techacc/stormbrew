@@ -20,6 +20,7 @@ export type Sfx =
   | 'heal'
   | 'steal'
   | 'shatter'
+  | 'lasting'
   | 'coin'
   | 'endTurn'
   | 'victory'
@@ -167,6 +168,11 @@ export function playSfx(name: Sfx, delay = 0): void {
       noise(0.05, { filter: 'highpass', freq: 3500, gain: 0.3, delay: d });
       tone(2400, 0.12, { type: 'triangle', slideTo: 900, gain: 0.12, delay: d + 0.02 });
       tone(1800, 0.1, { type: 'triangle', slideTo: 700, gain: 0.08, delay: d + 0.07 });
+      break;
+    case 'lasting':
+      // A rising shimmer: something that will stay for the whole fight.
+      [392, 523, 659, 784].forEach((f, i) => tone(f, 0.3 - i * 0.04, { type: 'triangle', gain: 0.13, delay: d + i * 0.05 }));
+      tone(1568, 0.4, { gain: 0.05, delay: d + 0.2 });
       break;
     case 'coin':
       tone(988, 0.07, { type: 'square', gain: 0.08, delay: d });

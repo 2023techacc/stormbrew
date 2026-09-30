@@ -448,10 +448,15 @@ function renderReward(rewards: FightRewards): string {
       ${rewards.cardChoices
         .map((id) => {
           const from = distilledRecipe(id);
-          return cardFace(getCard(id), 'clear', {
+          const def = getCard(id);
+          return cardFace(def, 'clear', {
             attrs: `data-reward="${esc(id)}"`,
             className: from ? 'distilled' : '',
-            note: from ? `${ICONS.cauldron} ${t('reward.distilled')}` : undefined,
+            note: from
+              ? `${ICONS.cauldron} ${t('reward.distilled')}`
+              : def.rarity === 'rare'
+                ? `${ICONS.rare} ${t('reward.rare')}`
+                : undefined,
           });
         })
         .join('')}

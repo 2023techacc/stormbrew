@@ -50,6 +50,21 @@ export const KO_CARDS: Record<string, NameText> = {
   boilOver: { name: '끓어 넘침', text: '가마솥을 비우고 원소마다 피해 4.' },
   weatherFront: { name: '기상 전선', text: '다음 날씨가 바로 옵니다. 1장 뽑기.' },
   cloudburst: { name: '집중호우', text: '날씨: 비. 모든 적에게 피해 {damage}.' },
+  fanTheFlames: { name: '부채질', text: '화상 3 부여. 🌬️ 추가.' },
+  forkedLightning: { name: '갈래 번개', text: '피해 {damage}. 폭풍일 때: 모든 적에게도 4.' },
+  whisk: { name: '거품기', text: '양조. 2장 뽑기.' },
+  fogBank: { name: '안개 둑', text: '방어도 7. 다음 날씨를 바꿉니다.' },
+  snowdrift: { name: '눈더미', text: '방어도 6. 눈일 때: 2장 뽑기.' },
+  heatShimmer: { name: '열기 아지랑이', text: '모든 적에게 피해 {damage}. 폭염일 때: 모두에게 화상 2.' },
+  hailstones: { name: '우박', text: '피해 {damage}씩 3번 줍니다.' },
+  conductor: { name: '지휘자', text: '지속: 날씨가 바뀔 때마다 모든 적에게 피해 5.' },
+  steadyHands: { name: '침착한 손', text: '지속: 양조할 때마다 방어도 4.' },
+  skyHarvest: { name: '하늘 수확', text: '지속: 밖에 있으면 날씨의 원소를 두 번 받습니다.' },
+  perfectBrew: { name: '완벽한 양조', text: '다음 양조가 두 번 작동합니다. 양조.' },
+  lightningStorm: { name: '번개 폭풍', text: '날씨: 폭풍. 모든 적에게 피해 {damage}.' },
+  sunbreak: { name: '햇살', text: '날씨: 맑음. 에너지 1.' },
+  hoarfrost: { name: '흰서리', text: '방어도를 두 배로 만듭니다.' },
+  avalanche: { name: '눈사태', text: '방어도만큼 피해를 줍니다.' },
 };
 
 /** 레시피. 카드와 포션에도 같은 설명을 씁니다. */

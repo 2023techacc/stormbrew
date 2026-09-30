@@ -67,6 +67,9 @@ export function combatFeedback(events: readonly CombatEvent[], state: CombatStat
       case 'enemyHeal':
         if (e.amount > 0) play('heal');
         break;
+      case 'lasting':
+        play('lasting');
+        break;
       default:
         break;
     }

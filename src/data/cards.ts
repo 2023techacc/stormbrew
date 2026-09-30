@@ -431,9 +431,172 @@ export const CARDS: Record<string, CardDef> = {
     ],
     text: 'Weather: Rain. Deal {damage} to ALL.',
   },
+
+  // More commons (Milestone 10).
+  fanTheFlames: {
+    id: 'fanTheFlames',
+    name: 'Fan the Flames',
+    cost: 1,
+    kind: 'skill',
+    target: 'enemy',
+    effects: [
+      { type: 'applyStatus', status: 'burn', amount: 3 },
+      { type: 'addElement', element: 'air' },
+    ],
+    text: 'Apply 3 Burn. Add 🌬️.',
+  },
+  forkedLightning: {
+    id: 'forkedLightning',
+    name: 'Forked Lightning',
+    cost: 1,
+    kind: 'attack',
+    target: 'enemy',
+    effects: [{ type: 'damage', amount: 6, element: 'spark' }],
+    attuned: { weather: 'storm', effects: [{ type: 'damage', amount: 4, element: 'spark', all: true }] },
+    text: 'Deal {damage}. In Storm: also 4 to ALL.',
+  },
+  whisk: {
+    id: 'whisk',
+    name: 'Whisk',
+    cost: 1,
+    kind: 'skill',
+    target: 'self',
+    effects: [{ type: 'brew' }, { type: 'draw', amount: 2 }],
+    text: 'Brew. Draw 2.',
+  },
+  fogBank: {
+    id: 'fogBank',
+    name: 'Fog Bank',
+    cost: 1,
+    kind: 'skill',
+    target: 'self',
+    effects: [{ type: 'block', amount: 7 }, { type: 'scatter' }],
+    text: 'Gain 7 Block. Change the next weather.',
+  },
+  snowdrift: {
+    id: 'snowdrift',
+    name: 'Snowdrift',
+    cost: 1,
+    kind: 'skill',
+    target: 'self',
+    effects: [{ type: 'block', amount: 6 }],
+    attuned: { weather: 'snow', effects: [{ type: 'draw', amount: 2 }] },
+    text: 'Gain 6 Block. In Snow: draw 2.',
+  },
+  heatShimmer: {
+    id: 'heatShimmer',
+    name: 'Heat Shimmer',
+    cost: 1,
+    kind: 'attack',
+    target: 'self',
+    effects: [{ type: 'damage', amount: 4, element: 'fire', all: true }],
+    attuned: { weather: 'heatwave', effects: [{ type: 'applyStatus', status: 'burn', amount: 2, all: true }] },
+    text: 'Deal {damage} to ALL. In Heatwave: 2 Burn to ALL.',
+  },
+  hailstones: {
+    id: 'hailstones',
+    name: 'Hailstones',
+    cost: 1,
+    kind: 'attack',
+    target: 'enemy',
+    effects: [
+      { type: 'damage', amount: 3, element: 'frost' },
+      { type: 'damage', amount: 3, element: 'frost' },
+      { type: 'damage', amount: 3, element: 'frost' },
+    ],
+    text: 'Deal {damage} damage 3 times.',
+  },
+
+  // Rare cards: offered less often, more in later acts (see core/run.ts).
+  conductor: {
+    id: 'conductor',
+    name: 'Conductor',
+    cost: 1,
+    kind: 'power',
+    target: 'self',
+    rarity: 'rare',
+    effects: [{ type: 'lasting', card: 'conductor' }],
+    text: 'Lasting: when the weather changes, deal 5 to ALL.',
+  },
+  steadyHands: {
+    id: 'steadyHands',
+    name: 'Steady Hands',
+    cost: 1,
+    kind: 'power',
+    target: 'self',
+    rarity: 'rare',
+    effects: [{ type: 'lasting', card: 'steadyHands' }],
+    text: 'Lasting: whenever you brew, gain 4 Block.',
+  },
+  skyHarvest: {
+    id: 'skyHarvest',
+    name: 'Sky Harvest',
+    cost: 1,
+    kind: 'power',
+    target: 'self',
+    rarity: 'rare',
+    effects: [{ type: 'lasting', card: 'skyHarvest' }],
+    text: "Lasting: out in the open, catch the weather's element twice.",
+  },
+  perfectBrew: {
+    id: 'perfectBrew',
+    name: 'Perfect Brew',
+    cost: 1,
+    kind: 'skill',
+    target: 'self',
+    rarity: 'rare',
+    effects: [{ type: 'doubleBrew' }, { type: 'brew' }],
+    text: 'Your next brew works twice. Brew.',
+  },
+  lightningStorm: {
+    id: 'lightningStorm',
+    name: 'Lightning Storm',
+    cost: 2,
+    kind: 'attack',
+    target: 'self',
+    rarity: 'rare',
+    effects: [
+      { type: 'setWeather', weather: 'storm' },
+      { type: 'damage', amount: 10, element: 'spark', all: true },
+    ],
+    text: 'Weather: Storm. Deal {damage} to ALL.',
+  },
+  sunbreak: {
+    id: 'sunbreak',
+    name: 'Sunbreak',
+    cost: 0,
+    kind: 'skill',
+    target: 'self',
+    rarity: 'rare',
+    effects: [
+      { type: 'setWeather', weather: 'clear' },
+      { type: 'energy', amount: 1 },
+    ],
+    text: 'Weather: Clear. Gain 1 energy.',
+  },
+  hoarfrost: {
+    id: 'hoarfrost',
+    name: 'Hoarfrost',
+    cost: 1,
+    kind: 'skill',
+    target: 'self',
+    rarity: 'rare',
+    effects: [{ type: 'doubleBlock' }],
+    text: 'Double your Block.',
+  },
+  avalanche: {
+    id: 'avalanche',
+    name: 'Avalanche',
+    cost: 1,
+    kind: 'attack',
+    target: 'enemy',
+    rarity: 'rare',
+    effects: [{ type: 'blockDamage' }],
+    text: 'Deal damage equal to your Block.',
+  },
 };
 
-/** Cards that can be offered as rewards after a fight. */
+/** Common cards that can be offered as rewards after a fight. */
 export const REWARD_POOL: string[] = [
   'emberBolt',
   'clearSkies',
@@ -473,7 +636,19 @@ export const REWARD_POOL: string[] = [
   'boilOver',
   'weatherFront',
   'cloudburst',
+  'fanTheFlames',
+  'forkedLightning',
+  'whisk',
+  'fogBank',
+  'snowdrift',
+  'heatShimmer',
+  'hailstones',
 ];
+
+/** Rare cards: now and then in card rewards (more often in later acts and after elites), in shops, and after an act's boss. */
+export const RARE_POOL: string[] = Object.values(CARDS)
+  .filter((card) => card.rarity === 'rare')
+  .map((card) => card.id);
 
 export const STARTER_DECK: string[] = [
   'strike',

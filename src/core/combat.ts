@@ -15,6 +15,7 @@ import type {
   EnemyMove,
   ElementId,
   EnemyState,
+  LastingId,
   RecipeDef,
   UnitRef,
   WeatherId,
@@ -47,6 +48,9 @@ export const BOTTOMLESS_FLASK_POTIONS = 2;
 /** Boss relics that give 1 extra energy each turn (each with a catch). */
 export const ENERGY_RELICS: readonly string[] = ['stormVow', 'skyAnchor', 'philosophersStone'];
 export const SNOW_GLOBE_BLOCK = 3;
+/** Lasting cards: the Conductor's damage to every enemy when the weather changes, Steady Hands' Block per brew. */
+export const CONDUCTOR_DAMAGE = 5;
+export const STEADY_HANDS_BLOCK = 4;
 export const UMBRELLA_BLOCK = 4;
 export const DEWCATCHER_BLOCK = 2;
 /** What the Alembic can turn Sludge into: the recipes made of two base elements. */
@@ -77,6 +81,11 @@ export function hasRelic(state: CombatState, relic: string): boolean {
 /** How many potions fit in the belt with these relics. */
 export function potionCapacity(relics: readonly string[]): number {
   return MAX_POTIONS + (relics.includes('bottomlessFlask') ? BOTTOMLESS_FLASK_POTIONS : 0);
+}
+
+/** How many copies of a Lasting card have been played this fight. */
+export function lastingCount(state: CombatState, card: LastingId): number {
+  return state.lasting[card] ?? 0;
 }
 
 /** Whether the player can step under cover (the Storm Vow keeps them out in the open). */
@@ -150,6 +159,7 @@ export function createCombat(setup: CombatSetup): { state: CombatState; events: 
     bottleNext: 0,
     doubleNext: 0,
     brewed: [],
+    lasting: {},
     status: 'playing',
     rngState: rng.getState(),
   };
@@ -242,8 +252,8 @@ export function playCard(state: CombatState, uid: number, targetIndex?: number):
   state.player.energy -= def.cost;
   state.hand = state.hand.filter((c) => c.uid !== uid);
   const events = applyEffects(state, effects, target);
-  // Discard after resolving, so a card that draws can't draw itself.
-  state.discardPile.push(card);
+  // Discard after resolving, so a card that draws can't draw itself. A Lasting card leaves the fight instead.
+  if (def.kind !== 'power') state.discardPile.push(card);
   updateStatus(state);
   return { ok: true, events };
 }
@@ -270,6 +280,8 @@ export function endTurn(state: CombatState): CombatEvent[] {
     const move = currentIntent(enemy);
     events.push({ type: 'enemyMove', index, move });
     if (move.weather) events.push(...setWeather(state, move.weather, 'enemy'));
+    // The Conductor can strike an enemy down as its own weather arrives.
+    if (!isAlive(enemy)) return updateStatus(state);
     if (move.addSky) {
       const cards = move.addSky;
       withRng(state, (rng) => addToSky(state.weather, rng, cards));
@@ -370,9 +382,19 @@ export function setWeather(
   return events;
 }
 
-/** Relics that react to the weather changing: Weathervane (Block) and Wind Chime (a card). */
+/** What reacts to the weather changing: Weathervane (Block), Wind Chime (a card) and the Conductor (damage). */
 function weatherChanged(state: CombatState): CombatEvent[] {
   const events: CombatEvent[] = [];
+  const conductors = lastingCount(state, 'conductor');
+  if (conductors > 0 && state.status === 'playing') {
+    events.push({ type: 'lastingEffect', card: 'conductor' });
+    state.enemies.forEach((enemy, index) => {
+      if (!isAlive(enemy)) return;
+      const { blocked, hpLost } = dealDamage(enemy, CONDUCTOR_DAMAGE * conductors);
+      events.push({ type: 'damage', target: { side: 'enemy', index }, amount: hpLost, blocked });
+    });
+    updateStatus(state);
+  }
   if (hasRelic(state, 'weathervane')) {
     gainBlock(state.player, WEATHERVANE_BLOCK);
     events.push(
@@ -403,6 +425,7 @@ function startPlayerTurn(state: CombatState): CombatEvent[] {
   if (!blockPersists(state.weather.current)) state.player.block = 0;
   // After Block resets, so a scheduled change's Weathervane Block lasts this turn.
   if (changed) events.push(...weatherChanged(state));
+  if (state.status !== 'playing') return events;
   if (!state.player.exposed && hasRelic(state, 'umbrella')) {
     gainBlock(state.player, UMBRELLA_BLOCK);
     events.push({ type: 'relic', relic: 'umbrella' }, { type: 'block', target: { side: 'player' }, amount: UMBRELLA_BLOCK });
@@ -435,17 +458,25 @@ function startPlayerTurn(state: CombatState): CombatEvent[] {
 
 /**
  * Out in the open, the weather's element falls into the cauldron at the start
- * of your turn. If the cauldron is full, it spills.
+ * of your turn (once more for each Sky Harvest). If the cauldron is full, it spills.
  */
 function catchWeather(state: CombatState): CombatEvent[] {
   const element = WEATHER_ELEMENTS[state.weather.current];
   if (!element || !state.player.exposed) return [];
-  if (state.cauldron.length >= state.cauldronSlots) return [{ type: 'spill', element }];
-  state.cauldron.push(element);
-  const events: CombatEvent[] = [{ type: 'element', element, fromWeather: true }];
-  if (hasRelic(state, 'dewcatcher')) {
-    gainBlock(state.player, DEWCATCHER_BLOCK);
-    events.push({ type: 'relic', relic: 'dewcatcher' }, { type: 'block', target: { side: 'player' }, amount: DEWCATCHER_BLOCK });
+  const events: CombatEvent[] = [];
+  const harvests = lastingCount(state, 'skyHarvest');
+  if (harvests > 0) events.push({ type: 'lastingEffect', card: 'skyHarvest' });
+  for (let i = 0; i <= harvests; i++) {
+    if (state.cauldron.length >= state.cauldronSlots) {
+      events.push({ type: 'spill', element });
+      continue;
+    }
+    state.cauldron.push(element);
+    events.push({ type: 'element', element, fromWeather: true });
+    if (hasRelic(state, 'dewcatcher')) {
+      gainBlock(state.player, DEWCATCHER_BLOCK);
+      events.push({ type: 'relic', relic: 'dewcatcher' }, { type: 'block', target: { side: 'player' }, amount: DEWCATCHER_BLOCK });
+    }
   }
   return events;
 }
@@ -592,6 +623,25 @@ function applyEffects(state: CombatState, effects: readonly Effect[], target?: n
           events.push({ type: 'spoiled', index });
         }
         break;
+      case 'lasting':
+        state.lasting[effect.card] = lastingCount(state, effect.card) + 1;
+        events.push({ type: 'lasting', card: effect.card });
+        break;
+      case 'doubleBlock': {
+        const block = state.player.block;
+        if (block <= 0) break;
+        gainBlock(state.player, block);
+        events.push({ type: 'block', target: { side: 'player' }, amount: block });
+        break;
+      }
+      case 'blockDamage':
+        for (const index of targets(false)) {
+          const enemy = state.enemies[index] as EnemyState;
+          const { blocked, hpLost } = dealDamage(enemy, playerAttackDamage(state, state.player.block, undefined));
+          events.push({ type: 'damage', target: { side: 'enemy', index }, amount: hpLost, blocked });
+        }
+        updateStatus(state);
+        break;
     }
   }
   return events;
@@ -628,7 +678,7 @@ function brew(state: CombatState, target?: number): CombatEvent[] {
     state.bottleNext -= 1;
     state.potions.push(recipe.id);
     event.bottled = true;
-    return [...events, ...grimoireDraw(state)];
+    return [...events, ...afterBrew(state)];
   }
   events.push(...applyEffects(state, recipe.effects, target));
   // Catalyst: the brew works a second time.
@@ -636,13 +686,21 @@ function brew(state: CombatState, target?: number): CombatEvent[] {
     state.doubleNext -= 1;
     events.push(...applyEffects(state, recipe.effects, target));
   }
-  return [...events, ...grimoireDraw(state)];
+  return [...events, ...afterBrew(state)];
 }
 
-/** The Grand Grimoire: every brew also draws a card. */
-function grimoireDraw(state: CombatState): CombatEvent[] {
-  if (!hasRelic(state, 'grandGrimoire') || state.status !== 'playing') return [];
-  return [{ type: 'relic', relic: 'grandGrimoire' }, ...drawCards(state, 1)];
+/** What every brew of yours also does: Steady Hands gives Block, the Grand Grimoire draws a card. */
+function afterBrew(state: CombatState): CombatEvent[] {
+  if (state.status !== 'playing') return [];
+  const events: CombatEvent[] = [];
+  const hands = lastingCount(state, 'steadyHands');
+  if (hands > 0) {
+    const amount = STEADY_HANDS_BLOCK * hands;
+    gainBlock(state.player, amount);
+    events.push({ type: 'lastingEffect', card: 'steadyHands' }, { type: 'block', target: { side: 'player' }, amount });
+  }
+  if (hasRelic(state, 'grandGrimoire')) events.push({ type: 'relic', relic: 'grandGrimoire' }, ...drawCards(state, 1));
+  return events;
 }
 
 /**

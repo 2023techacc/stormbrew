@@ -958,6 +958,54 @@ button {
   box-shadow: 0 0 0 2px #c7a4ff;
 }
 
+/* Rare cards: a gold edge, a gold top and a star. */
+.card.rare {
+  background: linear-gradient(color-mix(in srgb, var(--rare-color) 30%, color-mix(in srgb, var(--card-color) 35%, #1b2233)), #1b2233 70%);
+  box-shadow: 0 0 0 2px var(--rare-color) inset;
+}
+
+.card.rare .card-note {
+  color: var(--rare-color);
+}
+
+.card-rarity {
+  position: absolute;
+  bottom: -8px;
+  left: -8px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  line-height: 1;
+  color: #1b2233;
+  background: var(--rare-color);
+}
+
+/* Lasting cards played this fight, next to your name. */
+.lasting-badges {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.lasting-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: color-mix(in srgb, #9b6bd6 45%, transparent);
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.lasting-badge small {
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
 .card-note {
   margin-top: auto;
   color: #c7a4ff;
@@ -1429,8 +1477,9 @@ button {
   animation: lunge 0.36s ease-in-out;
 }
 
-/* An element drops into the cauldron. */
-.slot.pop {
+/* An element drops into the cauldron; a Lasting card arrives or does its thing. */
+.slot.pop,
+.lasting-badge.pop {
   animation: pop 0.32s ease-out;
 }
 
@@ -1446,7 +1495,8 @@ button {
 html.calm .enter,
 html.calm .hand .card.drawn,
 html.calm .enemy-body.lunge,
-html.calm .slot.pop {
+html.calm .slot.pop,
+html.calm .lasting-badge.pop {
   animation: none;
 }
 

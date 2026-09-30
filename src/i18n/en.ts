@@ -130,6 +130,7 @@ export const en = {
   'combat.outAria': 'Out in the weather. Tap to take cover.',
   'combat.noCover': "The Storm Vow won't let you take cover.",
   'combat.coverAria': 'Under cover. Tap to go out.',
+  'combat.lastingAria': 'Lasting: {name}. Tap to read it.',
   'combat.endTurn': 'End turn',
   'combat.nextMove': 'Next: {move}',
   'combat.enemyAria': '{name}, {hp} HP',
@@ -150,6 +151,7 @@ export const en = {
   'card.attunedNow': 'Attuned now.',
   'card.attunedTo': 'Attuned to {weather}',
   'card.infused': 'Infused',
+  'card.rare': 'Rare',
   'sandbox.addCard': 'Add a card',
   'sandbox.nextWeather': 'Next weather',
   'sandbox.refillEnergy': 'Refill energy',
@@ -211,6 +213,7 @@ export const en = {
   'ev.steal': '{enemy} stole {icon} from your cauldron!',
   'ev.enemyHeal': '{enemy} healed {n} HP.',
   'ev.shatter': '{enemy} shattered your Block!',
+  'ev.lasting': '{name} lasts for the rest of the fight.',
 
   // The run: map, rewards, rest sites, shops, events
   'run.hp': 'HP',
@@ -253,6 +256,7 @@ export const en = {
   'reward.choose': 'Choose a card to add to your deck:',
   'reward.distilledNote': 'Distilled cards come from recipes brewed in this fight.',
   'reward.distilled': 'Distilled',
+  'reward.rare': 'Rare',
   'rest.title': 'Rest site',
   'rest.choose': 'Choose one:',
   'rest.heal': 'Rest: heal {n} HP',

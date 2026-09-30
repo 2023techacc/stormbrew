@@ -30,7 +30,7 @@ import {
   takeBossRelic,
   type RunState,
 } from '../../src/core/run';
-import type { CardDef, CombatEvent, CombatState, Effect } from '../../src/core/types';
+import type { CardDef, CombatEvent, CombatState, Effect, LastingId } from '../../src/core/types';
 import { blockPersists } from '../../src/core/weather';
 import { getCard } from '../../src/data/cards';
 import type { EventOutcome } from '../../src/data/events';
@@ -50,6 +50,8 @@ const W_ENEMY = 0.7;
 const KILL_BONUS = 12;
 const POTION_VALUE = 8;
 const WIN_VALUE = 1000;
+/** What a Lasting card in play is worth at the start of a fight (less as the enemies' HP runs out). */
+const LASTING_VALUE: Record<LastingId, number> = { conductor: 14, steadyHands: 10, skyHarvest: 8 };
 
 type Action = { kind: 'card'; uid: number; target?: number } | { kind: 'potion'; index: number; target?: number };
 
@@ -94,6 +96,13 @@ export function effectsValue(effects: readonly Effect[], enemies = 1): number {
       case 'spoil':
         value += 1.5;
         break;
+      case 'lasting':
+        value += LASTING_VALUE[e.card] * 0.6;
+        break;
+      case 'doubleBlock':
+      case 'blockDamage':
+        value += 4;
+        break;
       default:
         value += 1.5;
     }
@@ -110,6 +119,9 @@ function score(s: CombatState): number {
   value -= burnTotal(p.statuses.burn) * W_HP + (p.statuses.weak ?? 0) * 2;
   if (blockPersists(s.weather.current)) value += p.block * 0.4;
   const living = s.enemies.filter(isAlive).length;
+  // Lasting cards keep paying off for as long as the fight goes on.
+  const left = s.enemies.reduce((sum, e) => sum + Math.max(0, e.hp), 0) / s.enemies.reduce((sum, e) => sum + e.maxHp, 0);
+  for (const [id, n] of Object.entries(s.lasting) as [LastingId, number][]) value += LASTING_VALUE[id] * n * left;
   for (const e of s.enemies) {
     if (!isAlive(e)) {
       value += KILL_BONUS;

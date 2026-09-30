@@ -129,6 +129,7 @@ export const ko: Record<MessageKey, string> = {
   'combat.outAria': '날씨 속 야외에 있습니다. 누르면 엄폐합니다.',
   'combat.noCover': '폭풍의 맹세 때문에 엄폐할 수 없습니다.',
   'combat.coverAria': '엄폐 중입니다. 누르면 밖으로 나갑니다.',
+  'combat.lastingAria': '지속: {name}. 누르면 설명을 봅니다.',
   'combat.endTurn': '턴 종료',
   'combat.nextMove': '다음 행동: {move}',
   'combat.enemyAria': '{name}, 체력 {hp}',
@@ -149,6 +150,7 @@ export const ko: Record<MessageKey, string> = {
   'card.attunedNow': '지금 공명 중.',
   'card.attunedTo': '공명: {weather}',
   'card.infused': '주입됨',
+  'card.rare': '희귀',
   'sandbox.addCard': '카드 추가',
   'sandbox.nextWeather': '다음 날씨',
   'sandbox.refillEnergy': '에너지 채우기',
@@ -210,6 +212,7 @@ export const ko: Record<MessageKey, string> = {
   'ev.steal': '{enemy|이} 내 가마솥에서 {icon} {element|을} 훔쳤습니다!',
   'ev.enemyHeal': '{enemy|이} 체력을 {n} 회복했습니다.',
   'ev.shatter': '{enemy|이} 내 방어도를 부쉈습니다!',
+  'ev.lasting': '{name|은} 전투가 끝날 때까지 지속됩니다.',
 
   // 모험: 지도, 보상, 휴식처, 상점, 이벤트
   'run.hp': '체력',
@@ -252,6 +255,7 @@ export const ko: Record<MessageKey, string> = {
   'reward.choose': '덱에 넣을 카드를 고르세요:',
   'reward.distilledNote': '증류 카드는 이번 전투에서 양조한 레시피로 만들어집니다.',
   'reward.distilled': '증류',
+  'reward.rare': '희귀',
   'rest.title': '휴식처',
   'rest.choose': '하나를 고르세요:',
   'rest.heal': '휴식: 체력 {n} 회복',
