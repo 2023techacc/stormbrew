@@ -31,6 +31,18 @@ export const RELICS: Record<string, RelicDef> = {
     text: 'Whenever the weather drops an element into your cauldron, gain 2 Block.',
   },
   cloudSeed: { id: 'cloudSeed', name: 'Cloud Seed', text: 'Fights start in a weather from your sky instead of Clear.' },
+  emberCharm: { id: 'emberCharm', name: 'Ember Charm', text: 'Whenever you apply Burn, apply 1 more.' },
+  frostCharm: { id: 'frostCharm', name: 'Frost Charm', text: 'Whenever you apply Weak, apply 1 more.' },
+  kiln: { id: 'kiln', name: 'Kiln', text: 'In a Heatwave, gain 1 extra energy each turn.' },
+  sunlitLantern: { id: 'sunlitLantern', name: 'Sunlit Lantern', text: 'In Clear skies, draw 1 extra card each turn.' },
+  beltPouch: { id: 'beltPouch', name: 'Belt Pouch', text: 'Carry 1 more potion. Comes with a random potion.' },
+  heartyStew: { id: 'heartyStew', name: 'Hearty Stew', text: 'When you get it, gain 10 max HP.' },
+  mastersNotes: {
+    id: 'mastersNotes',
+    name: "Master's Notes",
+    text: 'Whenever you brew a three-element recipe, gain 1 energy.',
+  },
+  goldenScale: { id: 'goldenScale', name: 'Golden Scale', text: 'Shops are 20% cheaper.' },
 
   // Boss relics: after an act's boss you pick one of three. Strong, and the energy ones have a catch.
   stormVow: {

@@ -1,15 +1,15 @@
 import { LAST_ACT, getAct } from '../data/acts';
-import { REWARD_POOL, STARTER_DECK, getCard } from '../data/cards';
+import { RARE_POOL, REWARD_POOL, STARTER_DECK, getCard } from '../data/cards';
 import { distilledRecipe, essenceId, flaskId } from '../data/distilled';
-import { EVENT_IDS } from '../data/events';
+import { EVENT_IDS, eventInAct } from '../data/events';
 import { RECIPES } from '../data/recipes';
 import { BOSS_RELIC_POOL, RELIC_POOL, STARTING_RELICS, getRelic } from '../data/relics';
 import { SKY_POOL, STARTING_SKY, getSkyCard } from '../data/sky';
 import { t } from '../i18n';
-import { createCombat, potionCapacity } from './combat';
+import { BASE_ELEMENTS, createCombat, potionCapacity } from './combat';
 import { MAP_FLOORS, generateMap, reachableNodes, type MapNode, type MapState } from './map';
 import { Rng } from './rng';
-import type { CombatEvent, CombatState, DeckCard, ElementId } from './types';
+import type { CombatEvent, CombatState, DeckCard, ElementId, RecipeDef } from './types';
 
 export const PLAYER_MAX_HP = 80;
 export const STARTING_GOLD = 50;
@@ -20,27 +20,59 @@ export const REWARD_CHOICES = 3;
 export const MAX_DISTILLED = 2;
 /** A recipe already distilled into your deck is only offered again with this chance. */
 export const REPEAT_DISTILL_CHANCE = 0.25;
+/**
+ * The chance that a random card reward is rare, in Acts 1, 2 and 3. Elites
+ * give better odds, and after an act's boss every card offered is rare.
+ */
+export const RARE_CHANCE = { fight: [0.08, 0.14, 0.2], elite: [0.25, 0.3, 0.35] } as const;
 /** Resting heals this fraction of max HP. */
 export const REST_HEAL = 0.3;
 export const HEALING_HERB_HEAL = 6;
 export const LUCKY_COIN_GOLD = 10;
+export const HEARTY_STEW_MAX_HP = 10;
+/** With the Golden Scale, shops charge this much of their price. */
+export const GOLDEN_SCALE_PRICE = 0.8;
 export const GOLD_REWARD = { fight: [12, 18], elite: [28, 35], boss: [60, 75] } as const;
 /** Fights in later acts give this much more gold per act (elites twice as much). */
 export const ACT_GOLD_BONUS = 4;
 /** Boss relics offered to choose from after an act's boss. */
 export const BOSS_RELIC_CHOICES = 3;
-export const SHOP_PRICES = { card: [40, 55], relic: [110, 140], potion: [30, 45], sky: [35, 50], removal: 60 } as const;
+/** Shops sell two common cards and one rare card. */
+export const SHOP_PRICES = {
+  card: [40, 55],
+  rare: [70, 85],
+  relic: [110, 140],
+  potion: [30, 45],
+  sky: [35, 50],
+  removal: 60,
+} as const;
 /** The sky deck can't be charted below this many cards. */
 export const MIN_SKY = 2;
 /** Chance that a won fight also drops a potion. */
 export const POTION_DROP_CHANCE = 0.3;
-/** Potions that can drop or be sold: the two-element base recipes. */
-export const POTION_POOL = RECIPES.filter(
-  (r) => r.elements.length === 2 && r.elements.every((e) => ['fire', 'water', 'earth', 'air'].includes(e)),
-).map((r) => r.id);
+/**
+ * The act a recipe starts to drop and be sold as a potion in: brews of two
+ * base elements from Act 1, brews with Spark or Frost from Act 2, and
+ * three-element brews in Act 3.
+ */
+function potionAct(recipe: RecipeDef): number {
+  if (recipe.elements.length >= 3) return 3;
+  return recipe.elements.every((e) => BASE_ELEMENTS.includes(e)) ? 1 : 2;
+}
+
+/** Potions that can drop, be sold or be found in this act. */
+export function potionPool(act: number): string[] {
+  return RECIPES.filter((r) => potionAct(r) <= act).map((r) => r.id);
+}
+
+/** Act 1's potions: the two-base-element recipes. */
+export const POTION_POOL = potionPool(1);
 export const INFUSE_ELEMENTS: readonly ElementId[] = ['fire', 'water', 'earth', 'air'];
 
 export type RunStatus = 'playing' | 'won' | 'lost';
+
+/** What kind of fight a card reward comes from. */
+export type RewardTier = 'fight' | 'elite' | 'boss';
 
 export interface ShopItem {
   id: string;
@@ -55,6 +87,8 @@ export interface EventState {
   pending?: string;
   /** The weather cards offered by the pending option, once rolled. */
   skyChoices?: string[];
+  /** The cards offered by the pending option (rare cards to choose from), once rolled. */
+  cardChoices?: string[];
   /** The event started a fight (with an elite's rewards). */
   fight?: boolean;
 }
@@ -123,7 +157,7 @@ export type RunScreen =
   | { name: 'bossRelic'; rewards: FightRewards }
   | { name: 'rest'; step: 'choose' | 'pickCard' | 'pickElement' | 'pickSky'; deckIndex?: number }
   | { name: 'shop'; removing: boolean }
-  | { name: 'event'; step: 'choose' | 'pickCard' | 'pickSky' }
+  | { name: 'event'; step: 'choose' | 'pickCard' | 'pickSky' | 'pickReward' }
   | { name: 'over' };
 
 export function createRun(seed: number): RunState {
@@ -174,11 +208,15 @@ export function enterNode(run: RunState, id: string): MapNode {
   return node;
 }
 
-/** A random event not seen this run (once all have been seen, any event). */
+/**
+ * A random event for this act, not seen yet this run (once all of this act's
+ * events have been seen, any of them again).
+ */
 function pickEvent(run: RunState): string {
-  const unseen = EVENT_IDS.filter((id) => !run.seenEvents.includes(id));
-  if (unseen.length === 0) run.seenEvents = [];
-  const id = withRng(run, (rng) => rng.pick(unseen.length ? unseen : EVENT_IDS));
+  const pool = EVENT_IDS.filter((id) => eventInAct(id, run.act));
+  const unseen = pool.filter((id) => !run.seenEvents.includes(id));
+  if (unseen.length === 0) run.seenEvents = run.seenEvents.filter((id) => !pool.includes(id));
+  const id = withRng(run, (rng) => rng.pick(unseen.length ? unseen : pool));
   run.seenEvents.push(id);
   return id;
 }
@@ -253,12 +291,13 @@ export function finishFight(
   run.gold += gold;
 
   const brewed = options.distill === false ? [] : combat.brewed;
-  const rewards: FightRewards = { gold, healed, cardChoices: rewardChoices(run, brewed) };
+  const tier: RewardTier = boss ? 'boss' : elite ? 'elite' : 'fight';
+  const rewards: FightRewards = { gold, healed, cardChoices: rewardChoices(run, brewed, tier) };
   if (boss) {
     rewards.bossRelics = bossRelicChoices(run);
     return rewards;
   }
-  const potion = withRng(run, (rng) => (rng.next() < POTION_DROP_CHANCE ? rng.pick(POTION_POOL) : undefined));
+  const potion = withRng(run, (rng) => (rng.next() < POTION_DROP_CHANCE ? rng.pick(potionPool(run.act)) : undefined));
   if (potion && run.potions.length < potionCapacity(run.relics)) {
     run.potions.push(potion);
     rewards.potion = potion;
@@ -266,7 +305,7 @@ export function finishFight(
   if (elite) {
     const relic = randomRelic(run);
     if (relic) {
-      run.relics.push(relic);
+      gainRelic(run, relic);
       rewards.relic = relic;
     }
   }
@@ -276,19 +315,27 @@ export function finishFight(
 /**
  * The cards to choose from after a victory. Up to MAX_DISTILLED are distilled
  * from recipes brewed in the fight (as a Flask or an Essence, at random); the
- * rest, at least one, are random cards from the reward pool. A recipe already
- * distilled into the deck is only offered again now and then, so decks keep
- * branching out instead of stacking one brew.
+ * rest, at least one, are random cards, each rare now and then (RARE_CHANCE).
+ * A recipe already distilled into the deck is only offered again now and then,
+ * so decks keep branching out instead of stacking one brew. After an act's
+ * boss, all the cards are rare.
  */
-export function rewardChoices(run: RunState, brewed: readonly string[] = []): string[] {
+export function rewardChoices(run: RunState, brewed: readonly string[] = [], tier: RewardTier = 'fight'): string[] {
   return withRng(run, (rng) => {
+    if (tier === 'boss') return rng.shuffle(RARE_POOL).slice(0, REWARD_CHOICES);
     const owned = new Set(run.deck.flatMap((c) => distilledRecipe(c.id) ?? []));
     const eligible = brewed.filter((id) => !owned.has(id) || rng.next() < REPEAT_DISTILL_CHANCE);
     const distilled = rng
       .shuffle(eligible)
       .slice(0, MAX_DISTILLED)
       .map((id) => (rng.next() < 0.5 ? flaskId(id) : essenceId(id)));
-    const random = rng.shuffle(REWARD_POOL).slice(0, REWARD_CHOICES - distilled.length);
+    const chances = RARE_CHANCE[tier];
+    const chance = chances[Math.min(run.act, chances.length) - 1] ?? 0;
+    const commons = rng.shuffle(REWARD_POOL);
+    const rares = rng.shuffle(RARE_POOL);
+    const random = Array.from({ length: REWARD_CHOICES - distilled.length }, () =>
+      rng.next() < chance && rares.length ? rares.pop() : commons.pop(),
+    ).filter((id): id is string => id !== undefined);
     return [...distilled, ...random];
   });
 }
@@ -302,7 +349,7 @@ export function bossRelicChoices(run: RunState): string[] {
 /** Takes one of the offered boss relics. */
 export function takeBossRelic(run: RunState, rewards: FightRewards, id: string): void {
   if (!rewards.bossRelics?.includes(id)) throw new Error(`Boss relic ${id} was not offered`);
-  run.relics.push(getRelic(id).id);
+  gainRelic(run, id);
   rewards.relic = id;
   delete rewards.bossRelics;
 }
@@ -359,19 +406,26 @@ export function infuseCard(
 
 function createShop(run: RunState): ShopState {
   return withRng(run, (rng) => {
-    const cards = rng.shuffle(REWARD_POOL).slice(0, 3);
+    const cards = rng.shuffle(REWARD_POOL).slice(0, 2);
+    const rare = rng.pick(RARE_POOL);
     const relics = rng.shuffle(RELIC_POOL.filter((id) => !run.relics.includes(id))).slice(0, 2);
-    const potion = rng.pick(POTION_POOL);
+    const potion = rng.pick(potionPool(run.act));
     const sky = rng.pick(SKY_POOL);
+    const item = (id: string, range: readonly [number, number]) => ({ id, price: shopPrice(run, rng.int(...range)), sold: false });
     return {
-      cards: cards.map((id) => ({ id, price: rng.int(...SHOP_PRICES.card), sold: false })),
-      relics: relics.map((id) => ({ id, price: rng.int(...SHOP_PRICES.relic), sold: false })),
-      potions: [{ id: potion, price: rng.int(...SHOP_PRICES.potion), sold: false }],
-      sky: [{ id: sky, price: rng.int(...SHOP_PRICES.sky), sold: false }],
-      removalPrice: SHOP_PRICES.removal,
+      cards: [...cards.map((id) => item(id, SHOP_PRICES.card)), item(rare, SHOP_PRICES.rare)],
+      relics: relics.map((id) => item(id, SHOP_PRICES.relic)),
+      potions: [item(potion, SHOP_PRICES.potion)],
+      sky: [item(sky, SHOP_PRICES.sky)],
+      removalPrice: shopPrice(run, SHOP_PRICES.removal),
       removalUsed: false,
     };
   });
+}
+
+/** A shop price, after the Golden Scale's discount. */
+function shopPrice(run: RunState, price: number): number {
+  return run.relics.includes('goldenScale') ? Math.round(price * GOLDEN_SCALE_PRICE) : price;
 }
 
 export type ShopResult = { ok: true } | { ok: false; reason: string };
@@ -399,7 +453,7 @@ export function buyRelic(run: RunState, index: number): ShopResult {
   const paid = pay(run, item.price);
   if (!paid.ok) return paid;
   item.sold = true;
-  run.relics.push(getRelic(item.id).id);
+  gainRelic(run, item.id);
   return paid;
 }
 
@@ -452,6 +506,29 @@ export function heal(run: RunState, amount: number): number {
   const healed = Math.min(amount, run.maxHp - run.hp);
   run.hp += healed;
   return healed;
+}
+
+/**
+ * Adds a relic to the run. A few do something the moment you get them: the
+ * Hearty Stew raises max HP, the Belt Pouch comes with a potion, and the
+ * Golden Scale also discounts the shop you're in.
+ */
+export function gainRelic(run: RunState, id: string): void {
+  run.relics.push(getRelic(id).id);
+  if (id === 'heartyStew') {
+    run.maxHp += HEARTY_STEW_MAX_HP;
+    run.hp += HEARTY_STEW_MAX_HP;
+  }
+  if (id === 'beltPouch' && run.potions.length < potionCapacity(run.relics)) {
+    run.potions.push(withRng(run, (rng) => rng.pick(potionPool(run.act))));
+  }
+  if (id === 'goldenScale' && run.shop) {
+    const shop = run.shop;
+    for (const item of [...shop.cards, ...shop.relics, ...shop.potions, ...shop.sky]) {
+      if (!item.sold) item.price = shopPrice(run, item.price);
+    }
+    shop.removalPrice = shopPrice(run, shop.removalPrice);
+  }
 }
 
 /** Relics the player doesn't have yet. */

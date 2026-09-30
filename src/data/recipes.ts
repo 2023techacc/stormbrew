@@ -178,6 +178,33 @@ export const RECIPES: RecipeDef[] = [
     cardText: 'Weather: Snow. Gain 6 Block.',
   },
 
+  // Two weather elements: Storm and Snow together, or the same weather caught twice.
+  {
+    id: 'overcharge',
+    name: 'Overcharge',
+    elements: ['spark', 'spark'],
+    effects: [{ type: 'energy', amount: 2 }],
+    text: 'Gain 2 energy.',
+  },
+  {
+    id: 'iceStorm',
+    name: 'Ice Storm',
+    elements: ['frost', 'frost'],
+    effects: [
+      { type: 'applyStatus', status: 'weak', amount: 2, all: true },
+      { type: 'block', amount: 5 },
+    ],
+    text: 'Apply 2 Weak to ALL enemies. Gain 5 Block.',
+    cardText: '2 Weak to ALL. Gain 5 Block.',
+  },
+  {
+    id: 'frozenLightning',
+    name: 'Frozen Lightning',
+    elements: ['spark', 'frost'],
+    effects: [{ type: 'damage', amount: 15, element: 'spark' }],
+    text: 'Deal {damage} lightning damage.',
+  },
+
   // Three elements: stronger, and they take a whole cauldron.
   {
     id: 'heatHaze',
@@ -212,6 +239,39 @@ export const RECIPES: RecipeDef[] = [
     ],
     text: 'Set the weather to Rain. Heal 3. Gain 7 Block.',
     cardText: 'Weather: Rain. Heal 3. Gain 7 Block.',
+  },
+  {
+    id: 'volcano',
+    name: 'Volcano',
+    elements: ['fire', 'fire', 'earth'],
+    effects: [
+      { type: 'damage', amount: 12, element: 'fire', all: true },
+      { type: 'applyStatus', status: 'burn', amount: 3, all: true },
+    ],
+    text: 'Deal {damage} fire damage to ALL enemies. Apply 3 Burn to ALL.',
+    cardText: '{damage} fire to ALL. 3 Burn to ALL.',
+  },
+  {
+    id: 'glacier',
+    name: 'Glacier',
+    elements: ['frost', 'earth', 'earth'],
+    effects: [
+      { type: 'setWeather', weather: 'snow' },
+      { type: 'block', amount: 18 },
+    ],
+    text: 'Set the weather to Snow. Gain 18 Block.',
+    cardText: 'Weather: Snow. Gain 18 Block.',
+  },
+  {
+    id: 'tincture',
+    name: 'Tincture',
+    elements: ['water', 'earth', 'air'],
+    effects: [
+      { type: 'block', amount: 12 },
+      { type: 'draw', amount: 2 },
+    ],
+    text: 'Gain 12 Block. Draw 2 cards.',
+    cardText: 'Gain 12 Block. Draw 2.',
   },
 ];
 

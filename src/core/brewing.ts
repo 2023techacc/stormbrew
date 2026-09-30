@@ -64,6 +64,7 @@ export function effectsNeedTarget(effects: readonly Effect[]): boolean {
       ((e.type === 'damage' || e.type === 'applyStatus') && !e.all) ||
       e.type === 'steal' ||
       e.type === 'spoil' ||
-      e.type === 'boilOver',
+      e.type === 'boilOver' ||
+      e.type === 'blockDamage',
   );
 }

@@ -7,6 +7,9 @@ export type ElementId = 'fire' | 'water' | 'earth' | 'air' | 'spark' | 'frost';
 
 export type StatusId = 'burn' | 'weak';
 
+/** Lasting cards: their effect stays for the rest of the fight (see core/combat.ts). */
+export type LastingId = 'conductor' | 'steadyHands' | 'skyHarvest';
+
 /**
  * Effects are shared by cards and brews. `all` hits every enemy; otherwise
  * damage and statuses go to the chosen enemy.
@@ -40,9 +43,16 @@ export type Effect =
   /** Take the newest element from the target enemy's cauldron into yours. */
   | { type: 'steal' }
   /** The target enemy's next brew fails (becomes Sludge). */
-  | { type: 'spoil' };
+  | { type: 'spoil' }
+  /** Stays for the rest of the fight (the card is a Lasting card). */
+  | { type: 'lasting'; card: LastingId }
+  /** Doubles the player's Block. */
+  | { type: 'doubleBlock' }
+  /** Deals damage equal to the player's Block to the target. */
+  | { type: 'blockDamage' };
 
-export type CardKind = 'attack' | 'skill';
+/** Lasting cards ('power') leave the fight when played; their effect stays. */
+export type CardKind = 'attack' | 'skill' | 'power';
 
 /** Who a card is played on: a chosen enemy, or the player (no target needed). */
 export type CardTarget = 'enemy' | 'self';
@@ -56,6 +66,8 @@ export interface CardDef {
   effects: Effect[];
   /** Attuned: extra effects when the card is played in this weather. */
   attuned?: { weather: WeatherId; effects: Effect[] };
+  /** Rare cards are offered less often (see core/run.ts); other cards are common. */
+  rarity?: 'rare';
   /** Rules text. `{damage}` is replaced with the card's current damage. */
   text: string;
 }
@@ -194,6 +206,8 @@ export interface CombatState {
   doubleNext: number;
   /** Recipes brewed this fight, by the player or enemies (no Sludge); they can be distilled afterwards. */
   brewed: string[];
+  /** Lasting cards played this fight, and how many copies of each. */
+  lasting: Partial<Record<LastingId, number>>;
   status: CombatStatus;
   rngState: number;
 }
@@ -230,4 +244,8 @@ export type CombatEvent =
   /** An enemy broke all of the player's Block. */
   | { type: 'shatter'; amount: number }
   | { type: 'relic'; relic: string }
+  /** A Lasting card was played: it stays for the rest of the fight. */
+  | { type: 'lasting'; card: LastingId }
+  /** A Lasting card's effect happened. */
+  | { type: 'lastingEffect'; card: LastingId }
   | { type: 'shuffle' };

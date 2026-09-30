@@ -50,6 +50,21 @@ export const KO_CARDS: Record<string, NameText> = {
   boilOver: { name: '끓어 넘침', text: '가마솥을 비우고 원소마다 피해 4.' },
   weatherFront: { name: '기상 전선', text: '다음 날씨가 바로 옵니다. 1장 뽑기.' },
   cloudburst: { name: '집중호우', text: '날씨: 비. 모든 적에게 피해 {damage}.' },
+  fanTheFlames: { name: '부채질', text: '화상 4 부여. 🌬️ 추가.' },
+  forkedLightning: { name: '갈래 번개', text: '피해 {damage}. 폭풍일 때: 모든 적에게도 4.' },
+  whisk: { name: '거품기', text: '양조. 2장 뽑기.' },
+  fogBank: { name: '안개 둑', text: '방어도 7. 다음 날씨를 바꿉니다.' },
+  snowdrift: { name: '눈더미', text: '방어도 6. 눈일 때: 2장 뽑기.' },
+  heatShimmer: { name: '신기루', text: '모든 적에게 피해 {damage}. 폭염일 때: 화상 2도.' },
+  hailstones: { name: '우박', text: '피해 {damage}씩 3번 줍니다.' },
+  conductor: { name: '지휘자', text: '지속: 날씨가 바뀔 때마다 모든 적에게 피해 5.' },
+  steadyHands: { name: '침착한 손', text: '지속: 양조할 때마다 방어도 4.' },
+  skyHarvest: { name: '하늘 수확', text: '지속: 날씨의 원소를 두 번 받습니다.' },
+  perfectBrew: { name: '완벽한 양조', text: '양조. 이 양조는 두 번 작동합니다.' },
+  lightningStorm: { name: '번개 폭풍', text: '날씨: 폭풍. 모든 적에게 피해 {damage}.' },
+  sunbreak: { name: '햇살', text: '날씨: 맑음. 에너지 1.' },
+  hoarfrost: { name: '흰서리', text: '방어도를 두 배로 만듭니다.' },
+  avalanche: { name: '눈사태', text: '방어도만큼 피해를 줍니다.' },
 };
 
 /** 레시피. 카드와 포션에도 같은 설명을 씁니다. */
@@ -72,9 +87,15 @@ export const KO_RECIPES: Record<string, NameText> = {
   iceLance: { name: '얼음 창', text: '서리 피해 {damage}. 약화 2 부여.' },
   permafrost: { name: '영구 동토', text: '방어도를 15 얻습니다.' },
   blizzard: { name: '눈보라', text: '날씨: 눈. 방어도 6.' },
+  overcharge: { name: '과충전', text: '에너지 2.' },
+  iceStorm: { name: '얼음 폭풍', text: '모든 적에게 약화 2 부여. 방어도 5.' },
+  frozenLightning: { name: '얼어붙은 번개', text: '전기 피해를 {damage} 줍니다.' },
   heatHaze: { name: '아지랑이', text: '날씨: 폭염. 모든 적에게 화염 피해 {damage}.' },
   thunderhead: { name: '적란운', text: '날씨: 폭풍. 전기 피해 {damage}.' },
   downpour: { name: '장대비', text: '날씨: 비. 체력 3 회복. 방어도 7.' },
+  volcano: { name: '화산', text: '모든 적에게 화염 피해 {damage}. 모두에게 화상 3.' },
+  glacier: { name: '빙하', text: '날씨: 눈. 방어도 18.' },
+  tincture: { name: '팅크제', text: '방어도 12. 2장 뽑기.' },
   sludge: { name: '찌꺼기', text: '방어도를 2 얻습니다.' },
 };
 
@@ -231,11 +252,19 @@ export const KO_RELICS: Record<string, NameText> = {
   windChime: { name: '풍경', text: '날씨가 바뀔 때마다 카드를 1장 뽑습니다.' },
   dewcatcher: { name: '이슬받이', text: '날씨가 가마솥에 원소를 떨어뜨릴 때마다 방어도를 2 얻습니다.' },
   cloudSeed: { name: '구름 씨앗', text: '전투가 맑음 대신 하늘 덱의 날씨로 시작합니다.' },
+  emberCharm: { name: '불씨 부적', text: '화상을 부여할 때마다 1 더 부여합니다.' },
+  frostCharm: { name: '서리 부적', text: '약화를 부여할 때마다 1 더 부여합니다.' },
+  kiln: { name: '가마', text: '폭염이면 매 턴 에너지를 1 더 얻습니다.' },
+  sunlitLantern: { name: '햇빛 등불', text: '맑음이면 매 턴 카드를 1장 더 뽑습니다.' },
+  beltPouch: { name: '허리 주머니', text: '포션을 1개 더 가질 수 있습니다. 무작위 포션이 하나 들어 있습니다.' },
+  heartyStew: { name: '든든한 스튜', text: '얻을 때 최대 체력이 10 늘어납니다.' },
+  mastersNotes: { name: '대가의 비망록', text: '원소 세 개짜리 레시피를 양조할 때마다 에너지를 1 얻습니다.' },
+  goldenScale: { name: '황금 저울', text: '상점 가격이 20% 싸집니다.' },
   stormVow: { name: '폭풍의 맹세', text: '매 턴 에너지를 1 더 얻습니다. 엄폐할 수 없습니다.' },
   skyAnchor: { name: '하늘 닻', text: '매 턴 에너지를 1 더 얻습니다. 날씨가 저절로 바뀌지 않습니다.' },
   philosophersStone: { name: '현자의 돌', text: '매 턴 에너지를 1 더 얻습니다. 가마솥이 1칸 줄어듭니다.' },
   grandGrimoire: { name: '위대한 마도서', text: '양조할 때마다 카드를 1장 뽑습니다.' },
-  bottomlessFlask: { name: '바닥없는 플라스크', text: '물약을 2개 더 가질 수 있습니다. 전투를 시작할 때 무작위 물약을 하나 얻습니다.' },
+  bottomlessFlask: { name: '바닥없는 플라스크', text: '포션을 2개 더 가질 수 있습니다. 전투를 시작할 때 무작위 포션을 하나 얻습니다.' },
   thunderDrum: { name: '천둥 북', text: '폭풍의 번개가 당신에게 떨어지지 않고, 매 라운드 두 번 떨어집니다.' },
 };
 
@@ -317,6 +346,51 @@ export const KO_EVENTS: Record<string, EventText> = {
     options: {
       swap: { label: '카드를 교환한다', text: '덱에서 카드 하나를 빼고, 무작위 카드를 대신 받습니다.' },
       lesson: { label: '수업을 듣는다 (30 골드)', text: '아직 모르는 레시피 3개를 배웁니다.' },
+      leave: { label: '떠난다', text: '아무 일도 일어나지 않습니다.' },
+    },
+  },
+  oldObservatory: {
+    name: '낡은 천문대',
+    text: '무너져 가는 천문대. 커다란 망원경은 아직도 구름을 향하고 있습니다.',
+    options: {
+      study: { label: '하늘을 연구한다', text: '아직 모르는 레시피 3개를 배웁니다.' },
+      chart: { label: '새 항로를 그린다', text: '날씨 카드 3장 중 1장을 골라 하늘 덱에 넣습니다.' },
+      leave: { label: '떠난다', text: '아무 일도 일어나지 않습니다.' },
+    },
+  },
+  frozenLake: {
+    name: '얼어붙은 호수',
+    text: '얼어붙은 호수가 산자락까지 펼쳐져 있습니다. 얼음 깊은 곳에서 무언가 반짝입니다.',
+    options: {
+      break: { label: '얼음을 깬다 (체력 7 잃음)', text: '희귀 카드 3장 중 1장을 고릅니다.' },
+      chill: { label: '카드를 얼음에 식힌다', text: '카드 하나에 ❄️를 주입합니다. 사용하면 서리도 추가됩니다.' },
+      leave: { label: '떠난다', text: '아무 일도 일어나지 않습니다.' },
+    },
+  },
+  lightningForge: {
+    name: '번개 대장간',
+    text: '붙잡은 번개로 불을 지피는 대장간입니다. 대장장이가 장비를 손봐 주겠다고 합니다.',
+    options: {
+      melt: { label: '카드를 녹인다', text: '덱에서 카드 하나를 뺍니다.' },
+      bellows: { label: '풀무질을 한다 (체력 6 잃음)', text: '골드를 60 얻습니다.' },
+      leave: { label: '떠난다', text: '아무 일도 일어나지 않습니다.' },
+    },
+  },
+  skyMerchant: {
+    name: '하늘 상인',
+    text: '절벽에 비행선이 묶여 있습니다. 상인은 값을 치를 수 있는 이에게 귀한 물건을 팝니다.',
+    options: {
+      rare: { label: '희귀 카드를 산다 (70 골드)', text: '희귀 카드 3장 중 1장을 고릅니다.' },
+      potion: { label: '포션을 산다 (20 골드)', text: '무작위 포션을 얻습니다.' },
+      leave: { label: '떠난다', text: '아무 일도 일어나지 않습니다.' },
+    },
+  },
+  stormAltar: {
+    name: '폭풍의 제단',
+    text: '성채 꼭대기에 폭풍의 힘으로 번쩍이는 제단이 서 있습니다.',
+    options: {
+      offer: { label: '힘을 바친다 (최대 체력 8 잃음)', text: '무작위 유물을 얻습니다.' },
+      pray: { label: '고요를 빈다', text: '체력을 25 회복합니다.' },
       leave: { label: '떠난다', text: '아무 일도 일어나지 않습니다.' },
     },
   },

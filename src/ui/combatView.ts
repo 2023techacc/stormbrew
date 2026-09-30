@@ -15,6 +15,7 @@ import {
   isAttuned,
   isSheltered,
   isWeathered,
+  lastingCount,
   playCard,
   potionNeedsTarget,
   previewCardBrew,
@@ -32,6 +33,7 @@ import type {
   CombatEvent,
   CombatState,
   EnemyState,
+  LastingId,
   UnitRef,
   WeatherId,
 } from '../core/types';
@@ -56,10 +58,10 @@ import {
   weatherEffect,
   weatherName,
 } from '../i18n/content';
-import { esc } from './dom';
+import { esc, fitCards } from './dom';
 import { combatFeedback } from './feedback';
 import { playSfx } from './sound';
-import { CARD_KIND_COLORS, cardIcon, ELEMENTS, ENEMY_LOOKS, ICONS, RELIC_ICONS, WEATHERS } from './theme';
+import { CARD_KIND_COLORS, RARE_COLOR, cardIcon, ELEMENTS, ENEMY_LOOKS, ICONS, RELIC_ICONS, WEATHERS } from './theme';
 import { flashSky, motionAllowed, setWeatherFx } from './weatherFx';
 
 export interface CombatViewOptions {
@@ -113,6 +115,7 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       fresh,
       entering,
     });
+    fitCards(root);
     entering = false;
   };
 
@@ -136,6 +139,7 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
     const intoCauldron =
       card !== undefined &&
       cardEffects(card, state.weather.current).some((e) => e.type === 'addElement' || e.type === 'brew' || e.type === 'catchWeather');
+    const lasting = card !== undefined && getCard(card.defId).kind === 'power';
     const result = playCard(state, uid, targetIndex);
     if (!result.ok) {
       playSfx('deny');
@@ -147,7 +151,13 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
     playSfx('card');
     after(result.events);
     const target =
-      targetIndex !== undefined ? `[data-unit="enemy-${targetIndex}"]` : intoCauldron ? '.cauldron' : '[data-unit="player"]';
+      targetIndex !== undefined
+        ? `[data-unit="enemy-${targetIndex}"]`
+        : lasting
+          ? '.lasting-badges'
+          : intoCauldron
+            ? '.cauldron'
+            : '[data-unit="player"]';
     if (ghost) flyGhost(ghost, root.querySelector(target));
   };
 
@@ -269,6 +279,12 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       hint = describeForecast(state);
       render();
     }
+    else if (el.dataset.action === 'lasting' && el.dataset.lasting) {
+      const def = getCard(el.dataset.lasting);
+      selectedUid = null;
+      hint = `${cardIcon(def)} ${cardName(def)}: ${plainText(cardItem(def), state.weather.current)}`;
+      render();
+    }
     else if (el.dataset.action === 'recipes' || el.dataset.action === 'cards') {
       overlay = el.dataset.action;
       render();
@@ -349,7 +365,7 @@ function renderCombat(state: CombatState, ui: CombatUi): string {
           <span class="energy-value">${player.energy}/${player.maxEnergy}</span>
         </span>
         <span class="player-stats">
-          <span class="unit-name">${esc(t('combat.you'))}</span>
+          <span class="unit-name">${esc(t('combat.you'))}${renderLasting(state)}</span>
           ${renderHpBar(player)}
         </span>
       </section>
@@ -442,6 +458,20 @@ function renderEnemy(
       ${renderHpBar(enemy)}
     </button>
   `;
+}
+
+/** The Lasting cards played this fight, as small badges next to your name (tap one to read it). */
+function renderLasting(state: CombatState): string {
+  const cards = (Object.keys(state.lasting) as LastingId[]).filter((id) => lastingCount(state, id) > 0);
+  if (cards.length === 0) return '';
+  const badges = cards.map((id) => {
+    const def = getCard(id);
+    const n = lastingCount(state, id);
+    const name = cardName(def);
+    return `<button class="lasting-badge" data-action="lasting" data-lasting="${id}" title="${esc(name)}"
+      aria-label="${esc(t('combat.lastingAria', { name }))}">${cardIcon(def)}${n > 1 ? `<small>×${n}</small>` : ''}</button>`;
+  });
+  return ` <span class="lasting-badges">${badges.join('')}</span>`;
 }
 
 /** A brewing enemy's small cauldron, and what it will brew this turn. */
@@ -537,11 +567,13 @@ export function cardFace(
   const attunedTo = def.attuned?.weather;
   const name = cardName(def);
   const item = cardItem(def);
+  const rare = def.rarity === 'rare';
   const aria = t('card.aria', { name, cost: def.cost, text: plainText(item, weather, options.weak) + infusionText });
   return `
-    <button class="card ${infusion ? 'infused' : ''} ${options.attuned ? 'attuned' : ''} ${options.className ?? ''}" ${options.attrs ?? ''}
-      style="--card-color: ${CARD_KIND_COLORS[def.kind]}${attunedTo ? `; --attuned-color: ${WEATHERS[attunedTo].color}` : ''}${options.style ? `; ${options.style}` : ''}"
-      aria-label="${esc(aria)}${options.attuned ? ` ${esc(t('card.attunedNow'))}` : ''}">
+    <button class="card ${infusion ? 'infused' : ''} ${options.attuned ? 'attuned' : ''} ${rare ? 'rare' : ''} ${options.className ?? ''}" ${options.attrs ?? ''}
+      style="--card-color: ${CARD_KIND_COLORS[def.kind]}${rare ? `; --rare-color: ${RARE_COLOR}` : ''}${attunedTo ? `; --attuned-color: ${WEATHERS[attunedTo].color}` : ''}${options.style ? `; ${options.style}` : ''}"
+      aria-label="${esc(aria)}${rare ? ` ${esc(t('card.rare'))}` : ''}${options.attuned ? ` ${esc(t('card.attunedNow'))}` : ''}">
+      ${rare ? `<span class="card-rarity" title="${esc(t('card.rare'))}">${ICONS.rare}</span>` : ''}
       <span class="card-cost">${def.cost}</span>
       ${element ? `<span class="card-element" style="--chip-color: ${ELEMENTS[element].color}">${ELEMENTS[element].icon}</span>` : ''}
       ${attunedTo && !element ? `<span class="card-element card-attuned" style="--chip-color: ${WEATHERS[attunedTo].color}" title="${esc(t('card.attunedTo', { weather: weatherName(attunedTo) }))}">${WEATHERS[attunedTo].icon}</span>` : ''}
@@ -831,6 +863,12 @@ function describeEvents(state: CombatState, events: CombatEvent[]): string {
       messages.push(`${ICONS.shatter} ${t('ev.shatter', { enemy: actingEnemy })}`);
     } else if (event.type === 'relic') {
       messages.push(`${RELIC_ICONS[event.relic] ?? ''} ${relicName(event.relic)}!`);
+    } else if (event.type === 'lasting') {
+      const def = getCard(event.card);
+      messages.push(`${cardIcon(def)} ${t('ev.lasting', { name: cardName(def) })}`);
+    } else if (event.type === 'lastingEffect') {
+      const def = getCard(event.card);
+      messages.push(`${cardIcon(def)} ${cardName(def)}!`);
     }
   }
   return messages.join(' ');
@@ -930,6 +968,10 @@ function animate(root: HTMLElement, events: CombatEvent[]): void {
       const player = root.querySelector<HTMLElement>('[data-unit="player"]');
       shake(player);
       if (player) floatText(player, `${ICONS.shatter} -${event.amount} ${ICONS.block}`, 'damage');
+      continue;
+    }
+    if (event.type === 'lasting' || event.type === 'lastingEffect') {
+      flash(root.querySelector(`[data-lasting="${event.card}"]`), 'pop');
       continue;
     }
     if (event.type !== 'damage' && event.type !== 'block') continue;

@@ -3,9 +3,11 @@ import {
   canPickEventCard,
   chooseEventOption,
   currentEvent,
+  eventCardOptions,
   eventOptionBlocked,
   eventSkyOptions,
   pickEventCard,
+  pickEventReward,
   pickEventSky,
 } from '../../src/core/events';
 import { createGrimoire, type Grimoire } from '../../src/core/grimoire';
@@ -46,12 +48,15 @@ export interface EventPolicy {
   card: (indices: number[]) => number;
   /** Picks a weather card from the ones offered. */
   sky: (ids: string[]) => number;
+  /** Picks a card to add from the ones offered. */
+  reward: (ids: string[]) => number;
 }
 
 export const randomEventPolicy = (rng: Rng): EventPolicy => ({
   choose: (options) => rng.pick(options),
   card: (indices) => rng.pick(indices),
   sky: (ids) => rng.int(0, ids.length - 1),
+  reward: (ids) => rng.int(0, ids.length - 1),
 });
 
 /** Plays the event the run is at. Returns true if it started a fight. */
@@ -66,6 +71,8 @@ export function playEvent(run: RunState, grimoire: Grimoire, policy: EventPolicy
     pickEventCard(run, policy.card(indices), grimoire);
   } else if (result.next === 'pickSky') {
     pickEventSky(run, policy.sky(eventSkyOptions(run)), grimoire);
+  } else if (result.next === 'pickReward') {
+    pickEventReward(run, policy.reward(eventCardOptions(run)), grimoire);
   }
   return result.next === 'fight';
 }

@@ -442,19 +442,20 @@ button {
   opacity: 0.5;
 }
 
+/* The corner badges sit mostly outside the card, so they don't cover the first or last letter of a long name. */
 .card-cost {
   position: absolute;
-  top: -8px;
-  left: -8px;
+  top: -10px;
+  left: -10px;
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
+  width: 23px;
+  height: 23px;
   border-radius: 50%;
   background: #f5d547;
   color: #1b2233;
   font-weight: 800;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .card-name {
@@ -478,6 +479,16 @@ button {
   line-height: 1.15;
   text-align: center;
   color: var(--text-muted);
+}
+
+/* A card whose text doesn't fit (see fitCards) squeezes its text and icon a little. */
+.card.tight .card-text {
+  font-size: 0.6rem;
+  line-height: 1.08;
+}
+
+.card.tight .card-icon {
+  line-height: 1;
 }
 
 .controls {
@@ -843,12 +854,12 @@ button {
   margin: 0;
 }
 
-/* The map fills the screen's free height: each floor gets 36 to 64px. */
+/* The map fills the screen's free height: each floor gets 34 to 64px. */
 .map {
   position: relative;
   width: min(100%, 360px);
   flex: 1 1 0;
-  min-height: calc(var(--rows) * 36px);
+  min-height: calc(var(--rows) * 34px);
   max-height: calc(var(--rows) * 64px);
   container-type: size;
 }
@@ -954,8 +965,72 @@ button {
   overflow-y: auto;
 }
 
+/* A screen for picking a card from the deck is the phone's height; the deck scrolls in what is left. */
+.run-screen.fills {
+  height: var(--screen-h);
+}
+
+.pick-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  align-content: flex-start;
+  /* Reaches into the screen's side padding, so the cards' corner badges aren't cut off. */
+  width: calc(100% + 24px);
+  margin: 0 -12px;
+  padding: 12px 12px 10px;
+}
+
 .card.distilled {
   box-shadow: 0 0 0 2px #c7a4ff;
+}
+
+/* Rare cards: a gold edge, a gold top and a star. */
+.card.rare {
+  background: linear-gradient(color-mix(in srgb, var(--rare-color) 30%, color-mix(in srgb, var(--card-color) 35%, #1b2233)), #1b2233 70%);
+  box-shadow: 0 0 0 2px var(--rare-color) inset;
+}
+
+.card.rare .card-note {
+  color: var(--rare-color);
+}
+
+.card-rarity {
+  position: absolute;
+  bottom: -8px;
+  left: -8px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  line-height: 1;
+  color: #1b2233;
+  background: var(--rare-color);
+}
+
+/* Lasting cards played this fight, next to your name. */
+.lasting-badges {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.lasting-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: color-mix(in srgb, #9b6bd6 45%, transparent);
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.lasting-badge small {
+  font-size: 0.65rem;
+  font-weight: 700;
 }
 
 .card-note {
@@ -1259,14 +1334,14 @@ button {
 
 .card-element {
   position: absolute;
-  top: -8px;
-  right: -8px;
+  top: -10px;
+  right: -10px;
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
+  width: 23px;
+  height: 23px;
   border-radius: 50%;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   background: color-mix(in srgb, var(--chip-color) 60%, #1b2233);
   border: 2px solid var(--chip-color);
 }
@@ -1429,8 +1504,9 @@ button {
   animation: lunge 0.36s ease-in-out;
 }
 
-/* An element drops into the cauldron. */
-.slot.pop {
+/* An element drops into the cauldron; a Lasting card arrives or does its thing. */
+.slot.pop,
+.lasting-badge.pop {
   animation: pop 0.32s ease-out;
 }
 
@@ -1446,7 +1522,8 @@ button {
 html.calm .enter,
 html.calm .hand .card.drawn,
 html.calm .enemy-body.lunge,
-html.calm .slot.pop {
+html.calm .slot.pop,
+html.calm .lasting-badge.pop {
   animation: none;
 }
 

@@ -5,6 +5,7 @@ A roguelike deck-builder like *Slay the Spire*, built around **weather** and **b
 - **Weather** changes every few turns. The player, enemies, and events can also change it, and it alters the rules for everyone in the fight.
 - **Brewing** combines elements in a cauldron. Different combinations produce different results, including brews that change the weather.
 - A run climbs **three acts** (the Mirelands, the Frostpeaks and the Sky Citadel), each with its own enemies, elites and boss, and a boss relic to choose between acts.
+- **Rare cards** turn up now and then (more often in later acts), among them **Lasting** cards whose effect stays for the whole fight. The game has 55 cards (plus a Flask and an Essence card for each of its 27 recipes), 23 relics and 11 events.
 
 Made for **Android (APK)** first, and also runs in a web browser. iOS and desktop builds may come later.
 
@@ -35,7 +36,7 @@ npm run dev        # run in the browser with hot reload
 npm test           # unit tests (Vitest)
 npm run typecheck  # TypeScript checks
 npm run build      # production web build in dist/
-npm run balance    # balance report: 200 runs by a computer player (about 30 s)
+npm run balance    # balance report: 200 runs by a computer player (about a minute)
 ```
 
 Releasing: bump the version (`npm version 0.13.0 --no-git-tag-version`) and merge it into `main`. CI builds the APK, creates the tag `v0.13.0` and publishes the release. Pushing a `v0.13.0` tag by hand does the same; CI refuses a tag that doesn't match `package.json`. The Android app's version comes from `package.json` too.

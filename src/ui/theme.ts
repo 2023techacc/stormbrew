@@ -1,5 +1,5 @@
 import type { NodeType } from '../core/map';
-import type { ElementId, WeatherId } from '../core/types';
+import type { CardKind, ElementId, WeatherId } from '../core/types';
 import { getAct } from '../data/acts';
 
 /**
@@ -84,6 +84,14 @@ export const RELIC_ICONS: Record<string, string> = {
   windChime: '🎐',
   dewcatcher: '🕸️',
   cloudSeed: '🌱',
+  emberCharm: '🧨',
+  frostCharm: '🧿',
+  kiln: '🪵',
+  sunlitLantern: '🏮',
+  beltPouch: '👝',
+  heartyStew: '🥘',
+  mastersNotes: '📗',
+  goldenScale: '⚖️',
   // Boss relics.
   stormVow: '💓',
   skyAnchor: '⚓',
@@ -109,6 +117,11 @@ export const EVENT_ICONS: Record<string, string> = {
   stormChaser: '🌪️',
   frozenTraveler: '🧊',
   wanderingAlchemist: '🧑‍🔬',
+  oldObservatory: '🔭',
+  frozenLake: '🏞️',
+  lightningForge: '⚒️',
+  skyMerchant: '🎈',
+  stormAltar: '🛐',
 };
 
 /** Card art for now is a single icon; cards without one use their kind's icon. */
@@ -151,21 +164,42 @@ export const CARD_ICONS: Record<string, string> = {
   boilOver: '🫕',
   weatherFront: '⏩',
   cloudburst: '☔',
+  fanTheFlames: '🪔',
+  forkedLightning: '🔱',
+  whisk: '🥣',
+  fogBank: '🌫️',
+  snowdrift: '☃️',
+  heatShimmer: '🏜️',
+  hailstones: '☄️',
+  // Rare cards.
+  conductor: '🎼',
+  steadyHands: '🧤',
+  skyHarvest: '🧺',
+  perfectBrew: '🫖',
+  lightningStorm: '🎇',
+  sunbreak: '🌅',
+  hoarfrost: '💠',
+  avalanche: '🏔️',
 };
 
 /** A card's icon: its own, a flask or essence for distilled cards, or its kind's icon. */
-export function cardIcon(def: { id: string; kind: 'attack' | 'skill' }): string {
+export function cardIcon(def: { id: string; kind: CardKind }): string {
   const own = CARD_ICONS[def.id];
   if (own) return own;
   if (def.id.startsWith('flask-')) return '⚗️';
   if (def.id.startsWith('essence-')) return '✨';
-  return def.kind === 'attack' ? '⚔️' : '🛡️';
+  return def.kind === 'attack' ? '⚔️' : def.kind === 'power' ? '♾️' : '🛡️';
 }
 
-export const CARD_KIND_COLORS = {
+/** Attacks are red, skills blue, and Lasting cards (powers) violet. */
+export const CARD_KIND_COLORS: Record<CardKind, string> = {
   attack: '#d9534f',
   skill: '#3f7fbf',
-} as const;
+  power: '#9b6bd6',
+};
+
+/** The gold of rare cards. */
+export const RARE_COLOR = '#e8c35a';
 
 export const ICONS = {
   attack: '⚔️',
@@ -194,6 +228,8 @@ export const ICONS = {
   shatter: '🔨',
   anchor: '⚓',
   crown: '👑',
+  rare: '★',
+  lasting: '♾️',
 } as const;
 
 /** A map spot's icon; an act's boss spot shows that act's boss. */

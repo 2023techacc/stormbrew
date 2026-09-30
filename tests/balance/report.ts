@@ -7,8 +7,12 @@ import { smartRun, type FightStats, type RunStats } from '../helpers/smartplay';
 /**
  * Balance report: plays many runs with the heuristic player and prints how
  * they went. Run it with `npm run balance` (it is not part of `npm test`).
+ * `RUNS=1000 SEED=1001 npm run balance` plays more runs, from another seed:
+ * 200 runs can easily be 5 points off, so compare versions with a thousand or
+ * more.
  */
-const RUNS = 200;
+const RUNS = Number(process.env.RUNS ?? 200);
+const FIRST_SEED = Number(process.env.SEED ?? 1);
 
 const avg = (xs: readonly number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -36,6 +40,23 @@ function report(runs: RunStats[]): string {
   lines.push(
     `End of run: deck ${fixed(avg(runs.map((r) => r.deckSize)))} cards, ${fixed(avg(runs.map((r) => r.relics)))} relics, ${fixed(avg(runs.map((r) => r.gold)))} gold`,
   );
+  // Rare cards and relics: how often runs end up with each, and how those runs went.
+  const withRare = runs.filter((r) => r.rareCards.length > 0);
+  lines.push(
+    `Rare cards: ${fixed(avg(runs.map((r) => r.rareCards.length)))} per deck; runs with one won ` +
+      `${pct(withRare.filter((r) => r.won).length / Math.max(1, withRare.length))} (${withRare.length} runs), without ` +
+      `${pct(runs.filter((r) => !r.rareCards.length && r.won).length / Math.max(1, runs.length - withRare.length))}`,
+  );
+  const tally = (ids: (r: RunStats) => string[]) => {
+    const counts = new Map<string, RunStats[]>();
+    for (const r of runs) for (const id of new Set(ids(r))) counts.set(id, [...(counts.get(id) ?? []), r]);
+    return [...counts]
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(([id, list]) => `${id} ${list.length} (${pct(list.filter((r) => r.won).length / list.length)})`)
+      .join(', ');
+  };
+  lines.push(`Rare cards taken (runs won): ${tally((r) => r.rareCards)}`);
+  lines.push(`Relics held at the end (runs won): ${tally((r) => r.relicIds)}`);
 
   const fights = runs.flatMap((r) => r.fights);
   // Bosses change the weather all the time, so they are left out of the weather numbers.
@@ -69,9 +90,9 @@ function report(runs: RunStats[]): string {
 }
 
 it('balance report', () => {
-  const runs = Array.from({ length: RUNS }, (_, i) => smartRun(i + 1).stats);
+  const runs = Array.from({ length: RUNS }, (_, i) => smartRun(FIRST_SEED + i).stats);
   // For comparison: a player who plays random cards and picks rewards at random.
-  const random = Array.from({ length: RUNS }, (_, i) => autoplayRun(i + 1, { distill: true }));
+  const random = Array.from({ length: RUNS }, (_, i) => autoplayRun(FIRST_SEED + i, { distill: true }));
   const randomWins = random.filter((r) => r.status === 'won').length;
   console.log(`\n${report(runs)}\n\nRandom player: won ${randomWins} of ${RUNS} runs.\n`);
-}, 900_000);
+}, 3_600_000);
