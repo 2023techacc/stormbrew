@@ -4,9 +4,11 @@ import {
   cancelEventPick,
   chooseEventOption,
   currentEvent,
+  eventCardOptions,
   eventOptionBlocked,
   eventSkyOptions,
   pickEventCard,
+  pickEventReward,
   pickEventSky,
 } from '../src/core/events';
 import { createGrimoire, type Grimoire } from '../src/core/grimoire';
@@ -21,8 +23,9 @@ import {
   type RunState,
 } from '../src/core/run';
 import { makeRunSave, parseRunSave } from '../src/core/save';
+import { RARE_POOL } from '../src/data/cards';
 import { ENCOUNTERS } from '../src/data/enemies';
-import { EVENT_IDS, getEvent } from '../src/data/events';
+import { EVENT_IDS, eventInAct, getEvent } from '../src/data/events';
 import { RECIPES } from '../src/data/recipes';
 
 /** Adds an event spot next to the player and walks there. */
@@ -49,19 +52,31 @@ const option = (eventId: string, optionId: string) => {
 };
 
 describe('events on the map', () => {
-  it('entering an event picks one you have not seen this run', () => {
-    const run = createRun(1);
-    const seen: string[] = [];
-    for (let i = 0; i < EVENT_IDS.length; i++) {
+  it("entering an event picks one of the act's events you have not seen this run", () => {
+    for (const act of [1, 2, 3]) {
+      const run = createRun(act);
+      run.act = act;
+      const pool = EVENT_IDS.filter((id) => eventInAct(id, act));
+      const seen: string[] = [];
+      for (let i = 0; i < pool.length; i++) {
+        atEvent(run);
+        const id = run.event?.id ?? '';
+        expect(pool).toContain(id);
+        expect(seen).not.toContain(id);
+        seen.push(id);
+      }
+      // Once every event has been seen, they can come again.
       atEvent(run);
-      const id = run.event?.id ?? '';
-      expect(EVENT_IDS).toContain(id);
-      expect(seen).not.toContain(id);
-      seen.push(id);
+      expect(pool).toContain(run.event?.id);
     }
-    // Once every event has been seen, they can come again.
-    atEvent(run);
-    expect(EVENT_IDS).toContain(run.event?.id);
+  });
+
+  it('some events only happen in later acts', () => {
+    expect(eventInAct('frozenLake', 1)).toBe(false);
+    expect(eventInAct('frozenLake', 2)).toBe(true);
+    expect(eventInAct('stormAltar', 3)).toBe(true);
+    expect(eventInAct('abandonedCauldron', 3)).toBe(true);
+    for (const act of [1, 2, 3]) expect(EVENT_IDS.filter((id) => eventInAct(id, act)).length).toBeGreaterThanOrEqual(6);
   });
 
   it('leaving an event or choosing ends it', () => {
@@ -235,5 +250,118 @@ describe('the Wandering Alchemist', () => {
     expect(run.gold).toBe(10);
     expect(grimoire.discovered).toHaveLength(3);
     expect(currentEvent(run)).toBeUndefined();
+  });
+});
+
+describe('the Old Observatory', () => {
+  it('charting a new course adds a weather card for free', () => {
+    const run = createRun(16);
+    atEvent(run, 'oldObservatory');
+    expect(choose(run, 'chart').next).toBe('pickSky');
+    const [first] = eventSkyOptions(run);
+    const gold = run.gold;
+    pickEventSky(run, 0, createGrimoire());
+    expect(run.sky.at(-1)).toBe(first);
+    expect(run.gold).toBe(gold);
+  });
+});
+
+describe('the Frozen Lake', () => {
+  it('breaking the ice costs HP when you choose one of three rare cards', () => {
+    const run = createRun(17);
+    run.act = 2;
+    atEvent(run, 'frozenLake');
+    run.hp = 50;
+    expect(choose(run, 'break').next).toBe('pickReward');
+    const offered = eventCardOptions(run);
+    expect(offered).toHaveLength(3);
+    for (const id of offered) expect(RARE_POOL).toContain(id);
+    expect(run.hp).toBe(50); // nothing is paid until you pick
+    cancelEventPick(run);
+    choose(run, 'break');
+    expect(eventCardOptions(run)).toEqual(offered);
+    const size = run.deck.length;
+    const result = pickEventReward(run, 2, createGrimoire());
+    expect(result.ok).toBe(true);
+    expect(run.hp).toBe(43);
+    expect(run.deck).toHaveLength(size + 1);
+    expect(run.deck.at(-1)?.id).toBe(offered[2]);
+    expect(run.event).toBeUndefined();
+  });
+
+  it('chilling a card infuses it with Frost', () => {
+    const run = createRun(18);
+    run.act = 2;
+    atEvent(run, 'frozenLake');
+    expect(choose(run, 'chill').next).toBe('pickCard');
+    pickEventCard(run, 3, createGrimoire());
+    expect(run.deck[3]?.infusion).toBe('frost');
+  });
+});
+
+describe('the Lightning Forge', () => {
+  it('melts down a card you pick', () => {
+    const run = createRun(19);
+    run.act = 2;
+    atEvent(run, 'lightningForge');
+    const size = run.deck.length;
+    const second = run.deck[1];
+    expect(choose(run, 'melt').next).toBe('pickCard');
+    expect(pickEventCard(run, 0, createGrimoire()).ok).toBe(true);
+    expect(run.deck).toHaveLength(size - 1);
+    expect(run.deck[0]).toBe(second);
+  });
+
+  it("can't melt your last card", () => {
+    const run = createRun(20);
+    atEvent(run, 'lightningForge');
+    run.deck = [{ id: 'strike' }];
+    expect(eventOptionBlocked(run, option('lightningForge', 'melt'), createGrimoire())).toBe('Your deck is too small.');
+  });
+
+  it('working the bellows trades HP for gold', () => {
+    const run = createRun(21);
+    atEvent(run, 'lightningForge');
+    run.hp = 40;
+    const gold = run.gold;
+    choose(run, 'bellows');
+    expect(run.hp).toBe(34);
+    expect(run.gold).toBe(gold + 60);
+  });
+});
+
+describe('the Sky Merchant', () => {
+  it('sells a rare card of your choice', () => {
+    const run = createRun(22);
+    atEvent(run, 'skyMerchant');
+    run.gold = 50;
+    expect(eventOptionBlocked(run, option('skyMerchant', 'rare'), createGrimoire())).toBe('Not enough gold.');
+    run.gold = 100;
+    choose(run, 'rare');
+    pickEventReward(run, 0, createGrimoire());
+    expect(run.gold).toBe(30);
+    expect(RARE_POOL).toContain(run.deck.at(-1)?.id);
+  });
+});
+
+describe('the Storm Altar', () => {
+  it('trades max HP for a relic', () => {
+    const run = createRun(23);
+    atEvent(run, 'stormAltar');
+    run.hp = run.maxHp;
+    const { maxHp } = run;
+    const relics = run.relics.length;
+    expect(choose(run, 'offer').message).toContain('Max HP −8.');
+    expect(run.maxHp).toBe(maxHp - 8);
+    expect(run.hp).toBe(maxHp - 8);
+    expect(run.relics).toHaveLength(relics + 1);
+  });
+
+  it('keeps your HP when you are already below the new max', () => {
+    const run = createRun(24);
+    atEvent(run, 'stormAltar');
+    run.hp = 30;
+    choose(run, 'offer');
+    expect(run.hp).toBe(30);
   });
 });

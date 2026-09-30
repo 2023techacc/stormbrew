@@ -31,10 +31,12 @@ import {
   cancelEventPick,
   chooseEventOption,
   currentEvent,
+  eventCardOptions,
   eventOptionBlocked,
   eventSkyOptions,
   pendingPick,
   pickEventCard,
+  pickEventReward,
   pickEventSky,
   type EventResult,
 } from '../core/events';
@@ -168,7 +170,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
     sound(result, 'tap');
     if (!result.ok) return go(screen, result.reason);
     if (result.next === 'map') return go({ name: 'map' }, result.message);
-    if (result.next === 'pickCard' || result.next === 'pickSky') {
+    if (result.next === 'pickCard' || result.next === 'pickSky' || result.next === 'pickReward') {
       return go({ name: 'event', step: result.next }, result.message);
     }
     const node = currentNode(run);
@@ -195,7 +197,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
 
   const onClick = (event: MouseEvent) => {
     const el = (event.target as HTMLElement).closest<HTMLElement>(
-      '[data-action],[data-node],[data-relic],[data-potion-info],[data-reward],[data-boss-relic],[data-deck-index],[data-element],[data-buy-card],[data-buy-relic],[data-buy-potion],[data-buy-sky],[data-sky-index],[data-event-option]',
+      '[data-action],[data-node],[data-relic],[data-potion-info],[data-reward],[data-boss-relic],[data-deck-index],[data-element],[data-buy-card],[data-buy-relic],[data-buy-potion],[data-buy-sky],[data-sky-index],[data-event-option],[data-event-card]',
     );
     if (!el) return;
     const d = el.dataset;
@@ -287,6 +289,11 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
       }
       if (d.skyIndex !== undefined && screen.step === 'pickSky') {
         return afterEvent(pickEventSky(run, Number(d.skyIndex), grimoire));
+      }
+      if (d.eventCard !== undefined && screen.step === 'pickReward') {
+        const result = pickEventReward(run, Number(d.eventCard), grimoire);
+        if (result.ok) playSfx('card');
+        return result.ok ? go({ name: 'map' }, result.message) : afterEvent(result);
       }
       if (d.action === 'leave') return go({ name: 'map' });
       return;
@@ -532,7 +539,7 @@ function renderRest(run: RunState, step: 'choose' | 'pickCard' | 'pickElement' |
   `;
 }
 
-function renderEvent(run: RunState, step: 'choose' | 'pickCard' | 'pickSky', grimoire: Grimoire): string {
+function renderEvent(run: RunState, step: 'choose' | 'pickCard' | 'pickSky' | 'pickReward', grimoire: Grimoire): string {
   const event = currentEvent(run);
   if (!event) {
     return `<p>${esc(t('event.nothingLeft'))}</p><button class="primary-button" data-action="leave">${esc(t('common.continue'))}</button>`;
@@ -550,6 +557,17 @@ function renderEvent(run: RunState, step: 'choose' | 'pickCard' | 'pickSky', gri
     return `
       ${title}
       ${skyList(eventSkyOptions(run), (i) => `data-sky-index="${i}"`)}
+      ${backButton()}
+    `;
+  }
+  if (step === 'pickReward' && pick) {
+    return `
+      ${title}
+      <section class="reward-cards">
+        ${eventCardOptions(run)
+          .map((id, i) => cardFace(getCard(id), 'clear', { attrs: `data-event-card="${i}"`, note: `${ICONS.rare} ${t('reward.rare')}` }))
+          .join('')}
+      </section>
       ${backButton()}
     `;
   }

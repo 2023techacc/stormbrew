@@ -84,6 +84,14 @@ export const RELIC_ICONS: Record<string, string> = {
   windChime: '🎐',
   dewcatcher: '🕸️',
   cloudSeed: '🌱',
+  emberCharm: '🧨',
+  frostCharm: '🧿',
+  kiln: '🪵',
+  sunlitLantern: '🏮',
+  beltPouch: '👝',
+  heartyStew: '🥘',
+  mastersNotes: '📗',
+  goldenScale: '⚖️',
   // Boss relics.
   stormVow: '💓',
   skyAnchor: '⚓',
@@ -109,6 +117,11 @@ export const EVENT_ICONS: Record<string, string> = {
   stormChaser: '🌪️',
   frozenTraveler: '🧊',
   wanderingAlchemist: '🧑‍🔬',
+  oldObservatory: '🔭',
+  frozenLake: '🏞️',
+  lightningForge: '⚒️',
+  skyMerchant: '🎈',
+  stormAltar: '🛐',
 };
 
 /** Card art for now is a single icon; cards without one use their kind's icon. */

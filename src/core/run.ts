@@ -1,15 +1,15 @@
 import { LAST_ACT, getAct } from '../data/acts';
 import { RARE_POOL, REWARD_POOL, STARTER_DECK, getCard } from '../data/cards';
 import { distilledRecipe, essenceId, flaskId } from '../data/distilled';
-import { EVENT_IDS } from '../data/events';
+import { EVENT_IDS, eventInAct } from '../data/events';
 import { RECIPES } from '../data/recipes';
 import { BOSS_RELIC_POOL, RELIC_POOL, STARTING_RELICS, getRelic } from '../data/relics';
 import { SKY_POOL, STARTING_SKY, getSkyCard } from '../data/sky';
 import { t } from '../i18n';
-import { createCombat, potionCapacity } from './combat';
+import { BASE_ELEMENTS, createCombat, potionCapacity } from './combat';
 import { MAP_FLOORS, generateMap, reachableNodes, type MapNode, type MapState } from './map';
 import { Rng } from './rng';
-import type { CombatEvent, CombatState, DeckCard, ElementId } from './types';
+import type { CombatEvent, CombatState, DeckCard, ElementId, RecipeDef } from './types';
 
 export const PLAYER_MAX_HP = 80;
 export const STARTING_GOLD = 50;
@@ -29,6 +29,9 @@ export const RARE_CHANCE = { fight: [0.05, 0.1, 0.15], elite: [0.2, 0.25, 0.3] }
 export const REST_HEAL = 0.3;
 export const HEALING_HERB_HEAL = 6;
 export const LUCKY_COIN_GOLD = 10;
+export const HEARTY_STEW_MAX_HP = 10;
+/** With the Golden Scale, shops charge this much of their price. */
+export const GOLDEN_SCALE_PRICE = 0.8;
 export const GOLD_REWARD = { fight: [12, 18], elite: [28, 35], boss: [60, 75] } as const;
 /** Fights in later acts give this much more gold per act (elites twice as much). */
 export const ACT_GOLD_BONUS = 4;
@@ -47,10 +50,23 @@ export const SHOP_PRICES = {
 export const MIN_SKY = 2;
 /** Chance that a won fight also drops a potion. */
 export const POTION_DROP_CHANCE = 0.3;
-/** Potions that can drop or be sold: the two-element base recipes. */
-export const POTION_POOL = RECIPES.filter(
-  (r) => r.elements.length === 2 && r.elements.every((e) => ['fire', 'water', 'earth', 'air'].includes(e)),
-).map((r) => r.id);
+/**
+ * The act a recipe starts to drop and be sold as a potion in: brews of two
+ * base elements from Act 1, brews with Spark or Frost from Act 2, and
+ * three-element brews in Act 3.
+ */
+function potionAct(recipe: RecipeDef): number {
+  if (recipe.elements.length >= 3) return 3;
+  return recipe.elements.every((e) => BASE_ELEMENTS.includes(e)) ? 1 : 2;
+}
+
+/** Potions that can drop, be sold or be found in this act. */
+export function potionPool(act: number): string[] {
+  return RECIPES.filter((r) => potionAct(r) <= act).map((r) => r.id);
+}
+
+/** Act 1's potions: the two-base-element recipes. */
+export const POTION_POOL = potionPool(1);
 export const INFUSE_ELEMENTS: readonly ElementId[] = ['fire', 'water', 'earth', 'air'];
 
 export type RunStatus = 'playing' | 'won' | 'lost';
@@ -71,6 +87,8 @@ export interface EventState {
   pending?: string;
   /** The weather cards offered by the pending option, once rolled. */
   skyChoices?: string[];
+  /** The cards offered by the pending option (rare cards to choose from), once rolled. */
+  cardChoices?: string[];
   /** The event started a fight (with an elite's rewards). */
   fight?: boolean;
 }
@@ -139,7 +157,7 @@ export type RunScreen =
   | { name: 'bossRelic'; rewards: FightRewards }
   | { name: 'rest'; step: 'choose' | 'pickCard' | 'pickElement' | 'pickSky'; deckIndex?: number }
   | { name: 'shop'; removing: boolean }
-  | { name: 'event'; step: 'choose' | 'pickCard' | 'pickSky' }
+  | { name: 'event'; step: 'choose' | 'pickCard' | 'pickSky' | 'pickReward' }
   | { name: 'over' };
 
 export function createRun(seed: number): RunState {
@@ -190,11 +208,15 @@ export function enterNode(run: RunState, id: string): MapNode {
   return node;
 }
 
-/** A random event not seen this run (once all have been seen, any event). */
+/**
+ * A random event for this act, not seen yet this run (once all of this act's
+ * events have been seen, any of them again).
+ */
 function pickEvent(run: RunState): string {
-  const unseen = EVENT_IDS.filter((id) => !run.seenEvents.includes(id));
-  if (unseen.length === 0) run.seenEvents = [];
-  const id = withRng(run, (rng) => rng.pick(unseen.length ? unseen : EVENT_IDS));
+  const pool = EVENT_IDS.filter((id) => eventInAct(id, run.act));
+  const unseen = pool.filter((id) => !run.seenEvents.includes(id));
+  if (unseen.length === 0) run.seenEvents = run.seenEvents.filter((id) => !pool.includes(id));
+  const id = withRng(run, (rng) => rng.pick(unseen.length ? unseen : pool));
   run.seenEvents.push(id);
   return id;
 }
@@ -275,7 +297,7 @@ export function finishFight(
     rewards.bossRelics = bossRelicChoices(run);
     return rewards;
   }
-  const potion = withRng(run, (rng) => (rng.next() < POTION_DROP_CHANCE ? rng.pick(POTION_POOL) : undefined));
+  const potion = withRng(run, (rng) => (rng.next() < POTION_DROP_CHANCE ? rng.pick(potionPool(run.act)) : undefined));
   if (potion && run.potions.length < potionCapacity(run.relics)) {
     run.potions.push(potion);
     rewards.potion = potion;
@@ -283,7 +305,7 @@ export function finishFight(
   if (elite) {
     const relic = randomRelic(run);
     if (relic) {
-      run.relics.push(relic);
+      gainRelic(run, relic);
       rewards.relic = relic;
     }
   }
@@ -327,7 +349,7 @@ export function bossRelicChoices(run: RunState): string[] {
 /** Takes one of the offered boss relics. */
 export function takeBossRelic(run: RunState, rewards: FightRewards, id: string): void {
   if (!rewards.bossRelics?.includes(id)) throw new Error(`Boss relic ${id} was not offered`);
-  run.relics.push(getRelic(id).id);
+  gainRelic(run, id);
   rewards.relic = id;
   delete rewards.bossRelics;
 }
@@ -387,20 +409,23 @@ function createShop(run: RunState): ShopState {
     const cards = rng.shuffle(REWARD_POOL).slice(0, 2);
     const rare = rng.pick(RARE_POOL);
     const relics = rng.shuffle(RELIC_POOL.filter((id) => !run.relics.includes(id))).slice(0, 2);
-    const potion = rng.pick(POTION_POOL);
+    const potion = rng.pick(potionPool(run.act));
     const sky = rng.pick(SKY_POOL);
+    const item = (id: string, range: readonly [number, number]) => ({ id, price: shopPrice(run, rng.int(...range)), sold: false });
     return {
-      cards: [
-        ...cards.map((id) => ({ id, price: rng.int(...SHOP_PRICES.card), sold: false })),
-        { id: rare, price: rng.int(...SHOP_PRICES.rare), sold: false },
-      ],
-      relics: relics.map((id) => ({ id, price: rng.int(...SHOP_PRICES.relic), sold: false })),
-      potions: [{ id: potion, price: rng.int(...SHOP_PRICES.potion), sold: false }],
-      sky: [{ id: sky, price: rng.int(...SHOP_PRICES.sky), sold: false }],
-      removalPrice: SHOP_PRICES.removal,
+      cards: [...cards.map((id) => item(id, SHOP_PRICES.card)), item(rare, SHOP_PRICES.rare)],
+      relics: relics.map((id) => item(id, SHOP_PRICES.relic)),
+      potions: [item(potion, SHOP_PRICES.potion)],
+      sky: [item(sky, SHOP_PRICES.sky)],
+      removalPrice: shopPrice(run, SHOP_PRICES.removal),
       removalUsed: false,
     };
   });
+}
+
+/** A shop price, after the Golden Scale's discount. */
+function shopPrice(run: RunState, price: number): number {
+  return run.relics.includes('goldenScale') ? Math.round(price * GOLDEN_SCALE_PRICE) : price;
 }
 
 export type ShopResult = { ok: true } | { ok: false; reason: string };
@@ -428,7 +453,7 @@ export function buyRelic(run: RunState, index: number): ShopResult {
   const paid = pay(run, item.price);
   if (!paid.ok) return paid;
   item.sold = true;
-  run.relics.push(getRelic(item.id).id);
+  gainRelic(run, item.id);
   return paid;
 }
 
@@ -481,6 +506,26 @@ export function heal(run: RunState, amount: number): number {
   const healed = Math.min(amount, run.maxHp - run.hp);
   run.hp += healed;
   return healed;
+}
+
+/**
+ * Adds a relic to the run. A few do something the moment you get them: the
+ * Hearty Stew raises max HP, and the Golden Scale also discounts the shop
+ * you're in.
+ */
+export function gainRelic(run: RunState, id: string): void {
+  run.relics.push(getRelic(id).id);
+  if (id === 'heartyStew') {
+    run.maxHp += HEARTY_STEW_MAX_HP;
+    run.hp += HEARTY_STEW_MAX_HP;
+  }
+  if (id === 'goldenScale' && run.shop) {
+    const shop = run.shop;
+    for (const item of [...shop.cards, ...shop.relics, ...shop.potions, ...shop.sky]) {
+      if (!item.sold) item.price = shopPrice(run, item.price);
+    }
+    shop.removalPrice = shopPrice(run, shop.removalPrice);
+  }
 }
 
 /** Relics the player doesn't have yet. */

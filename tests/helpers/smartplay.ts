@@ -326,6 +326,10 @@ function outcomeValue(run: RunState, o: EventOutcome): number {
       return 1;
     case 'eliteFight':
       return health > 0.7 ? 12 : -20;
+    case 'rareCard':
+      return 10;
+    case 'removeCard':
+      return 6;
     default:
       return 3;
   }
@@ -336,9 +340,13 @@ const smartEventPolicy = (run: RunState, rng: Rng): EventPolicy => ({
     const value = (o: (typeof options)[number]) => o.outcomes.reduce((sum, x) => sum + outcomeValue(run, x), 0) + rng.next();
     return options.reduce((best, o) => (value(o) > value(best) ? o : best));
   },
-  // Trade away or infuse the weakest cards first: Strikes and Defends.
+  // Trade away, remove or infuse the weakest cards first: Strikes and Defends.
   card: (indices) => indices.find((i) => ['strike', 'defend'].includes(run.deck[i]?.id ?? '')) ?? rng.pick(indices),
   sky: (ids) => rng.int(0, ids.length - 1),
+  reward: (ids) => {
+    const values = ids.map((id) => cardValue(getCard(id)) + rng.next() * 2);
+    return values.indexOf(Math.max(...values));
+  },
 });
 
 /** Picks where to go next: rest when hurt, elites when healthy, shops with gold. */

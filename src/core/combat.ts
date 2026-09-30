@@ -17,6 +17,7 @@ import type {
   EnemyState,
   LastingId,
   RecipeDef,
+  StatusId,
   UnitRef,
   WeatherId,
 } from './types';
@@ -42,9 +43,10 @@ export const WEAK_MULTIPLIER = 0.75;
 
 export const BASE_ELEMENTS: readonly ElementId[] = ['fire', 'water', 'earth', 'air'];
 export const WEATHERVANE_BLOCK = 3;
-/** Potions you can carry (the Bottomless Flask adds more). */
+/** Potions you can carry (the Bottomless Flask and the Belt Pouch add more). */
 export const MAX_POTIONS = 3;
 export const BOTTOMLESS_FLASK_POTIONS = 2;
+export const BELT_POUCH_POTIONS = 1;
 /** Boss relics that give 1 extra energy each turn (each with a catch). */
 export const ENERGY_RELICS: readonly string[] = ['stormVow', 'skyAnchor', 'philosophersStone'];
 export const SNOW_GLOBE_BLOCK = 3;
@@ -80,7 +82,16 @@ export function hasRelic(state: CombatState, relic: string): boolean {
 
 /** How many potions fit in the belt with these relics. */
 export function potionCapacity(relics: readonly string[]): number {
-  return MAX_POTIONS + (relics.includes('bottomlessFlask') ? BOTTOMLESS_FLASK_POTIONS : 0);
+  return (
+    MAX_POTIONS +
+    (relics.includes('bottomlessFlask') ? BOTTOMLESS_FLASK_POTIONS : 0) +
+    (relics.includes('beltPouch') ? BELT_POUCH_POTIONS : 0)
+  );
+}
+
+/** The Ember Charm adds 1 to every Burn you apply, the Frost Charm to every Weak. */
+function charmBonus(state: CombatState, status: StatusId): number {
+  return hasRelic(state, status === 'burn' ? 'emberCharm' : 'frostCharm') ? 1 : 0;
 }
 
 /** How many copies of a Lasting card have been played this fight. */
@@ -447,12 +458,18 @@ function startPlayerTurn(state: CombatState): CombatEvent[] {
     state.player.energy += 1;
     events.push({ type: 'relic', relic: 'rainBarrel' });
   }
+  if (weather === 'heatwave' && hasRelic(state, 'kiln')) {
+    state.player.energy += 1;
+    events.push({ type: 'relic', relic: 'kiln' });
+  }
   if (weather === 'snow' && hasRelic(state, 'snowGlobe')) {
     gainBlock(state.player, SNOW_GLOBE_BLOCK);
     events.push({ type: 'relic', relic: 'snowGlobe' });
     events.push({ type: 'block', target: { side: 'player' }, amount: SNOW_GLOBE_BLOCK });
   }
-  events.push(...drawCards(state, HAND_SIZE));
+  const lantern = weather === 'clear' && hasRelic(state, 'sunlitLantern');
+  if (lantern) events.push({ type: 'relic', relic: 'sunlitLantern' });
+  events.push(...drawCards(state, HAND_SIZE + (lantern ? 1 : 0)));
   return events;
 }
 
@@ -531,13 +548,15 @@ function applyEffects(state: CombatState, effects: readonly Effect[], target?: n
         }
         updateStatus(state);
         break;
-      case 'applyStatus':
+      case 'applyStatus': {
+        const amount = effect.amount + charmBonus(state, effect.status);
         for (const index of targets(effect.all)) {
           const enemy = state.enemies[index] as EnemyState;
-          enemy.statuses[effect.status] = (enemy.statuses[effect.status] ?? 0) + effect.amount;
-          events.push({ type: 'status', target: { side: 'enemy', index }, status: effect.status, amount: effect.amount });
+          enemy.statuses[effect.status] = (enemy.statuses[effect.status] ?? 0) + amount;
+          events.push({ type: 'status', target: { side: 'enemy', index }, status: effect.status, amount });
         }
         break;
+      }
       case 'block':
         gainBlock(state.player, effect.amount);
         events.push({ type: 'block', target: { side: 'player' }, amount: effect.amount });
@@ -678,7 +697,7 @@ function brew(state: CombatState, target?: number): CombatEvent[] {
     state.bottleNext -= 1;
     state.potions.push(recipe.id);
     event.bottled = true;
-    return [...events, ...afterBrew(state)];
+    return [...events, ...afterBrew(state, recipe)];
   }
   events.push(...applyEffects(state, recipe.effects, target));
   // Catalyst: the brew works a second time.
@@ -686,13 +705,20 @@ function brew(state: CombatState, target?: number): CombatEvent[] {
     state.doubleNext -= 1;
     events.push(...applyEffects(state, recipe.effects, target));
   }
-  return [...events, ...afterBrew(state)];
+  return [...events, ...afterBrew(state, recipe)];
 }
 
-/** What every brew of yours also does: Steady Hands gives Block, the Grand Grimoire draws a card. */
-function afterBrew(state: CombatState): CombatEvent[] {
+/**
+ * What every brew of yours also does: Master's Notes give energy for a big
+ * recipe, Steady Hands give Block, the Grand Grimoire draws a card.
+ */
+function afterBrew(state: CombatState, recipe: RecipeDef): CombatEvent[] {
   if (state.status !== 'playing') return [];
   const events: CombatEvent[] = [];
+  if (recipe.elements.length >= 3 && hasRelic(state, 'mastersNotes')) {
+    state.player.energy += 1;
+    events.push({ type: 'relic', relic: 'mastersNotes' });
+  }
   const hands = lastingCount(state, 'steadyHands');
   if (hands > 0) {
     const amount = STEADY_HANDS_BLOCK * hands;
