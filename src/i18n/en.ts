@@ -15,7 +15,7 @@ export const en = {
   'common.quit': 'Quit',
   // Between a name and its description, e.g. "Kiln: …".
   'common.colon': ': ',
-  /** Lists: "A, B and C" (see listOf). */
+  // Lists: "A, B and C" (see listOf).
   'list.sep': ', ',
   'list.and': ' and ',
 

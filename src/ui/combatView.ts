@@ -530,8 +530,8 @@ const CJK = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uff00-\uffef]/;
 /**
  * Roughly how wide a name's longest word is in bold text, in em. Card names
  * shrink to fit it (see .card-name) instead of breaking inside the word.
- * Japanese and Chinese names can wrap between any two characters, so they
- * only need to fit on two lines.
+ * Japanese and Chinese names can wrap inside a word (Japanese between
+ * phrases, see .card-name), so they only need to fit on two lines.
  */
 function longestWordEm(name: string): number {
   const width = (ch: string) =>
