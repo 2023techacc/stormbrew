@@ -822,9 +822,20 @@ button {
 /* A row of buttons side by side (e.g. the shop's "Remove a card" and "Leave"). */
 .button-row {
   display: flex;
-  flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
+  width: 100%;
+}
+
+/* A long label wraps inside its button, so the buttons stay on one row. */
+.button-row .secondary-button {
+  flex: 0 1 auto;
+  padding: 4px 20px;
+  line-height: 1.2;
+}
+
+.button-row .primary-button {
+  flex: none;
 }
 
 .run-header {
@@ -1138,6 +1149,19 @@ button {
 }
 
 .shop-relics {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4px + var(--roomy) * 0.025);
+  width: 100%;
+}
+
+/* The shop's relics, potion and weather card. The shop is the phone's height
+   (see .fills): when long texts need more room than a small phone has, this
+   list scrolls and the buttons below it stay on screen. */
+.shop-stock {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: calc(4px + var(--roomy) * 0.025);

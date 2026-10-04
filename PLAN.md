@@ -480,8 +480,11 @@ Part 2 of Milestone 10 added rare cards, relics, recipes, potions and events
   navigation bar. A fight is exactly that tall; on shorter phones the enemies,
   cards, cauldron and gaps shrink smoothly (full size from 760px of height,
   compact at 600px), and a long fight message scrolls inside its own area. The
-  map stretches or squeezes its floors to fill the screen. (Checked from
-  360×600 to 412×800, in both languages.)
+  map stretches or squeezes its floors to fill the screen. A shop is exactly
+  the phone's height too: its two buttons share a row, and if its relics,
+  potion and weather card ever need more room than a small phone has, that list
+  scrolls. (Checked from 360×600 to 412×800 in every language, including the
+  shop with the longest texts each language has.)
 - **Auto-save** after every action, because the phone may close the app at any
   time. Leaving mid-fight and coming back must work.
 - Runs in 20–40 minutes, and a single fight takes a few minutes.
