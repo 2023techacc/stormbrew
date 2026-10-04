@@ -1,22 +1,39 @@
 import { en, type MessageKey } from './en';
+import { es } from './es';
+import { ja } from './ja';
 import { ko } from './ko';
+import { zh } from './zh';
 
 /**
  * Languages. Every player-facing text goes through t() (UI and messages) or
  * the helpers in ./content.ts (names and texts of cards, enemies…), so adding
- * a language means adding its files here. English is the default and the
- * fallback for anything missing.
+ * a language means adding its message file here and its content table in
+ * ./content.ts. English is the default and the fallback for anything missing.
  */
-export type Lang = 'en' | 'ko';
+export type Lang = 'en' | 'ko' | 'ja' | 'zh' | 'es';
 
-export const LANGUAGES: readonly { id: Lang; name: string }[] = [
-  { id: 'en', name: 'English' },
-  { id: 'ko', name: '한국어' },
+/**
+ * The languages, in the order Settings lists them, each with its own name and
+ * the tag for the page's `lang` attribute (it picks the right fonts and line
+ * breaking, e.g. Simplified Chinese rather than Japanese forms of shared
+ * characters).
+ */
+export const LANGUAGES: readonly { id: Lang; name: string; tag: string }[] = [
+  { id: 'en', name: 'English', tag: 'en' },
+  { id: 'ko', name: '한국어', tag: 'ko' },
+  { id: 'ja', name: '日本語', tag: 'ja' },
+  { id: 'zh', name: '简体中文', tag: 'zh-CN' },
+  { id: 'es', name: 'Español', tag: 'es' },
 ];
 
 export type { MessageKey };
 
-const CATALOGS: Record<Lang, Record<MessageKey, string>> = { en, ko };
+const CATALOGS: Record<Lang, Record<MessageKey, string>> = { en, ko, ja, zh, es };
+
+/** The `lang` attribute value for a language. */
+export function langTag(lang: Lang): string {
+  return LANGUAGES.find((l) => l.id === lang)?.tag ?? lang;
+}
 
 let current: Lang = 'en';
 
@@ -74,12 +91,14 @@ const DIGIT_RIEUL = [false, true, false, false, false, false, false, true, true,
 /**
  * The Korean particle that fits after a word: it depends on whether the
  * word's last syllable ends in a consonant (받침). Emoji, spaces and
- * punctuation at the end are skipped.
+ * punctuation at the end are skipped, and so is a closing parenthetical:
+ * "장마 (비, 5턴)" takes the particle that fits 장마, as Korean spelling
+ * rules ask.
  */
 export function josa(word: string, particle: string): string {
   const pair = PARTICLES[particle];
   if (!pair) return particle;
-  const sound = lastSound(word);
+  const sound = lastSound(word.replace(/\s*\([^()]*\)\s*$/, '') || word);
   if (pair[0] === '으로') return sound.batchim && !sound.rieul ? '으로' : '로';
   return sound.batchim ? pair[0] : pair[1];
 }
@@ -100,7 +119,8 @@ function lastSound(word: string): { batchim: boolean; rieul: boolean } {
   return { batchim: false, rieul: false };
 }
 
-/** Joins names into a list: "A and B" / "A, B". */
+/** Joins names into a list in the current language: "A, B and C", "A、B和C"… */
 export function listOf(items: readonly string[]): string {
-  return items.join(t('list.and'));
+  if (items.length <= 1) return items.join('');
+  return items.slice(0, -1).join(t('list.sep')) + t('list.and') + items.at(-1);
 }

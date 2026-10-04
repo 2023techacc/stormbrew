@@ -135,13 +135,14 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
               ? renderEvent(run, screen.step, grimoire)
               : renderShop(run, screen.name === 'shop' && screen.removing);
     const scrollY = window.scrollY;
-    // Picking a card from the deck: the deck scrolls inside the screen, which is exactly the phone's height.
-    const picking =
+    // Picking a card from the deck, or shopping: the screen is exactly the phone's height, and the deck (or the
+    // shop's stock) scrolls inside it when it doesn't fit.
+    const fills =
       (screen.name === 'rest' && screen.step === 'pickCard') ||
       (screen.name === 'event' && screen.step === 'pickCard') ||
-      (screen.name === 'shop' && screen.removing);
+      screen.name === 'shop';
     root.innerHTML = `
-      <main class="screen run-screen ${entering ? 'enter' : ''} ${picking ? 'fills' : ''}">
+      <main class="screen run-screen ${entering ? 'enter' : ''} ${fills ? 'fills' : ''}">
         ${renderHeader(run)}
         <p class="run-message" aria-live="polite">${esc(message)}</p>
         ${body}
@@ -213,7 +214,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
     if (d.action === 'sky') return ((showSky = true), render());
     if (d.action === 'close') return ((showDeck = false), (showSky = false), render());
     if (d.relic) {
-      return go(screen, `${RELIC_ICONS[d.relic] ?? ''} ${relicName(d.relic)}: ${relicText(d.relic)}`);
+      return go(screen, `${RELIC_ICONS[d.relic] ?? ''} ${relicName(d.relic)}${t('common.colon')}${relicText(d.relic)}`);
     }
     if (d.potionInfo) {
       const text = potionText(d.potionInfo);
@@ -447,7 +448,7 @@ function renderReward(rewards: FightRewards): string {
     <p>+${rewards.gold} ${ICONS.gold}${rewards.healed > 0 ? ` · ${esc(t('reward.herb', { n: rewards.healed }))}` : ''}</p>
     ${
       relic
-        ? `<p class="relic-found">${RELIC_ICONS[relic] ?? ''} <strong>${esc(relicName(relic))}</strong>: ${esc(relicText(relic))}</p>`
+        ? `<p class="relic-found">${RELIC_ICONS[relic] ?? ''} <strong>${esc(relicName(relic))}</strong>${esc(t('common.colon'))}${esc(relicText(relic))}</p>`
         : ''
     }
     ${rewards.potion ? `<p class="relic-found">${ICONS.potion} ${esc(t('reward.potion', { name: recipeName(rewards.potion) }))}</p>` : ''}
@@ -621,39 +622,41 @@ function renderShop(run: RunState, removing: boolean): string {
         )
         .join('')}
     </section>
-    <section class="shop-relics">
-      ${shop.relics
-        .map((item, i) => {
-          return `<button class="shop-relic ${item.sold ? 'sold' : ''}" data-buy-relic="${i}">
-            <span class="relic-icon">${RELIC_ICONS[item.id] ?? '❔'}</span>
-            <span class="recipe-body"><strong>${esc(relicName(item.id))}</strong> ${esc(relicText(item.id))}</span>
-            ${price(item.price, item.sold)}
-          </button>`;
-        })
-        .join('')}
-    </section>
-    <section class="shop-relics">
-      ${shop.potions
-        .map((item, i) => {
-          return `<button class="shop-relic ${item.sold ? 'sold' : ''}" data-buy-potion="${i}">
-            <span class="relic-icon">${ICONS.potion}</span>
-            <span class="recipe-body"><strong>${esc(t('shop.potion', { name: recipeName(item.id) }))}</strong> ${esc(potionText(item.id))}</span>
-            ${price(item.price, item.sold)}
-          </button>`;
-        })
-        .join('')}
-    </section>
-    <section class="shop-relics">
-      ${shop.sky
-        .map((item, i) => {
-          const card = getSkyCard(item.id);
-          return `<button class="shop-relic ${item.sold ? 'sold' : ''}" data-buy-sky="${i}">
-            <span class="relic-icon">${WEATHERS[card.weather].icon}</span>
-            <span class="recipe-body"><strong>${esc(skyName(item.id))}</strong> ${esc(t('shop.weatherCard', { text: skyText(item.id) }))}</span>
-            ${price(item.price, item.sold)}
-          </button>`;
-        })
-        .join('')}
+    <section class="shop-stock">
+      <section class="shop-relics">
+        ${shop.relics
+          .map((item, i) => {
+            return `<button class="shop-relic ${item.sold ? 'sold' : ''}" data-buy-relic="${i}">
+              <span class="relic-icon">${RELIC_ICONS[item.id] ?? '❔'}</span>
+              <span class="recipe-body"><strong>${esc(relicName(item.id))}</strong> ${esc(relicText(item.id))}</span>
+              ${price(item.price, item.sold)}
+            </button>`;
+          })
+          .join('')}
+      </section>
+      <section class="shop-relics">
+        ${shop.potions
+          .map((item, i) => {
+            return `<button class="shop-relic ${item.sold ? 'sold' : ''}" data-buy-potion="${i}">
+              <span class="relic-icon">${ICONS.potion}</span>
+              <span class="recipe-body"><strong>${esc(t('shop.potion', { name: recipeName(item.id) }))}</strong> ${esc(potionText(item.id))}</span>
+              ${price(item.price, item.sold)}
+            </button>`;
+          })
+          .join('')}
+      </section>
+      <section class="shop-relics">
+        ${shop.sky
+          .map((item, i) => {
+            const card = getSkyCard(item.id);
+            return `<button class="shop-relic ${item.sold ? 'sold' : ''}" data-buy-sky="${i}">
+              <span class="relic-icon">${WEATHERS[card.weather].icon}</span>
+              <span class="recipe-body"><strong>${esc(skyName(item.id))}</strong> ${esc(t('shop.weatherCard', { text: skyText(item.id) }))}</span>
+              ${price(item.price, item.sold)}
+            </button>`;
+          })
+          .join('')}
+      </section>
     </section>
     <span class="button-row">
       <button class="secondary-button" data-action="remove" ${shop.removalUsed ? 'disabled' : ''}>

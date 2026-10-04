@@ -126,8 +126,8 @@ export function showSettings(root: HTMLElement, actions: SettingsActions): void 
         <h2>${ICONS.settings} ${esc(t('settings.title'))}</h2>
         <section class="settings-group" aria-label="${esc(t('settings.language'))}">
           <h3>${esc(t('settings.language'))}</h3>
-          <span class="choice-row">
-            ${LANGUAGES.map((l) => choice(l.id === getLanguage(), `data-lang="${l.id}"`, l.name, l.id)).join('')}
+          <span class="choice-row languages">
+            ${LANGUAGES.map((l) => choice(l.id === getLanguage(), `data-lang="${l.id}"`, l.name, l.tag)).join('')}
           </span>
         </section>
         ${TOGGLES.map(

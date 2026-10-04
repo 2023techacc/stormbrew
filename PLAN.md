@@ -480,8 +480,11 @@ Part 2 of Milestone 10 added rare cards, relics, recipes, potions and events
   navigation bar. A fight is exactly that tall; on shorter phones the enemies,
   cards, cauldron and gaps shrink smoothly (full size from 760px of height,
   compact at 600px), and a long fight message scrolls inside its own area. The
-  map stretches or squeezes its floors to fill the screen. (Checked from
-  360×600 to 412×800, in both languages.)
+  map stretches or squeezes its floors to fill the screen. A shop is exactly
+  the phone's height too: its two buttons share a row, and if its relics,
+  potion and weather card ever need more room than a small phone has, that list
+  scrolls. (Checked from 360×600 to 412×800 in every language, including the
+  shop with the longest texts each language has.)
 - **Auto-save** after every action, because the phone may close the app at any
   time. Leaving mid-fight and coming back must work.
 - Runs in 20–40 minutes, and a single fight takes a few minutes.
@@ -500,17 +503,33 @@ Part 2 of Milestone 10 added rare cards, relics, recipes, potions and events
   overall later on, with a consistent style.
 
 ### 6.4 Languages
-- **English** (the default) and **Korean**, chosen on the title screen under
-  ⚙️ Settings and saved on the device.
+- **English** (the default), **Korean**, **Japanese**, **Simplified Chinese**
+  and **Spanish**, chosen on the title screen under ⚙️ Settings and saved on
+  the device. The page's `lang` tag follows the language (`zh-CN` for
+  Chinese), so phones pick the right fonts and line-breaking rules.
 - Every text goes through `src/i18n`: `t()` for interface messages (the key
   list is `src/i18n/en.ts`; the type checker makes sure every language has
   every key), and helpers like `cardName()` for game content (English lives in
-  `src/data`, Korean in `src/i18n/ko-content.ts`, and a test checks nothing is
-  missing).
+  `src/data`, the other languages in content tables like
+  `src/i18n/ja-content.ts`). Tests check that every table has all the content
+  and nothing left over, and that translations use the same `{placeholders}`
+  as English (and keep `{damage}` wherever English shows damage).
+- Lists, colons and exclamations follow each language too (`、` and `：` in
+  Japanese and Chinese, `¡…!` in Spanish), so even text put together in code
+  goes through `t()`.
 - Korean particles (이/가, 을/를, 은/는, 과/와, 으로/로) are picked to fit the
   word before them, so messages read naturally with any card or enemy name.
   Korean text wraps between words, not inside them.
-- Adding a language means adding its message file and content table.
+- Cards are narrow (68px), so card texts are short in every language:
+  - Japanese card names wrap between phrases (砂嵐の|フラスコ). Recipe names
+    are at most four characters so a Flask's name fits on two lines.
+  - Chinese text can wrap between any two characters.
+  - Spanish card texts drop the verb from Block when a card does more than
+    one thing («Clima: Nieve. 7 de Bloqueo.»). Long recipes have a shorter
+    card text for their Flask, as in English.
+  - Every card fits at 360×600 in every language (checked in a browser).
+- Adding a language means adding its message file and content table, and
+  listing them in `src/i18n/index.ts` and `src/i18n/content.ts`.
 
 ### 6.5 Feel: sound, vibration and motion (Milestone 9)
 - **Sound**: short effects made in code with the Web Audio API (no audio
@@ -610,7 +629,7 @@ Important choices:
 | 6 | **Discovery & potions** ✅ | Grimoire (persistent), Bottling, potions, auto-save and resume |
 | 7 | **Identity** (A–D done, see §11) | The features that make Stormbrew play differently from *Slay the Spire*: Exposure, enemy cauldrons, the Sky Deck, Distilling |
 | 8 | **MVP content & balance** ✅ | MVP content targets reached (§5), events, a balance pass with a computer player and `WEATHER_INTERVAL` tested (§12). Playtesting on real phones is still to do |
-| 9 | **Polish** (in progress) | Languages (English and Korean) ✅. Round 1 ✅: animations, sound, vibration feedback, weather particles, app icon and splash screen (§6.5). Round 2 ✅: every screen fits the phone without scrolling (§6.2), fewer vibrations. Later: new enemy and card art (§6.3). Next rounds follow feedback from playing on a phone |
+| 9 | **Polish** (in progress) | Languages (English, Korean, Japanese, Simplified Chinese and Spanish) ✅. Round 1 ✅: animations, sound, vibration feedback, weather particles, app icon and splash screen (§6.5). Round 2 ✅: every screen fits the phone without scrolling (§6.2), fewer vibrations. Later: new enemy and card art (§6.3). Next rounds follow feedback from playing on a phone |
 | 10 | **Expansion** (in progress) | Acts 2–3 with their own enemies, elites and bosses, and boss relics ✅ (§5.6). Rare and Lasting cards, relics, recipes, potions by act and events ✅ (§5.7). Later: Fog/Gale/Eclipse, a second character, ascension levels, iOS/desktop builds |
 
 Milestones 1–3 prove the game's core idea. If combat with weather and brewing
@@ -637,7 +656,7 @@ is fun in a single fight on a phone, the rest is adding content.
 | Shops | 2 common cards (40–55 gold) and 1 rare (70–85), 2 relics (110–140), a potion, a weather card and one card removal (60) per visit |
 | Crowded hands | Cards keep their size and overlap instead of shrinking |
 | Scope | One character (the Stormbrewer) for the MVP |
-| Languages | English (default) and Korean, chosen in Settings (§6.4) |
+| Languages | English (default), Korean, Japanese, Simplified Chinese and Spanish, chosen in Settings (§6.4) |
 | Run length | Three acts of 10 floors and a boss; a full heal and a choice of boss relics between acts (§5.6). The player has 80 max HP |
 | Releases | Every version is tagged (`vX.Y.Z`) and published as a GitHub Release with the APK; test builds share one signing key so updates keep your progress |
 | Sound | Made in code (Web Audio), no audio files; sound, vibration and weather effects each have an on/off setting (§6.5) |
