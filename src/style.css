@@ -34,6 +34,21 @@
   word-break: keep-all;
 }
 
+/* Japanese: no line starting with a small kana or a closing mark. */
+:lang(ja) {
+  line-break: strict;
+}
+
+/* Japanese titles and short texts wrap between phrases rather than inside words. */
+:is(h1, h2, h3, p):lang(ja) {
+  word-break: auto-phrase;
+}
+
+/* No paragraph ends with a lone word (or a lone kana) on its last line. */
+body {
+  text-wrap: pretty;
+}
+
 html {
   background: var(--bg);
 }
@@ -183,6 +198,12 @@ button {
   border-radius: 12px;
   background: rgb(0 0 0 / 0.25);
   font-size: 1rem;
+}
+
+/* Five languages: three to a row on a phone. */
+.choice-row.languages .choice-button {
+  min-width: 96px;
+  padding: 8px 12px;
 }
 
 .choice-button.selected {
@@ -465,6 +486,13 @@ button {
   line-height: 1.1;
   text-align: center;
   overflow-wrap: anywhere;
+  /* Even lines keep a long first line clear of the corner badges. */
+  text-wrap: balance;
+}
+
+/* A Japanese name wraps between phrases (砂嵐の|フラスコ), not inside a word. */
+.card-name:lang(ja) {
+  word-break: auto-phrase;
 }
 
 .card-icon {

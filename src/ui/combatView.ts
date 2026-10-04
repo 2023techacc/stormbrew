@@ -225,7 +225,7 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       : alembicGamble(state, brew.recipe)
         ? t('combat.alembicBrew')
         : known(brew.recipe.id)
-          ? `${recipeName(brew.recipe.id)}: ${plainText(recipeItem(brew.recipe.id), state.weather.current, !!state.player.statuses.weak)}`
+          ? `${recipeName(brew.recipe.id)}${t('common.colon')}${plainText(recipeItem(brew.recipe.id), state.weather.current, !!state.player.statuses.weak)}`
           : t('combat.unknownBrew');
     const brewNote = brew ? `${t(overflow ? 'combat.overflowBrews' : 'combat.brews', { what })} ` : '';
     hint =
@@ -282,7 +282,7 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
     else if (el.dataset.action === 'lasting' && el.dataset.lasting) {
       const def = getCard(el.dataset.lasting);
       selectedUid = null;
-      hint = `${cardIcon(def)} ${cardName(def)}: ${plainText(cardItem(def), state.weather.current)}`;
+      hint = `${cardIcon(def)} ${cardName(def)}${t('common.colon')}${plainText(cardItem(def), state.weather.current)}`;
       render();
     }
     else if (el.dataset.action === 'recipes' || el.dataset.action === 'cards') {
@@ -448,7 +448,7 @@ function renderEnemy(
         ${esc(name)}
         ${
           weathered.length
-            ? `<span class="weathered" title="${esc(t('combat.weathered', { weathers: weathered.map(weatherName).join(', ') }))}">${weathered.map((w) => WEATHERS[w].icon).join('')}</span>`
+            ? `<span class="weathered" title="${esc(t('combat.weathered', { weathers: weathered.map(weatherName).join(t('list.sep')) }))}">${weathered.map((w) => WEATHERS[w].icon).join('')}</span>`
             : ''
         }
         ${isSheltered(enemy) ? `<span class="weathered" title="${esc(t('combat.sheltered'))}">${ICONS.cover}</span>` : ''}
@@ -524,24 +524,36 @@ function renderCard(state: CombatState, card: CardInstance, selected: boolean, d
   });
 }
 
+/** Japanese kana, Chinese characters and full-width forms: text that can break between any two characters. */
+const CJK = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uff00-\uffef]/;
+
 /**
  * Roughly how wide a name's longest word is in bold text, in em. Card names
  * shrink to fit it (see .card-name) instead of breaking inside the word.
+ * Japanese and Chinese names can wrap between any two characters, so they
+ * only need to fit on two lines.
  */
 function longestWordEm(name: string): number {
   const width = (ch: string) =>
-    /[\u3131-\uD7A3]/.test(ch)
-      ? 0.95
-      : /[iljI.,'!]/.test(ch)
-        ? 0.32
-        : /[ftr]/.test(ch)
-          ? 0.45
-          : /[mwMW]/.test(ch)
-            ? 0.95
-            : /[A-Z]/.test(ch)
-              ? 0.72
-              : 0.62;
-  return Math.max(...name.split(/\s+/).map((word) => [...word].reduce((sum, ch) => sum + width(ch), 0) * 1.2));
+    CJK.test(ch)
+      ? 1
+      : /[\u3131-\uD7A3]/.test(ch)
+        ? 0.95
+        : /[iljI.,'!]/.test(ch)
+          ? 0.32
+          : /[ftr]/.test(ch)
+            ? 0.45
+            : /[mwMW]/.test(ch)
+              ? 0.95
+              : /[A-Z]/.test(ch)
+                ? 0.72
+                : 0.62;
+  return Math.max(
+    ...name.split(/\s+/).map((word) => {
+      const em = [...word].reduce((sum, ch) => sum + width(ch), 0) * 1.2;
+      return CJK.test(word) ? Math.max(1.2, em / 2) : em;
+    }),
+  );
 }
 
 /** A card as a button. Also used on the map screens (rewards, shop, deck). */
@@ -692,7 +704,7 @@ function renderRecipeBook(state: CombatState, known: (recipeId: string) => boole
       const element = WEATHER_ELEMENTS[w];
       return `${weatherName(w)} ${element ? ELEMENTS[element].icon : ''}`;
     })
-    .join(', ');
+    .join(t('list.sep'));
   const rules = t('recipes.rules', { slots: state.cauldronSlots, catches, sludge: recipeText(SLUDGE.id) });
   return `
     <span class="overlay" data-action="close">
@@ -771,7 +783,7 @@ function describeForecast(state: CombatState): string {
   const { current, forecast } = state.weather;
   const next = forecast[0];
   const turns = turnsUntilChange(state.weather, state.turn);
-  const now = `${weatherName(current)}: ${weatherEffect(current)}`;
+  const now = `${weatherName(current)}${t('common.colon')}${weatherEffect(current)}`;
   const change = hasRelic(state, 'skyAnchor')
     ? ` ${ICONS.anchor} ${t('forecast.anchoredLong')}`
     : next
@@ -792,7 +804,7 @@ function describeSkyCard(id: string): string {
 export function summarizeSky(sky: readonly string[]): string {
   const counts = new Map<string, number>();
   for (const id of sky) counts.set(skyName(id), (counts.get(skyName(id)) ?? 0) + 1);
-  return [...counts].map(([name, n]) => t('sky.count', { n, name })).join(', ');
+  return [...counts].map(([name, n]) => t('sky.count', { n, name })).join(t('list.sep'));
 }
 
 /** A short message about the most important thing that just happened. */
@@ -831,7 +843,7 @@ function describeEvents(state: CombatState, events: CombatEvent[]): string {
       const next = state.weather.forecast[0];
       if (next) messages.push(`${ICONS.sky} ${t('ev.forecast', { sky: describeSkyCard(next) })}`);
     } else if (event.type === 'skyAdded') {
-      const cards = event.cards.map(describeSkyCard).join(', ');
+      const cards = listOf(event.cards.map(describeSkyCard));
       messages.push(`${ICONS.sky} ${t('ev.skyAdded', { enemy: enemy(event.index), cards })}`);
     } else if (event.type === 'enemyBrew') {
       messages.push(
@@ -862,13 +874,13 @@ function describeEvents(state: CombatState, events: CombatEvent[]): string {
     } else if (event.type === 'shatter') {
       messages.push(`${ICONS.shatter} ${t('ev.shatter', { enemy: actingEnemy })}`);
     } else if (event.type === 'relic') {
-      messages.push(`${RELIC_ICONS[event.relic] ?? ''} ${relicName(event.relic)}!`);
+      messages.push(`${RELIC_ICONS[event.relic] ?? ''} ${t('ev.triggered', { name: relicName(event.relic) })}`);
     } else if (event.type === 'lasting') {
       const def = getCard(event.card);
       messages.push(`${cardIcon(def)} ${t('ev.lasting', { name: cardName(def) })}`);
     } else if (event.type === 'lastingEffect') {
       const def = getCard(event.card);
-      messages.push(`${cardIcon(def)} ${cardName(def)}!`);
+      messages.push(`${cardIcon(def)} ${t('ev.triggered', { name: cardName(def) })}`);
     }
   }
   return messages.join(' ');

@@ -7,29 +7,39 @@ import { getEvent } from '../data/events';
 import { getRecipe } from '../data/recipes';
 import { getRelic } from '../data/relics';
 import { getSkyCard } from '../data/sky';
-import { format, getLanguage, t } from './index';
-import { KO_ACTS, KO_CARDS, KO_ENEMIES, KO_EVENTS, KO_MOVES, KO_RECIPES, KO_RELICS, KO_SKY } from './ko-content';
+import { ES_CONTENT } from './es-content';
+import { format, getLanguage, t, type Lang } from './index';
+import { JA_CONTENT } from './ja-content';
+import { KO_CONTENT } from './ko-content';
+import type { ContentTable } from './tables';
+import { ZH_CONTENT } from './zh-content';
 
 /**
  * Names and texts of game content in the current language. English comes
- * from src/data; other languages have their own tables, and anything missing
- * falls back to English.
+ * from src/data; every other language has a content table, and anything
+ * missing from it falls back to English (a test makes sure nothing is).
  */
-const korean = () => getLanguage() === 'ko';
+export const CONTENT: Partial<Record<Lang, ContentTable>> = {
+  ko: KO_CONTENT,
+  ja: JA_CONTENT,
+  zh: ZH_CONTENT,
+  es: ES_CONTENT,
+};
+
+const table = (): ContentTable | undefined => CONTENT[getLanguage()];
 
 export function recipeName(id: string): string {
-  return (korean() && KO_RECIPES[id]?.name) || getRecipe(id).name;
+  return table()?.recipes[id]?.name || getRecipe(id).name;
 }
 
 /** A recipe's rules text (`{damage}` is filled in by the card renderer). */
 export function recipeText(id: string): string {
-  return (korean() && KO_RECIPES[id]?.text) || getRecipe(id).text;
+  return table()?.recipes[id]?.text || getRecipe(id).text;
 }
 
-/** The text on a recipe's Flask card: English has shorter card texts for long recipes. */
+/** The text on a recipe's Flask card: a long recipe text can have a shorter version for cards. */
 function recipeCardText(id: string): string {
-  if (korean() && KO_RECIPES[id]) return KO_RECIPES[id].text;
-  const recipe = getRecipe(id);
+  const recipe = table()?.recipes[id] ?? getRecipe(id);
   return recipe.cardText ?? recipe.text;
 }
 
@@ -38,7 +48,7 @@ export function cardName(def: CardDef): string {
   if (recipe) {
     return t(distilledKind(def.id) === 'flask' ? 'distilled.flask' : 'distilled.essence', { recipe: recipeName(recipe) });
   }
-  return (korean() && KO_CARDS[def.id]?.name) || def.name;
+  return table()?.cards[def.id]?.name || def.name;
 }
 
 /** A card's rules text (`{damage}` is filled in by the card renderer). */
@@ -46,38 +56,38 @@ export function cardText(def: CardDef): string {
   const recipe = distilledRecipe(def.id);
   if (recipe && distilledKind(def.id) === 'flask') return recipeCardText(recipe);
   if (recipe) return t('distilled.essenceText', { icons: getRecipe(recipe).elements.map((e) => ELEMENT_ICONS[e]).join('') });
-  return (korean() && KO_CARDS[def.id]?.text) || def.text;
+  return table()?.cards[def.id]?.text || def.text;
 }
 
 export function enemyName(id: string): string {
-  return (korean() && KO_ENEMIES[id]) || getEnemy(id).name;
+  return table()?.enemies[id] || getEnemy(id).name;
 }
 
 /** An enemy move's name (moves are looked up by their English name). */
 export function moveName(name: string): string {
-  return (korean() && KO_MOVES[name]) || name;
+  return table()?.moves[name] || name;
 }
 
 /** An act's name, e.g. "The Frostpeaks". */
 export function actName(act: number): string {
-  return (korean() && KO_ACTS[act]) || getAct(act).name;
+  return table()?.acts[act] || getAct(act).name;
 }
 
 export function relicName(id: string): string {
-  return (korean() && KO_RELICS[id]?.name) || getRelic(id).name;
+  return table()?.relics[id]?.name || getRelic(id).name;
 }
 
 export function relicText(id: string): string {
-  return (korean() && KO_RELICS[id]?.text) || getRelic(id).text;
+  return table()?.relics[id]?.text || getRelic(id).text;
 }
 
 export function skyName(id: string): string {
-  return (korean() && KO_SKY[id]?.name) || getSkyCard(id).name;
+  return table()?.sky[id]?.name || getSkyCard(id).name;
 }
 
 export function skyText(id: string): string {
-  const ko = korean() && KO_SKY[id];
-  return ko ? format(ko.text, { turns: getSkyCard(id).turns }) : getSkyCard(id).text;
+  const own = table()?.sky[id];
+  return own ? format(own.text, { turns: getSkyCard(id).turns }) : getSkyCard(id).text;
 }
 
 export function weatherName(weather: WeatherId): string {
@@ -93,11 +103,11 @@ export function elementName(element: ElementId): string {
 }
 
 export function eventName(id: string): string {
-  return (korean() && KO_EVENTS[id]?.name) || getEvent(id).name;
+  return table()?.events[id]?.name || getEvent(id).name;
 }
 
 export function eventText(id: string): string {
-  return (korean() && KO_EVENTS[id]?.text) || getEvent(id).text;
+  return table()?.events[id]?.text || getEvent(id).text;
 }
 
 function option(eventId: string, optionId: string) {
@@ -107,9 +117,9 @@ function option(eventId: string, optionId: string) {
 }
 
 export function optionLabel(eventId: string, optionId: string): string {
-  return (korean() && KO_EVENTS[eventId]?.options[optionId]?.label) || option(eventId, optionId).label;
+  return table()?.events[eventId]?.options[optionId]?.label || option(eventId, optionId).label;
 }
 
 export function optionText(eventId: string, optionId: string): string {
-  return (korean() && KO_EVENTS[eventId]?.options[optionId]?.text) || option(eventId, optionId).text;
+  return table()?.events[eventId]?.options[optionId]?.text || option(eventId, optionId).text;
 }

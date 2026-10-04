@@ -13,6 +13,10 @@ export const en = {
   'common.leave': 'Leave',
   'common.skip': 'Skip',
   'common.quit': 'Quit',
+  // Between a name and its description, e.g. "Kiln: …".
+  'common.colon': ': ',
+  /** Lists: "A, B and C" (see listOf). */
+  'list.sep': ', ',
   'list.and': ' and ',
 
   // Title, Grimoire, settings
@@ -92,7 +96,7 @@ export const en = {
   'event.paidGold': 'Paid {n} gold.',
   'event.lostHp': 'Lost {n} HP.',
   'event.foundRelic': 'Found the {name}!',
-  'event.bottled': 'Bottled a {name} potion.',
+  'event.bottled': 'Bottled a potion: {name}.',
   'event.learned': 'Learned {names}!',
   'event.infused': '{card} is infused with {element}.',
   'event.traded': '{card} became {newCard}.',
@@ -219,6 +223,8 @@ export const en = {
   'ev.enemyHeal': '{enemy} healed {n} HP.',
   'ev.shatter': '{enemy} shattered your Block!',
   'ev.lasting': '{name} lasts for the rest of the fight.',
+  // A relic or a Lasting card did its thing.
+  'ev.triggered': '{name}!',
 
   // The run: map, rewards, rest sites, shops, events
   'run.hp': 'HP',
@@ -257,7 +263,7 @@ export const en = {
   'fight.eliteFloor': 'Elite · Floor {floor}',
   'reward.title': 'Victory!',
   'reward.herb': '+{n} HP (Healing Herb)',
-  'reward.potion': 'Found a {name} potion!',
+  'reward.potion': 'Found a potion: {name}!',
   'reward.choose': 'Choose a card to add to your deck:',
   'reward.distilledNote': 'Distilled cards come from recipes brewed in this fight.',
   'reward.distilled': 'Distilled',

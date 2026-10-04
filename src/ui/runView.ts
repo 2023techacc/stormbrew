@@ -213,7 +213,7 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
     if (d.action === 'sky') return ((showSky = true), render());
     if (d.action === 'close') return ((showDeck = false), (showSky = false), render());
     if (d.relic) {
-      return go(screen, `${RELIC_ICONS[d.relic] ?? ''} ${relicName(d.relic)}: ${relicText(d.relic)}`);
+      return go(screen, `${RELIC_ICONS[d.relic] ?? ''} ${relicName(d.relic)}${t('common.colon')}${relicText(d.relic)}`);
     }
     if (d.potionInfo) {
       const text = potionText(d.potionInfo);
@@ -447,7 +447,7 @@ function renderReward(rewards: FightRewards): string {
     <p>+${rewards.gold} ${ICONS.gold}${rewards.healed > 0 ? ` · ${esc(t('reward.herb', { n: rewards.healed }))}` : ''}</p>
     ${
       relic
-        ? `<p class="relic-found">${RELIC_ICONS[relic] ?? ''} <strong>${esc(relicName(relic))}</strong>: ${esc(relicText(relic))}</p>`
+        ? `<p class="relic-found">${RELIC_ICONS[relic] ?? ''} <strong>${esc(relicName(relic))}</strong>${esc(t('common.colon'))}${esc(relicText(relic))}</p>`
         : ''
     }
     ${rewards.potion ? `<p class="relic-found">${ICONS.potion} ${esc(t('reward.potion', { name: recipeName(rewards.potion) }))}</p>` : ''}

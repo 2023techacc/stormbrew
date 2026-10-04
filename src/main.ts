@@ -1,6 +1,6 @@
 import './style.css';
 import { SANDBOX_ENEMIES, createSandbox } from './core/sandbox';
-import { setLanguage, type Lang } from './i18n';
+import { langTag, setLanguage, type Lang } from './i18n';
 import { showCombat } from './ui/combatView';
 import { setVibrationEnabled } from './ui/haptics';
 import { showRun } from './ui/runView';
@@ -33,7 +33,7 @@ function applySettings(s: Settings): void {
 
 function applyLanguage(lang: Lang): void {
   setLanguage(lang);
-  document.documentElement.lang = lang;
+  document.documentElement.lang = langTag(lang);
 }
 
 function goToTitle(): void {
