@@ -62,7 +62,8 @@ import { esc, fitCards } from './dom';
 import { combatFeedback } from './feedback';
 import { playSfx } from './sound';
 import { CARD_KIND_COLORS, RARE_COLOR, cardIcon, ELEMENTS, ENEMY_LOOKS, ICONS, RELIC_ICONS, WEATHERS } from './theme';
-import { flashSky, motionAllowed, setWeatherFx } from './weatherFx';
+import { burst, capture, flash, floatText, fly, motionAllowed, shake } from './motion';
+import { flashSky, setWeatherFx } from './weatherFx';
 
 export interface CombatViewOptions {
   state: CombatState;
@@ -96,6 +97,8 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
   let shownHand = new Set<number>();
   let shownTurn = 0;
   let entering = true;
+  /** The next render follows the end of a turn: the new hand waits for the old one to fly to the discard pile. */
+  let drawDelay = false;
   let wasPlaying = state.status === 'playing';
 
   const render = () => {
@@ -114,9 +117,11 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
       known,
       fresh,
       entering,
+      drawDelay,
     });
     fitCards(root);
     entering = false;
+    drawDelay = false;
   };
 
   /** After anything happens: learn brewed recipes, describe it, redraw, animate, play sounds, save. */
@@ -126,8 +131,15 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
     if (found.length) {
       hint += ` ${ICONS.grimoire} ${t('combat.newRecipe', { names: listOf(found.map(recipeName)) })}`;
     }
+    const before = readScreen(root);
+    const turnBefore = shownTurn;
     render();
     animate(root, events);
+    animateChanges(root, before, readScreen(root), state, {
+      newTurn: state.turn > turnBefore && state.status === 'playing',
+      ended: wasPlaying && state.status !== 'playing',
+      lunges: events.filter((e) => e.type === 'enemyMove' && e.move.damage).length,
+    });
     combatFeedback(events, state, wasPlaying);
     wasPlaying = state.status === 'playing';
     options.onChange?.(state);
@@ -135,7 +147,7 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
 
   const tryPlay = (uid: number, targetIndex?: number) => {
     const card = state.hand.find((c) => c.uid === uid);
-    const ghost = captureCard(root, uid);
+    const ghost = capture(root.querySelector(`[data-uid="${uid}"]`));
     const intoCauldron =
       card !== undefined &&
       cardEffects(card, state.weather.current).some((e) => e.type === 'addElement' || e.type === 'brew' || e.type === 'catchWeather');
@@ -158,10 +170,11 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
           : intoCauldron
             ? '.cauldron'
             : '[data-unit="player"]';
-    if (ghost) flyGhost(ghost, root.querySelector(target));
+    fly(ghost, root.querySelector(target));
   };
 
   const tryPotion = (index: number, targetIndex?: number) => {
+    const ghost = capture(root.querySelector(`[data-potion="${index}"]`));
     const result = usePotion(state, index, targetIndex);
     if (!result.ok) {
       playSfx('deny');
@@ -171,6 +184,9 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
     }
     selectedPotion = null;
     after(result.events);
+    fly(ghost, root.querySelector(targetIndex !== undefined ? `[data-unit="enemy-${targetIndex}"]` : '[data-unit="player"]'), {
+      endScale: 0.6,
+    });
   };
 
   const onPotionTap = (index: number) => {
@@ -248,7 +264,12 @@ export function showCombat(root: HTMLElement, options: CombatViewOptions): void 
     selectedUid = null;
     selectedPotion = null;
     playSfx('endTurn');
+    // The hand flies to the discard pile while the new one is dealt.
+    const ghosts = state.status === 'playing' ? state.hand.map((c) => capture(root.querySelector(`[data-uid="${c.uid}"]`))) : [];
+    drawDelay = ghosts.some(Boolean);
     after(endTurn(state));
+    const pile = root.querySelector('[data-pile="discard"]');
+    ghosts.forEach((ghost, i) => fly(ghost, pile, { delay: i * 40, duration: 320, endScale: 0.2 }));
   };
 
   root.onclick = (event) => {
@@ -331,6 +352,8 @@ interface CombatUi {
   fresh: readonly number[];
   /** The fight's first render (the screen fades in). */
   entering: boolean;
+  /** Just after the end of a turn: drawn cards wait for the old hand to leave. */
+  drawDelay: boolean;
 }
 
 function renderCombat(state: CombatState, ui: CombatUi): string {
@@ -342,7 +365,7 @@ function renderCombat(state: CombatState, ui: CombatUi): string {
   const { player } = state;
 
   return `
-    <main class="combat ${ui.entering ? 'enter' : ''}" style="--weather-color: ${WEATHERS[state.weather.current].color}">
+    <main class="combat ${ui.entering ? 'enter' : ''} ${state.status === 'lost' ? 'lost' : ''}" style="--weather-color: ${WEATHERS[state.weather.current].color}">
       <header class="top-bar">
         <span>${ui.label ? `${esc(ui.label)} · ` : ''}${esc(t('combat.turn', { turn: state.turn }))}</span>
         ${ui.sandbox ? renderSandboxTools() : ''}
@@ -370,12 +393,12 @@ function renderCombat(state: CombatState, ui: CombatUi): string {
         </span>
       </section>
 
-      <section class="hand" aria-label="${esc(t('combat.hand'))}" style="--n: ${state.hand.length}">
+      <section class="hand" aria-label="${esc(t('combat.hand'))}" style="--n: ${state.hand.length}${ui.drawDelay ? '; --draw-delay: 0.3s' : ''}">
         ${state.hand.map((c) => renderCard(state, c, c.uid === selectedUid, ui.fresh.indexOf(c.uid))).join('')}
       </section>
 
       <footer class="controls">
-        <span class="pile" title="${esc(t('combat.drawPile'))}">${ICONS.drawPile} ${state.drawPile.length}</span>
+        <span class="pile" data-pile="draw" title="${esc(t('combat.drawPile'))}">${ICONS.drawPile} ${state.drawPile.length}</span>
         <button class="stance ${player.exposed ? 'out' : 'cover'} ${canTakeCover(state) ? '' : 'locked'}" data-action="exposure"
           aria-label="${esc(t(player.exposed ? 'combat.outAria' : 'combat.coverAria'))}">
           <span>${player.exposed ? WEATHERS[state.weather.current].icon : ICONS.cover}</span>
@@ -384,7 +407,7 @@ function renderCombat(state: CombatState, ui: CombatUi): string {
         <button class="primary-button" data-action="end-turn" ${state.status === 'playing' ? '' : 'disabled'}>
           ${esc(t('combat.endTurn'))}
         </button>
-        <span class="pile" title="${esc(t('combat.discardPile'))}">${ICONS.discardPile} ${state.discardPile.length}</span>
+        <span class="pile" data-pile="discard" title="${esc(t('combat.discardPile'))}">${ICONS.discardPile} ${state.discardPile.length}</span>
       </footer>
 
       ${ui.overlay === 'recipes' ? renderRecipeBook(state, ui.known) : ''}
@@ -989,75 +1012,143 @@ function animate(root: HTMLElement, events: CombatEvent[]): void {
     if (event.type !== 'damage' && event.type !== 'block') continue;
     const unit = root.querySelector<HTMLElement>(unitSelector(event.target));
     if (!unit) continue;
-    const float = document.createElement('span');
     if (event.type === 'damage') {
-      float.className = `float damage ${event.source ?? ''}`;
       const icon = event.source === 'burn' ? ` ${ICONS.burn}` : event.source === 'lightning' ? ` ${ICONS.lightning}` : '';
-      float.textContent = event.amount > 0 ? `-${event.amount}${icon}` : t('combat.blocked');
+      floatText(unit, event.amount > 0 ? `-${event.amount}${icon}` : t('combat.blocked'), `damage ${event.source ?? ''}`);
       if (event.amount > 0) flash(unit);
       if (event.source === 'lightning') {
         flash(root.querySelector('.combat'), 'lightning-flash');
         flashSky();
       }
-    } else {
-      float.className = 'float block';
-      float.textContent = `+${event.amount} ${ICONS.block}`;
-    }
-    unit.appendChild(float);
-    float.addEventListener('animationend', () => float.remove());
+    } else floatText(unit, `+${event.amount} ${ICONS.block}`, 'block');
   }
 }
 
-/** A copy of a card in hand and where it is, so it can fly off after being played. */
-function captureCard(root: HTMLElement, uid: number): { el: HTMLElement; rect: DOMRect } | null {
-  const card = root.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
-  if (!card || !motionAllowed()) return null;
-  return { el: card.cloneNode(true) as HTMLElement, rect: card.getBoundingClientRect() };
+/** What a unit showed on screen, read back from it so the next redraw can animate the change. */
+interface ShownUnit {
+  alive: boolean;
+  hp: number;
+  maxHp: number;
+  block: number;
+  burn: number;
+  weak: number;
+  intent: string;
 }
 
-/** Flies a played card's copy to its target (an enemy, the cauldron or you) and fades it. */
-function flyGhost(ghost: { el: HTMLElement; rect: DOMRect }, target: Element | null): void {
-  const { el, rect } = ghost;
-  el.removeAttribute('data-uid');
-  el.classList.remove('selected', 'drawn');
-  el.classList.add('card-ghost');
-  el.setAttribute('aria-hidden', 'true');
-  Object.assign(el.style, { left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
-  el.style.setProperty('--card-width', `${rect.width}px`);
-  document.body.appendChild(el);
-  const to = target?.getBoundingClientRect();
-  const dx = to ? to.left + to.width / 2 - (rect.left + rect.width / 2) : 0;
-  const dy = to ? to.top + to.height / 2 - (rect.top + rect.height / 2) : -120;
-  const flight = el.animate(
-    [
-      { transform: 'translate(0, 0) scale(1)', opacity: 1 },
-      { transform: `translate(${dx * 0.5}px, ${dy * 0.5 - 30}px) scale(0.75)`, opacity: 0.9, offset: 0.55 },
-      { transform: `translate(${dx}px, ${dy}px) scale(0.3)`, opacity: 0 },
-    ],
-    { duration: 380, easing: 'ease-in' },
-  );
-  flight.onfinish = () => el.remove();
-  flight.oncancel = () => el.remove();
+interface Shown {
+  units: Map<string, ShownUnit>;
+  energy: number;
 }
 
-function floatText(parent: HTMLElement, text: string, className: string): void {
-  const float = document.createElement('span');
-  float.className = `float ${className}`;
-  float.textContent = text;
-  parent.appendChild(float);
-  float.addEventListener('animationend', () => float.remove());
+const firstNumbers = (el: Element | null): number[] => (el?.textContent?.match(/\d+/g) ?? []).map(Number);
+
+function readScreen(root: HTMLElement): Shown {
+  const units = new Map<string, ShownUnit>();
+  for (const el of root.querySelectorAll<HTMLElement>('[data-unit]')) {
+    const [hp = 0, maxHp = 1] = firstNumbers(el.querySelector('.hp-text'));
+    units.set(el.dataset.unit ?? '', {
+      alive: !el.classList.contains('defeated'),
+      hp,
+      maxHp,
+      block: firstNumbers(el.querySelector('.block-badge'))[0] ?? 0,
+      burn: firstNumbers(el.querySelector('.burn-badge'))[0] ?? 0,
+      weak: firstNumbers(el.querySelector('.weak-badge'))[0] ?? 0,
+      intent: el.querySelector('.intent')?.textContent?.trim() ?? '',
+    });
+  }
+  return { units, energy: firstNumbers(root.querySelector('.energy-value'))[0] ?? 0 };
 }
 
-function flash(el: Element | null, className = 'hit'): void {
-  if (!el) return;
-  el.classList.remove(className);
-  void (el as HTMLElement).offsetWidth; // restart the animation
-  el.classList.add(className);
+/**
+ * Animates what changed between two redraws: health bars slide (a hit leaves a
+ * pale chunk that drains away), defeated enemies fall, new Block, Burn, Weak
+ * and intents pop in, the energy orb empties or refills, a new turn shows a
+ * banner, and the end of the fight brings in its result.
+ */
+function animateChanges(
+  root: HTMLElement,
+  before: Shown,
+  now: Shown,
+  state: CombatState,
+  what: { newTurn: boolean; ended: boolean; lunges: number },
+): void {
+  for (const [key, was] of before.units) {
+    const is = now.units.get(key);
+    const unit = root.querySelector<HTMLElement>(`[data-unit="${key}"]`);
+    if (!is || !unit) continue;
+    if (was.alive && !is.alive) {
+      const enemy = state.enemies[Number(key.split('-')[1])];
+      fall(unit, enemy ? (ENEMY_LOOKS[enemy.defId]?.icon ?? '👾') : '👾');
+      continue;
+    }
+    if (!is.alive) continue;
+    if (was.hp !== is.hp) slideHp(unit, was, is);
+    if (is.block > was.block) flash(unit.querySelector('.block-badge'), 'pop');
+    if (is.burn > was.burn) flash(unit.querySelector('.burn-badge'), 'pop');
+    if (is.weak > was.weak) flash(unit.querySelector('.weak-badge'), 'pop');
+    if (was.intent && is.intent !== was.intent) flash(unit.querySelector('.intent'), 'intent-new');
+  }
+  if (now.energy < before.energy) flash(root.querySelector('.energy'), 'spend');
+  else if (now.energy > before.energy) flash(root.querySelector('.energy'), 'refill');
+  if (what.newTurn && motionAllowed()) {
+    const banner = document.createElement('span');
+    banner.className = 'turn-banner';
+    banner.setAttribute('aria-hidden', 'true');
+    banner.textContent = t('combat.turn', { turn: state.turn });
+    // After the enemies' attacks have landed.
+    banner.style.animationDelay = `${0.2 + what.lunges * 0.16}s`;
+    banner.addEventListener('animationend', () => banner.remove());
+    root.querySelector('.combat')?.appendChild(banner);
+  }
+  if (what.ended) {
+    flash(root.querySelector('.overlay'), 'fade-in');
+    const panel = root.querySelector('.result-panel');
+    flash(panel, 'result-in');
+    if (state.status === 'won') burst(panel, ['✨', '⭐', ...Object.values(ELEMENTS).map((e) => e.icon)], 14);
+  }
 }
 
-function shake(el: Element | null): void {
-  if (!el) return;
-  el.classList.remove('shake');
-  void (el as HTMLElement).offsetWidth;
-  el.classList.add('shake');
+/** A health bar moves to its new value: a hit drops it at once and the lost part drains away; healing fills it up. */
+function slideHp(unit: HTMLElement, was: ShownUnit, is: ShownUnit): void {
+  const bar = unit.querySelector('.hp-bar');
+  const fill = bar?.querySelector<HTMLElement>('.hp-fill');
+  if (!bar || !fill || !motionAllowed()) return;
+  const pct = (u: ShownUnit) => Math.max(0, Math.min(100, (u.hp / Math.max(1, u.maxHp)) * 100));
+  const from = pct(was);
+  const to = pct(is);
+  if (to > from) {
+    fill.animate([{ width: `${from}%`, filter: 'brightness(1.6)' }, { width: `${to}%` }], { duration: 450, easing: 'ease-out' });
+    return;
+  }
+  const lost = document.createElement('span');
+  lost.className = 'hp-lost';
+  Object.assign(lost.style, { left: `${to}%`, width: `${from - to}%` });
+  bar.insertBefore(lost, bar.querySelector('.hp-text'));
+  const drain = lost.animate([{ width: `${from - to}%` }, { width: `${from - to}%`, offset: 0.35 }, { width: '0%' }], {
+    duration: 800,
+    easing: 'ease-in',
+  });
+  drain.onfinish = () => lost.remove();
+  drain.oncancel = () => lost.remove();
+}
+
+/** A defeated enemy's figure tips over and fades while the puff of smoke takes its place. */
+function fall(unit: HTMLElement, icon: string): void {
+  flash(unit, 'dying');
+  const body = unit.querySelector<HTMLElement>('.enemy-body');
+  if (!body || !motionAllowed()) return;
+  // Laid over the body rather than inside it, which is still hidden until its puff of smoke pops in.
+  const figure = document.createElement('span');
+  figure.className = 'falling';
+  figure.setAttribute('aria-hidden', 'true');
+  figure.textContent = icon;
+  Object.assign(figure.style, {
+    left: `${body.offsetLeft}px`,
+    top: `${body.offsetTop}px`,
+    width: `${body.offsetWidth}px`,
+    height: `${body.offsetHeight}px`,
+    fontSize: getComputedStyle(body).fontSize,
+  });
+  unit.appendChild(figure);
+  figure.addEventListener('animationend', () => figure.remove());
 }

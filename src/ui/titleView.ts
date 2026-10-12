@@ -12,8 +12,9 @@ import { baseText } from './text';
 import { ELEMENTS, ICONS, WEATHERS, type Look } from './theme';
 import { setWeatherFx } from './weatherFx';
 
-const chip = (look: Look, name: string) =>
-  `<span class="chip" style="--chip-color: ${look.color}" title="${esc(name)}">${look.icon}</span>`;
+/** A weather or element on the title screen; `i` staggers their gentle bobbing. */
+const chip = (look: Look, name: string, i: number) =>
+  `<span class="chip" style="--chip-color: ${look.color}; --i: ${i}" title="${esc(name)}">${look.icon}</span>`;
 
 export interface TitleActions {
   /** Present when there is a saved run to continue. */
@@ -36,10 +37,10 @@ export function showTitle(root: HTMLElement, actions: TitleActions): void {
           <p class="tagline">${esc(t('title.tagline'))}</p>
         </header>
         <section class="row" aria-label="${esc(t('title.weathers'))}">
-          ${(Object.keys(WEATHERS) as WeatherId[]).map((w) => chip(WEATHERS[w], weatherName(w))).join('')}
+          ${(Object.keys(WEATHERS) as WeatherId[]).map((w, i) => chip(WEATHERS[w], weatherName(w), i)).join('')}
         </section>
         <section class="row" aria-label="${esc(t('title.elements'))}">
-          ${(Object.keys(ELEMENTS) as ElementId[]).map((e) => chip(ELEMENTS[e], elementName(e))).join('')}
+          ${(Object.keys(ELEMENTS) as ElementId[]).map((e, i) => chip(ELEMENTS[e], elementName(e), i + 2)).join('')}
         </section>
         <span class="title-buttons">
           ${actions.onContinue ? `<button class="primary-button" data-action="continue">${esc(t('title.continue'))}</button>` : ''}
