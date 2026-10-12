@@ -546,11 +546,28 @@ Part 2 of Milestone 10 added rare cards, relics, recipes, potions and events
   motes. A new weather rolls in while the old one fades out, and lightning
   flashes the sky.
 - **Motion**: screens fade in, drawn cards slide in from the draw pile, a
-  played card flies to its target, attacking enemies lunge, and elements pop
-  into the cauldron.
+  played card (or potion) flies to its target, attacking enemies lunge, and
+  elements pop into the cauldron. Round 3 added:
+  - **Health bars**: a hit drops the bar and the lost part drains away;
+    healing fills it up.
+  - **Turns**: at the end of a turn the hand flies to the discard pile before
+    the new one is dealt, and "Turn 3" shows across the fight.
+  - **Small changes pop in**: new Block, Burn, Weak and enemy intents. The
+    energy orb dips when spent and glows when refilled.
+  - **Defeated enemies** tip over and fade into a puff of smoke.
+  - **The end of a fight**: the result pops in, with sparks for a win; a lost
+    fight goes grey.
+  - **Run screens**: rewards, shop stock and event choices are dealt in one
+    after another. A card you take flies to the deck counter, gold counts up
+    or down, healing glows, and a new relic or potion pops into the bar.
+  - **Title and taps**: the title's weathers and elements bob gently, and
+    everything you can tap gives a little under your finger.
+  Shared helpers live in `src/ui/motion.ts`.
 - **Settings** can turn sound, vibration and weather effects off (effects off
-  also stops the livelier animations). Phones set to reduce motion get no
-  particles or animations.
+  also stops the livelier animations: flying cards, falling enemies, banners,
+  sparks, pops and counting). Phones set to reduce motion get no particles or
+  animations, and looping ones (pulsing, bobbing) play once instead of
+  flickering.
 - **App icon and splash screen**: lightning from a storm cloud into a bubbling
   cauldron, on the game's night blue. The art is plain shapes in
   `resources/icon.svg`, and the Android icon and splash screen use the same
@@ -629,7 +646,7 @@ Important choices:
 | 6 | **Discovery & potions** ✅ | Grimoire (persistent), Bottling, potions, auto-save and resume |
 | 7 | **Identity** (A–D done, see §11) | The features that make Stormbrew play differently from *Slay the Spire*: Exposure, enemy cauldrons, the Sky Deck, Distilling |
 | 8 | **MVP content & balance** ✅ | MVP content targets reached (§5), events, a balance pass with a computer player and `WEATHER_INTERVAL` tested (§12). Playtesting on real phones is still to do |
-| 9 | **Polish** (in progress) | Languages (English, Korean, Japanese, Simplified Chinese and Spanish) ✅. Round 1 ✅: animations, sound, vibration feedback, weather particles, app icon and splash screen (§6.5). Round 2 ✅: every screen fits the phone without scrolling (§6.2), fewer vibrations. Later: new enemy and card art (§6.3). Next rounds follow feedback from playing on a phone |
+| 9 | **Polish** (in progress) | Languages (English, Korean, Japanese, Simplified Chinese and Spanish) ✅. Round 1 ✅: animations, sound, vibration feedback, weather particles, app icon and splash screen (§6.5). Round 2 ✅: every screen fits the phone without scrolling (§6.2), fewer vibrations. Round 3 ✅: more motion (health bars, turns, defeated enemies, results, run screens; §6.5). Later: new enemy and card art (§6.3). Next rounds follow feedback from playing on a phone |
 | 10 | **Expansion** (in progress) | Acts 2–3 with their own enemies, elites and bosses, and boss relics ✅ (§5.6). Rare and Lasting cards, relics, recipes, potions by act and events ✅ (§5.7). Later: Fog/Gale/Eclipse, a second character, ascension levels, iOS/desktop builds |
 
 Milestones 1–3 prove the game's core idea. If combat with weather and brewing

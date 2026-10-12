@@ -65,6 +65,7 @@ import {
 } from '../i18n/content';
 import { cardFace, showCombat } from './combatView';
 import { esc, fitCards } from './dom';
+import { capture, countTo, flash, fly, type Ghost } from './motion';
 import { playSfx, type Sfx } from './sound';
 import { clearRun, saveGrimoire, saveRun } from './storage';
 import { baseText } from './text';
@@ -96,6 +97,8 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
    * redrawing the same screen keeps the position.
    */
   let scroll: 'map' | 'top' | 'keep' = 'map';
+  /** The header's numbers at the last render, so a change can be animated (gold counting, a new relic popping in). */
+  let shown: HeaderNumbers | null = null;
 
   /** Saves the run (and the fight in progress, if any). A finished run is deleted. */
   const persist = (combat?: CombatState) => {
@@ -151,6 +154,8 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
       </main>
     `;
     fitCards(root);
+    animateHeader(root, shown, run);
+    shown = { hp: run.hp, gold: run.gold, relics: run.relics.length, potions: run.potions.length };
     if (scroll === 'map') root.querySelector('.map-node.reachable')?.scrollIntoView({ block: 'center' });
     else window.scrollTo(0, scroll === 'top' ? 0 : scrollY);
     scroll = 'keep';
@@ -167,6 +172,12 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
     const elite = node.type === 'elite' || node.type === 'event';
     const floor = runFloor(run, node);
     showFight(state, node.type === 'boss' ? t('fight.boss') : t(elite ? 'fight.eliteFloor' : 'fight.floor', { floor }));
+  };
+
+  /** Flies something you just took to its place in the header (once the screen is redrawn), which then bumps. */
+  const flyToHeader = (ghost: Ghost | null, where: 'deck' | 'sky') => {
+    const target = root.querySelector(`.run-header [data-action="${where}"]`);
+    fly(ghost, target, { duration: 450, endScale: 0.25, onLand: () => flash(target, 'bump') });
   };
 
   /** Plays an action's sound, or the "can't do that" sound when it wasn't allowed. */
@@ -245,9 +256,11 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
     }
 
     if (screen.name === 'reward') {
+      const ghost = d.reward ? capture(el) : null;
       if (d.reward) addCardToDeck(run, d.reward);
       if (d.reward || d.action === 'skip') playSfx(d.reward ? 'card' : 'tap');
       if (d.reward || d.action === 'skip') leaveRewards(d.reward ? t('run.added', { name: cardName(getCard(d.reward)) }) : '');
+      flyToHeader(ghost, 'deck');
       return;
     }
 
@@ -298,9 +311,12 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
         return afterEvent(pickEventSky(run, Number(d.skyIndex), grimoire));
       }
       if (d.eventCard !== undefined && screen.step === 'pickReward') {
+        const ghost = capture(el);
         const result = pickEventReward(run, Number(d.eventCard), grimoire);
-        if (result.ok) playSfx('card');
-        return result.ok ? go({ name: 'map' }, result.message) : afterEvent(result);
+        if (!result.ok) return afterEvent(result);
+        playSfx('card');
+        go({ name: 'map' }, result.message);
+        return flyToHeader(ghost, 'deck');
       }
       if (d.action === 'leave') return go({ name: 'map' });
       return;
@@ -312,9 +328,11 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
       if (d.action === 'remove') return go({ name: 'shop', removing: true }, t('run.pickRemove'));
       if (d.action === 'back') return go({ name: 'shop', removing: false });
       if (d.buyCard !== undefined) {
+        const ghost = capture(el);
         const result = buyCard(run, Number(d.buyCard));
         sound(result, 'coin');
-        return go(screen, result.ok ? t('run.bought') : result.reason);
+        go(screen, result.ok ? t('run.bought') : result.reason);
+        return result.ok ? flyToHeader(ghost, 'deck') : undefined;
       }
       if (d.buyRelic !== undefined) {
         const result = buyRelic(run, Number(d.buyRelic));
@@ -327,9 +345,11 @@ export function showRun(root: HTMLElement, options: RunViewOptions): void {
         return go(screen, result.ok ? t('run.bought') : result.reason);
       }
       if (d.buySky !== undefined) {
+        const ghost = capture(el.querySelector('.relic-icon'));
         const result = buySky(run, Number(d.buySky));
         sound(result, 'coin');
-        return go(screen, result.ok ? t('run.addedToSky') : result.reason);
+        go(screen, result.ok ? t('run.addedToSky') : result.reason);
+        return result.ok ? flyToHeader(ghost, 'sky') : undefined;
       }
       if (d.deckIndex !== undefined && screen.removing) {
         const card = run.deck[Number(d.deckIndex)];
@@ -375,11 +395,31 @@ function potionText(recipeId: string): string {
 /** "💰 60" */
 const goldAmount = (amount: number) => `${ICONS.gold} ${amount}`;
 
+interface HeaderNumbers {
+  hp: number;
+  gold: number;
+  relics: number;
+  potions: number;
+}
+
+/** Gold counts up or down to its new amount, healing glows, and new relics and potions pop into the bar. */
+function animateHeader(root: HTMLElement, before: HeaderNumbers | null, run: RunState): void {
+  if (!before) return;
+  const gold = root.querySelector('[data-stat="gold"]');
+  if (run.gold !== before.gold) {
+    countTo(gold?.querySelector('.stat-value'), before.gold, run.gold);
+    flash(gold, 'bump');
+  }
+  if (run.hp > before.hp) flash(root.querySelector('[data-stat="hp"]'), 'heal-glow');
+  for (const relic of [...root.querySelectorAll('.relic-bar [data-relic]')].slice(before.relics)) flash(relic, 'pop');
+  for (const potion of [...root.querySelectorAll('.relic-bar [data-potion-info]')].slice(before.potions)) flash(potion, 'pop');
+}
+
 function renderHeader(run: RunState): string {
   return `
     <header class="run-header">
-      <span class="stat" title="${esc(t('run.hp'))}">${ICONS.hp} ${run.hp}/${run.maxHp}</span>
-      <span class="stat" title="${esc(t('run.gold'))}">${ICONS.gold} ${run.gold}</span>
+      <span class="stat" data-stat="hp" title="${esc(t('run.hp'))}">${ICONS.hp} ${run.hp}/${run.maxHp}</span>
+      <span class="stat" data-stat="gold" title="${esc(t('run.gold'))}">${ICONS.gold} <span class="stat-value">${run.gold}</span></span>
       <span class="header-buttons">
         <button class="tool-button" data-action="sky" title="${esc(t('run.sky'))}">${ICONS.sky} ${run.sky.length}</button>
         <button class="tool-button" data-action="deck" title="${esc(t('run.deck'))}">${ICONS.deck} ${run.deck.length}</button>
